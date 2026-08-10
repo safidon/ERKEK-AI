@@ -4,11 +4,16 @@ from app.brain.summary_storage import (
 )
 
 from app.brain.conversation import (
-    get_messages_after
+    get_messages_after,
+    get_latest_message_id
 )
 
 from app.brain.conversation_summary import (
     summarize_conversation
+)
+
+from app.brain.conversation_archive import (
+    archive_summarized_messages
 )
 
 
@@ -29,7 +34,6 @@ def format_messages_for_summary(
     parts = []
 
     for message in messages:
-
         role = message["role"]
         content = message["content"]
 
@@ -53,12 +57,19 @@ def update_conversation_summary(
     """
     Conversation summary-ді incremental түрде жаңартады.
 
-    Ескі summary-ді алады.
-    Тек одан кейін келген жаңа хабарламаларды қосады.
-    Содан кейін жаңартылған summary-ді базаға сақтайды.
+    Логика:
+    - бұрынғы summary алады;
+    - last_message_id алады;
+    - тек жаңа хабарламаларды алады;
+    - threshold жетсе summary жаңартады;
+    - жаңа last_message_id сақтайды;
+    - summary-ге кірген ескі хабарламаларды archive-ке жібереді.
     """
 
-    # 1. Қазіргі summary күйі
+    # =================================================
+    # 1. ҚАЗІРГІ SUMMARY STATE
+    # =================================================
+
     state = get_summary_state(
         user_id
     )
@@ -66,13 +77,20 @@ def update_conversation_summary(
     old_summary = state["summary"]
     last_message_id = state["last_message_id"]
 
-    # 2. Summary-ден кейінгі жаңа хабарламалар
+    # =================================================
+    # 2. SUMMARY-ДЕН КЕЙІНГІ ЖАҢА ХАБАРЛАМАЛАР
+    # =================================================
+
     new_messages = get_messages_after(
-        user_id,
-        last_message_id
+        user_id=user_id,
+        last_message_id=last_message_id,
+        limit=20
     )
 
-    # Жаңа хабарлама жоқ
+    # =================================================
+    # 3. ЖАҢА MESSAGE ЖОҚ
+    # =================================================
+
     if not new_messages:
 
         if old_summary:
@@ -80,25 +98,33 @@ def update_conversation_summary(
 
         return "Әңгіме summary жоқ."
 
-    # 3. Хабарлама аз болса summary-ді әзірге жаңартпаймыз
+    # =================================================
+    # 4. THRESHOLD ЖЕТПЕСЕ
+    # =================================================
+
     if (
         not force
-        and old_summary is not None
         and len(new_messages) < SUMMARY_UPDATE_THRESHOLD
     ):
-        return old_summary
 
-    # 4. Жаңа хабарламаларды мәтінге айналдыру
+        if old_summary:
+            return old_summary
+
+        return "Әңгіме summary жоқ."
+
+    # =================================================
+    # 5. ЖАҢА MESSAGE-ТЕРДІ FORMAT ЖАСАУ
+    # =================================================
+
     new_history = format_messages_for_summary(
         new_messages
     )
 
-    # 5. Алғашқы summary болса
-    if not old_summary:
+    # =================================================
+    # 6. SUMMARY INPUT
+    # =================================================
 
-        summary_input = new_history
-
-    else:
+    if old_summary:
 
         summary_input = (
             "БҰРЫНҒЫ SUMMARY:\n"
@@ -108,19 +134,97 @@ def update_conversation_summary(
             + new_history
         )
 
-    # 6. Жаңа summary жасау
+    else:
+
+        summary_input = new_history
+
+    # =================================================
+    # 7. ЖАҢА SUMMARY
+    # =================================================
+
     new_summary = summarize_conversation(
         summary_input
     )
 
-    # 7. Summary қай message-ге дейін жеткенін анықтау
+    # =================================================
+    # 8. SUMMARY VALIDATION
+    # =================================================
+
+    if not new_summary:
+        return old_summary or "Әңгіме summary жоқ."
+
+    if new_summary in [
+        "Әңгіме summary жоқ.",
+        "Әңгіме summary жасау кезінде қате шықты."
+    ]:
+        return old_summary or "Әңгіме summary жоқ."
+
+    # =================================================
+    # 9. СОҢҒЫ MESSAGE ID
+    # =================================================
+
     newest_message_id = new_messages[-1]["id"]
 
-    # 8. SQLite-қа сақтау
+    # =================================================
+    # 10. SUMMARY STATE САҚТАУ
+    # =================================================
+
     save_summary(
         user_id=user_id,
         summary=new_summary,
         last_message_id=newest_message_id
     )
 
+    # =================================================
+    # 11. AUTO ARCHIVE
+    # =================================================
+
+    try:
+        archive_summarized_messages(
+            user_id
+        )
+
+    except Exception as archive_error:
+
+        # Archive істемей қалса да
+        # summary pipeline тоқтамауы тиіс.
+        print(
+            f"[SUMMARY ARCHIVE ERROR] "
+            f"user_id={user_id} "
+            f"error={archive_error}"
+        )
+
+    # =================================================
+    # 12. RESULT
+    # =================================================
+
     return new_summary
+
+
+def get_summary_debug_state(
+    user_id: str
+) -> dict:
+    """
+    Debug үшін summary күйін көрсетеді.
+    """
+
+    state = get_summary_state(
+        user_id
+    )
+
+    latest_message_id = get_latest_message_id(
+        user_id
+    )
+
+    pending_messages = get_messages_after(
+        user_id=user_id,
+        last_message_id=state["last_message_id"],
+        limit=100
+    )
+
+    return {
+        "summary_exists": bool(state["summary"]),
+        "last_summarized_message_id": state["last_message_id"],
+        "latest_message_id": latest_message_id,
+        "pending_message_count": len(pending_messages)
+    }

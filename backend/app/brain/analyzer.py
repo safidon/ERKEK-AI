@@ -1,28 +1,24 @@
-def detect_category(message: str) -> str:
-    text = message.lower()
-
-    # 1. Әкелік жауапкершілік
-    if any(word in text for word in [
+CATEGORY_KEYWORDS = {
+    "fatherhood": [
         # Қазақша
         "балам", "балаларым", "балалар",
         "әкелік", "әкелік жауапкершілік",
-        "ұлым", "ұлым", "қызым",
+        "ұлым", "қызым",
         "баламен", "балалармен",
 
         # Орысша
         "дети", "детей", "ребёнок", "ребенок",
         "сын", "сыном", "дочь", "дочерью",
         "отцовство", "отцовская ответственность",
-        "мой ребенок", "мои дети"
-    ]):
-        return "fatherhood"
+        "мой ребенок", "мой ребёнок", "мои дети"
+    ],
 
-    # 2. Ажырасу және қарым-қатынас
-    if any(word in text for word in [
+    "relationship": [
         # Қазақша
         "әйел", "жұбай", "ажырас", "ажырасу",
         "неке", "отбасы", "махаббат",
-        "қарым-қатынас", "қызым", "сүйіктім",
+        "қарым-қатынас", "сүйіктім",
+        "бұрынғы әйел", "бұрынғы жұбай",
 
         # Орысша
         "жена", "женой", "супруга",
@@ -31,11 +27,9 @@ def detect_category(message: str) -> str:
         "отношения", "любовь",
         "бывшая", "бывший", "девушка",
         "расстались", "расставание"
-    ]):
-        return "relationship"
+    ],
 
-    # 3. Қаржы
-    if any(word in text for word in [
+    "finance": [
         # Қазақша
         "ақша", "қарыз", "қарызым",
         "банк", "несие", "табыс",
@@ -48,11 +42,9 @@ def detect_category(message: str) -> str:
         "доход", "зарплата",
         "финансы", "финансовый",
         "ипотека", "денег не хватает"
-    ]):
-        return "finance"
+    ],
 
-    # 4. Бизнес / кәсіп
-    if any(word in text for word in [
+    "business": [
         # Қазақша
         "бизнес", "кәсіп", "кәсіпкер",
         "кәсіп бастау", "бизнес бастау",
@@ -65,28 +57,26 @@ def detect_category(message: str) -> str:
         "стартап", "инвестиции",
         "инвестор", "клиенты",
         "продажи", "свой бизнес"
-    ]):
-        return "business"
+    ],
 
-    # 5. Мансап / жұмыс
-    if any(word in text for word in [
+    "career": [
         # Қазақша
         "жұмыс", "жұмыссыз",
         "мансап", "карьера",
         "қызмет", "жұмыстан",
         "жұмысымды жоғалттым",
+        "жұмыс таптым",
 
         # Орысша
         "работа", "работу", "работы",
         "работаю", "безработный",
         "карьера", "уволили",
         "уволился", "потерял работу",
-        "должность", "профессия"
-    ]):
-        return "career"
+        "должность", "профессия",
+        "нашел работу", "нашёл работу"
+    ],
 
-    # 6. Тәртіп және әдеттер
-    if any(word in text for word in [
+    "discipline": [
         # Қазақша
         "тәртіп", "әдет", "әдеттер",
         "дисциплина", "жалқаумын",
@@ -99,11 +89,9 @@ def detect_category(message: str) -> str:
         "прокрастинация", "не могу себя заставить",
         "не могу соблюдать режим",
         "режим", "срываюсь"
-    ]):
-        return "discipline"
+    ],
 
-    # 7. Жалғыздық
-    if any(word in text for word in [
+    "loneliness": [
         # Қазақша
         "жалғыз", "жалғыздық",
         "өзімді жалғыз сезінемін",
@@ -115,11 +103,9 @@ def detect_category(message: str) -> str:
         "одиноко", "я один",
         "никого нет", "нет друзей",
         "чувствую себя одиноким"
-    ]):
-        return "loneliness"
+    ],
 
-    # 8. Денсаулық
-    if any(word in text for word in [
+    "health": [
         # Қазақша
         "денсаулық", "ауру", "ауырып",
         "спорт", "зал", "жаттығу",
@@ -131,11 +117,9 @@ def detect_category(message: str) -> str:
         "болит", "спорт", "зал",
         "тренировка", "сон",
         "питание", "вес", "тело"
-    ]):
-        return "health"
+    ],
 
-    # 9. Өзін дамыту
-    if any(word in text for word in [
+    "self_development": [
         # Қазақша
         "өзімді дамыту", "даму",
         "өзін дамыту", "өзгергім келеді",
@@ -148,8 +132,97 @@ def detect_category(message: str) -> str:
         "хочу стать лучше",
         "цели", "самосовершенствование",
         "новый навык", "хочу развиваться"
-    ]):
-        return "self_development"
+    ],
+}
 
-    # 10. Жалпы
-    return "general"
+
+CATEGORY_PRIORITY = [
+    "fatherhood",
+    "relationship",
+    "finance",
+    "business",
+    "career",
+    "discipline",
+    "loneliness",
+    "health",
+    "self_development",
+]
+
+
+def detect_categories(message: str) -> dict:
+    """
+    Бір хабарламадағы барлық сәйкес категорияларды анықтайды.
+
+    Қайтарады:
+    {
+        "primary": "fatherhood",
+        "secondary": ["relationship", "finance"],
+        "all": ["fatherhood", "relationship", "finance"]
+    }
+    """
+
+    text = message.lower().strip()
+
+    scores = {}
+
+    for category, keywords in CATEGORY_KEYWORDS.items():
+        score = 0
+
+        for keyword in keywords:
+            if keyword in text:
+                score += 1
+
+        if score > 0:
+            scores[category] = score
+
+    if not scores:
+        return {
+            "primary": "general",
+            "secondary": [],
+            "all": ["general"]
+        }
+
+    # Ең жоғары score
+    max_score = max(scores.values())
+
+    top_categories = [
+        category
+        for category, score in scores.items()
+        if score == max_score
+    ]
+
+    # Score тең болса — priority шешеді
+    primary = None
+
+    for category in CATEGORY_PRIORITY:
+        if category in top_categories:
+            primary = category
+            break
+
+    if primary is None:
+        primary = top_categories[0]
+
+    # Secondary категориялар score + priority бойынша
+    secondary = [
+        category
+        for category in CATEGORY_PRIORITY
+        if category in scores and category != primary
+    ]
+
+    return {
+        "primary": primary,
+        "secondary": secondary,
+        "all": [primary] + secondary
+    }
+
+
+def detect_category(message: str) -> str:
+    """
+    Backward-compatible функция.
+
+    Бұрынғы chat.py үшін тек негізгі категорияны қайтарады.
+    """
+
+    result = detect_categories(message)
+
+    return result["primary"]

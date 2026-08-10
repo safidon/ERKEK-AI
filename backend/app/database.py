@@ -123,8 +123,33 @@ def init_database():
         """)
 
         # =============================================
-        # MIGRATION
-        # old database:
+        # CONVERSATION ARCHIVE
+        # =============================================
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS conversation_archive (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                original_message_id INTEGER NOT NULL,
+
+                user_id TEXT NOT NULL,
+
+                role TEXT NOT NULL,
+
+                message TEXT NOT NULL,
+
+                original_created_at TIMESTAMP,
+
+                archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+                FOREIGN KEY (user_id)
+                    REFERENCES users(user_id)
+                    ON DELETE CASCADE
+            )
+        """)
+
+        # =============================================
+        # MIGRATION:
         # conversation_summaries.last_message_id
         # =============================================
 
@@ -132,17 +157,48 @@ def init_database():
             PRAGMA table_info(conversation_summaries)
         """)
 
-        columns = [
+        summary_columns = [
             row["name"]
             for row in cursor.fetchall()
         ]
 
-        if "last_message_id" not in columns:
+        if "last_message_id" not in summary_columns:
 
             cursor.execute("""
                 ALTER TABLE conversation_summaries
                 ADD COLUMN last_message_id INTEGER DEFAULT 0
             """)
+
+        # =============================================
+        # AUTH MIGRATION
+        # =============================================
+
+        cursor.execute("""
+            PRAGMA table_info(users)
+        """)
+
+        user_columns = [
+            row["name"]
+            for row in cursor.fetchall()
+        ]
+
+        auth_columns = {
+            "email": "TEXT",
+            "username": "TEXT",
+            "password_hash": "TEXT",
+            "is_active": "INTEGER DEFAULT 1"
+        }
+
+        for column_name, column_type in auth_columns.items():
+
+            if column_name not in user_columns:
+
+                cursor.execute(
+                    f"""
+                    ALTER TABLE users
+                    ADD COLUMN {column_name} {column_type}
+                    """
+                )
 
         # =============================================
         # INDEXES
@@ -159,6 +215,40 @@ def init_database():
             idx_conversations_user_id_id
             ON conversations(user_id, id)
         """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS
+            idx_conversation_archive_user_id
+            ON conversation_archive(user_id)
+        """)
+
+        cursor.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS
+            idx_conversation_archive_original_message_id
+            ON conversation_archive(original_message_id)
+        """)
+
+        # =============================================
+        # AUTH INDEXES
+        # =============================================
+
+        cursor.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS
+            idx_users_email
+            ON users(email)
+            WHERE email IS NOT NULL
+        """)
+
+        cursor.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS
+            idx_users_username
+            ON users(username)
+            WHERE username IS NOT NULL
+        """)
+
+        # =============================================
+        # COMMIT
+        # =============================================
 
         connection.commit()
 

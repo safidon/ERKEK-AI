@@ -54,6 +54,9 @@ def add_message(
 ) -> None:
     """
     Жаңа хабарламаны SQLite conversation history-ге сақтайды.
+
+    Ескі хабарламаларды автоматты түрде өшірмейміз.
+    Cleanup/archive логикасын бөлек басқарамыз.
     """
 
     connection = get_connection()
@@ -74,28 +77,6 @@ def add_message(
                 user_id,
                 role,
                 content
-            )
-        )
-
-        connection.commit()
-
-        # Бір user үшін өте көп history жиналмасын
-        cursor.execute(
-            """
-            DELETE FROM conversations
-            WHERE user_id = ?
-            AND id NOT IN (
-                SELECT id
-                FROM conversations
-                WHERE user_id = ?
-                ORDER BY id DESC
-                LIMIT ?
-            )
-            """,
-            (
-                user_id,
-                user_id,
-                MAX_HISTORY
             )
         )
 
@@ -273,6 +254,90 @@ def get_messages_after(
             })
 
         return messages
+
+    finally:
+        connection.close()
+
+
+def get_messages_before_or_equal(
+    user_id: str,
+    message_id: int,
+    limit: int = 100
+) -> list[dict]:
+    """
+    Белгілі бір ID-ге дейінгі хабарламаларды алады.
+
+    Бұл функция кейін cleanup/archive кезінде пайдалы болады.
+    """
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                id,
+                role,
+                message,
+                created_at
+            FROM conversations
+            WHERE user_id = ?
+              AND id <= ?
+            ORDER BY id ASC
+            LIMIT ?
+            """,
+            (
+                user_id,
+                message_id,
+                limit
+            )
+        )
+
+        rows = cursor.fetchall()
+
+        messages = []
+
+        for row in rows:
+            messages.append({
+                "id": row["id"],
+                "role": row["role"],
+                "content": row["message"],
+                "created_at": row["created_at"]
+            })
+
+        return messages
+
+    finally:
+        connection.close()
+
+
+def get_message_count(user_id: str) -> int:
+    """
+    Пайдаланушының conversation message санын қайтарады.
+    """
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            SELECT COUNT(*) AS total
+            FROM conversations
+            WHERE user_id = ?
+            """,
+            (user_id,)
+        )
+
+        row = cursor.fetchone()
+
+        if row is None:
+            return 0
+
+        return int(row["total"] or 0)
 
     finally:
         connection.close()
