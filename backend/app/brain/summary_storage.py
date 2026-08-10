@@ -2,9 +2,22 @@ from app.database import get_connection
 from app.brain.memory import get_user_profile
 
 
-def get_summary_state(user_id: str) -> dict:
+# =====================================================
+# GET SUMMARY STATE
+# =====================================================
+
+def get_summary_state(
+    user_id: str,
+    session_id: int | None = None
+) -> dict:
     """
     Пайдаланушының summary күйін қайтарады.
+
+    session_id берілсе:
+    - нақты conversation session summary алынады.
+
+    session_id берілмесе:
+    - legacy summary алынады.
 
     Нәтиже:
     {
@@ -18,16 +31,38 @@ def get_summary_state(user_id: str) -> dict:
     try:
         cursor = connection.cursor()
 
-        cursor.execute(
-            """
-            SELECT
-                summary,
-                last_message_id
-            FROM conversation_summaries
-            WHERE user_id = ?
-            """,
-            (user_id,)
-        )
+        if session_id is not None:
+
+            cursor.execute(
+                """
+                SELECT
+                    summary,
+                    last_message_id
+                FROM conversation_summaries
+                WHERE user_id = ?
+                  AND session_id = ?
+                LIMIT 1
+                """,
+                (
+                    user_id,
+                    session_id
+                )
+            )
+
+        else:
+
+            cursor.execute(
+                """
+                SELECT
+                    summary,
+                    last_message_id
+                FROM conversation_summaries
+                WHERE user_id = ?
+                  AND session_id IS NULL
+                LIMIT 1
+                """,
+                (user_id,)
+            )
 
         row = cursor.fetchone()
 
@@ -39,30 +74,48 @@ def get_summary_state(user_id: str) -> dict:
 
         return {
             "summary": row["summary"],
-            "last_message_id": row["last_message_id"] or 0
+            "last_message_id": int(
+                row["last_message_id"] or 0
+            )
         }
 
     finally:
         connection.close()
 
 
-def get_summary(user_id: str) -> str | None:
+# =====================================================
+# GET SUMMARY
+# =====================================================
+
+def get_summary(
+    user_id: str,
+    session_id: int | None = None
+) -> str | None:
     """
     Тек summary мәтінін қайтарады.
     """
 
-    state = get_summary_state(user_id)
+    state = get_summary_state(
+        user_id=user_id,
+        session_id=session_id
+    )
 
     return state["summary"]
 
 
+# =====================================================
+# SAVE SUMMARY
+# =====================================================
+
 def save_summary(
     user_id: str,
     summary: str,
-    last_message_id: int
+    last_message_id: int,
+    session_id: int | None = None
 ) -> None:
     """
-    Summary және summary жасалған соңғы message ID-ні сақтайды.
+    Summary және summary жасалған соңғы
+    message ID-ні сақтайды.
     """
 
     # User users кестесінде бар екеніне кепілдік
@@ -73,36 +126,107 @@ def save_summary(
     try:
         cursor = connection.cursor()
 
-        cursor.execute(
-            """
-            INSERT INTO conversation_summaries (
-                user_id,
-                summary,
-                last_message_id,
-                updated_at
-            )
-            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        # =============================================
+        # SESSION SUMMARY
+        # =============================================
 
-            ON CONFLICT(user_id) DO UPDATE SET
-                summary = excluded.summary,
-                last_message_id = excluded.last_message_id,
-                updated_at = CURRENT_TIMESTAMP
-            """,
-            (
-                user_id,
-                summary,
-                last_message_id
+        if session_id is not None:
+
+            cursor.execute(
+                """
+                INSERT INTO conversation_summaries (
+                    user_id,
+                    session_id,
+                    summary,
+                    last_message_id,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+
+                ON CONFLICT(user_id, session_id)
+                DO UPDATE SET
+                    summary = excluded.summary,
+                    last_message_id = excluded.last_message_id,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (
+                    user_id,
+                    session_id,
+                    summary,
+                    last_message_id
+                )
             )
-        )
+
+        # =============================================
+        # LEGACY SUMMARY
+        # =============================================
+
+        else:
+
+            # SQLite UNIQUE(user_id, session_id)
+            # NULL мәндерін conflict деп есептемейді.
+            # Сондықтан NULL session үшін update/insert
+            # логикасын бөлек орындаймыз.
+
+            cursor.execute(
+                """
+                UPDATE conversation_summaries
+                SET
+                    summary = ?,
+                    last_message_id = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE user_id = ?
+                  AND session_id IS NULL
+                """,
+                (
+                    summary,
+                    last_message_id,
+                    user_id
+                )
+            )
+
+            if cursor.rowcount == 0:
+
+                cursor.execute(
+                    """
+                    INSERT INTO conversation_summaries (
+                        user_id,
+                        session_id,
+                        summary,
+                        last_message_id,
+                        updated_at
+                    )
+                    VALUES (?, NULL, ?, ?, CURRENT_TIMESTAMP)
+                    """,
+                    (
+                        user_id,
+                        summary,
+                        last_message_id
+                    )
+                )
 
         connection.commit()
 
     finally:
         connection.close()
 
-def delete_summary(user_id: str) -> None:
+
+# =====================================================
+# DELETE SUMMARY
+# =====================================================
+
+def delete_summary(
+    user_id: str,
+    session_id: int | None = None
+) -> None:
     """
-    Пайдаланушы summary-сін өшіреді.
+    Summary өшіреді.
+
+    session_id берілсе:
+    - тек сол conversation session summary өшеді.
+
+    session_id берілмесе:
+    - legacy summary өшеді.
     """
 
     connection = get_connection()
@@ -110,13 +234,30 @@ def delete_summary(user_id: str) -> None:
     try:
         cursor = connection.cursor()
 
-        cursor.execute(
-            """
-            DELETE FROM conversation_summaries
-            WHERE user_id = ?
-            """,
-            (user_id,)
-        )
+        if session_id is not None:
+
+            cursor.execute(
+                """
+                DELETE FROM conversation_summaries
+                WHERE user_id = ?
+                  AND session_id = ?
+                """,
+                (
+                    user_id,
+                    session_id
+                )
+            )
+
+        else:
+
+            cursor.execute(
+                """
+                DELETE FROM conversation_summaries
+                WHERE user_id = ?
+                  AND session_id IS NULL
+                """,
+                (user_id,)
+            )
 
         connection.commit()
 

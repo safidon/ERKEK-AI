@@ -5,17 +5,29 @@ from app.brain.summary_storage import get_summary_state
 ARCHIVE_KEEP_RECENT = 6
 
 
+# =====================================================
+# ARCHIVE SUMMARIZED MESSAGES
+# =====================================================
+
 def archive_summarized_messages(
-    user_id: str
+    user_id: str,
+    session_id: int | None = None
 ) -> dict:
     """
     Summary-ге кірген ескі conversation хабарламаларын
     conversation_archive кестесіне көшіреді.
 
-    Қауіпсіздік үшін соңғы бірнеше active message сақталады.
+    session_id берілсе:
+    - тек сол conversation session архивтеледі.
+
+    session_id берілмесе:
+    - legacy user-level режим жұмыс істейді.
     """
 
-    state = get_summary_state(user_id)
+    state = get_summary_state(
+        user_id=user_id,
+        session_id=session_id
+    )
 
     last_message_id = state["last_message_id"]
 
@@ -32,22 +44,39 @@ def archive_summarized_messages(
         cursor = connection.cursor()
 
         # =================================================
-        # 1. Соңғы active message ID-лерін анықтау
+        # 1. СОҢҒЫ ACTIVE MESSAGE ID-ЛЕР
         # =================================================
 
-        cursor.execute(
-            """
-            SELECT id
-            FROM conversations
-            WHERE user_id = ?
-            ORDER BY id DESC
-            LIMIT ?
-            """,
-            (
-                user_id,
-                ARCHIVE_KEEP_RECENT
+        if session_id is not None:
+            cursor.execute(
+                """
+                SELECT id
+                FROM conversations
+                WHERE user_id = ?
+                  AND session_id = ?
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (
+                    user_id,
+                    session_id,
+                    ARCHIVE_KEEP_RECENT
+                )
             )
-        )
+        else:
+            cursor.execute(
+                """
+                SELECT id
+                FROM conversations
+                WHERE user_id = ?
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (
+                    user_id,
+                    ARCHIVE_KEEP_RECENT
+                )
+            )
 
         recent_rows = cursor.fetchall()
 
@@ -57,35 +86,60 @@ def archive_summarized_messages(
         ]
 
         # =================================================
-        # 2. Archive жасауға болатын message-тер
+        # 2. ARCHIVE ЖАСАЙТЫН MESSAGE-ТЕР
         # =================================================
 
         if recent_ids:
-
             placeholders = ",".join(
                 "?"
                 for _ in recent_ids
             )
 
-            query = f"""
-                SELECT
-                    id,
-                    user_id,
-                    role,
-                    message,
-                    created_at
-                FROM conversations
-                WHERE user_id = ?
-                  AND id <= ?
-                  AND id NOT IN ({placeholders})
-                ORDER BY id ASC
-            """
+            if session_id is not None:
+                query = f"""
+                    SELECT
+                        id,
+                        user_id,
+                        session_id,
+                        role,
+                        message,
+                        created_at
+                    FROM conversations
+                    WHERE user_id = ?
+                      AND session_id = ?
+                      AND id <= ?
+                      AND id NOT IN ({placeholders})
+                    ORDER BY id ASC
+                """
 
-            params = [
-                user_id,
-                last_message_id,
-                *recent_ids
-            ]
+                params = [
+                    user_id,
+                    session_id,
+                    last_message_id,
+                    *recent_ids
+                ]
+
+            else:
+                query = f"""
+                    SELECT
+                        id,
+                        user_id,
+                        session_id,
+                        role,
+                        message,
+                        created_at
+                    FROM conversations
+                    WHERE user_id = ?
+                      AND id <= ?
+                      AND id NOT IN ({placeholders})
+                    ORDER BY id ASC
+                """
+
+                params = [
+                    user_id,
+                    last_message_id,
+                    *recent_ids
+                ]
 
             cursor.execute(
                 query,
@@ -94,24 +148,48 @@ def archive_summarized_messages(
 
         else:
 
-            cursor.execute(
-                """
-                SELECT
-                    id,
-                    user_id,
-                    role,
-                    message,
-                    created_at
-                FROM conversations
-                WHERE user_id = ?
-                  AND id <= ?
-                ORDER BY id ASC
-                """,
-                (
-                    user_id,
-                    last_message_id
+            if session_id is not None:
+                cursor.execute(
+                    """
+                    SELECT
+                        id,
+                        user_id,
+                        session_id,
+                        role,
+                        message,
+                        created_at
+                    FROM conversations
+                    WHERE user_id = ?
+                      AND session_id = ?
+                      AND id <= ?
+                    ORDER BY id ASC
+                    """,
+                    (
+                        user_id,
+                        session_id,
+                        last_message_id
+                    )
                 )
-            )
+            else:
+                cursor.execute(
+                    """
+                    SELECT
+                        id,
+                        user_id,
+                        session_id,
+                        role,
+                        message,
+                        created_at
+                    FROM conversations
+                    WHERE user_id = ?
+                      AND id <= ?
+                    ORDER BY id ASC
+                    """,
+                    (
+                        user_id,
+                        last_message_id
+                    )
+                )
 
         rows = cursor.fetchall()
 
@@ -123,27 +201,28 @@ def archive_summarized_messages(
             }
 
         # =================================================
-        # 3. Archive table-ға көшіру
+        # 3. ARCHIVE TABLE-ҒА КӨШІРУ
         # =================================================
 
         archived_count = 0
 
         for row in rows:
-
             cursor.execute(
                 """
                 INSERT OR IGNORE INTO conversation_archive (
                     original_message_id,
                     user_id,
+                    session_id,
                     role,
                     message,
                     original_created_at
                 )
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (
                     row["id"],
                     row["user_id"],
+                    row["session_id"],
                     row["role"],
                     row["message"],
                     row["created_at"]
@@ -154,7 +233,7 @@ def archive_summarized_messages(
                 archived_count += 1
 
         # =================================================
-        # 4. Archive бар екенін тексеру
+        # 4. ARCHIVE VERIFICATION
         # =================================================
 
         ids_to_delete = [
@@ -184,9 +263,7 @@ def archive_summarized_messages(
             else 0
         )
 
-        # Бір message те жоғалмауы керек
         if archived_total != len(ids_to_delete):
-
             connection.rollback()
 
             return {
@@ -196,7 +273,7 @@ def archive_summarized_messages(
             }
 
         # =================================================
-        # 5. Active conversations-тан өшіру
+        # 5. ACTIVE CONVERSATIONS-ТАН ӨШІРУ
         # =================================================
 
         cursor.execute(
@@ -225,11 +302,16 @@ def archive_summarized_messages(
         connection.close()
 
 
+# =====================================================
+# GET ARCHIVE COUNT
+# =====================================================
+
 def get_archive_count(
-    user_id: str
+    user_id: str,
+    session_id: int | None = None
 ) -> int:
     """
-    User archive-індегі message санын қайтарады.
+    Archive-тегі message санын қайтарады.
     """
 
     connection = get_connection()
@@ -237,29 +319,50 @@ def get_archive_count(
     try:
         cursor = connection.cursor()
 
-        cursor.execute(
-            """
-            SELECT COUNT(*) AS total
-            FROM conversation_archive
-            WHERE user_id = ?
-            """,
-            (user_id,)
-        )
+        if session_id is not None:
+            cursor.execute(
+                """
+                SELECT COUNT(*) AS total
+                FROM conversation_archive
+                WHERE user_id = ?
+                  AND session_id = ?
+                """,
+                (
+                    user_id,
+                    session_id
+                )
+            )
+        else:
+            cursor.execute(
+                """
+                SELECT COUNT(*) AS total
+                FROM conversation_archive
+                WHERE user_id = ?
+                """,
+                (user_id,)
+            )
 
         row = cursor.fetchone()
 
         if row is None:
             return 0
 
-        return int(row["total"] or 0)
+        return int(
+            row["total"] or 0
+        )
 
     finally:
         connection.close()
 
 
+# =====================================================
+# GET ARCHIVED MESSAGES
+# =====================================================
+
 def get_archived_messages(
     user_id: str,
-    limit: int = 20
+    limit: int = 20,
+    session_id: int | None = None
 ) -> list[dict]:
     """
     Archive-тегі соңғы message-терді алады.
@@ -270,24 +373,48 @@ def get_archived_messages(
     try:
         cursor = connection.cursor()
 
-        cursor.execute(
-            """
-            SELECT
-                original_message_id,
-                role,
-                message,
-                original_created_at,
-                archived_at
-            FROM conversation_archive
-            WHERE user_id = ?
-            ORDER BY original_message_id DESC
-            LIMIT ?
-            """,
-            (
-                user_id,
-                limit
+        if session_id is not None:
+            cursor.execute(
+                """
+                SELECT
+                    original_message_id,
+                    session_id,
+                    role,
+                    message,
+                    original_created_at,
+                    archived_at
+                FROM conversation_archive
+                WHERE user_id = ?
+                  AND session_id = ?
+                ORDER BY original_message_id DESC
+                LIMIT ?
+                """,
+                (
+                    user_id,
+                    session_id,
+                    limit
+                )
             )
-        )
+        else:
+            cursor.execute(
+                """
+                SELECT
+                    original_message_id,
+                    session_id,
+                    role,
+                    message,
+                    original_created_at,
+                    archived_at
+                FROM conversation_archive
+                WHERE user_id = ?
+                ORDER BY original_message_id DESC
+                LIMIT ?
+                """,
+                (
+                    user_id,
+                    limit
+                )
+            )
 
         rows = cursor.fetchall()
 
@@ -296,6 +423,7 @@ def get_archived_messages(
         return [
             {
                 "id": row["original_message_id"],
+                "session_id": row["session_id"],
                 "role": row["role"],
                 "content": row["message"],
                 "created_at": row["original_created_at"],

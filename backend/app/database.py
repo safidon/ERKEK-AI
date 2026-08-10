@@ -33,7 +33,6 @@ def get_connection():
 
     connection.row_factory = sqlite3.Row
 
-    # SQLite foreign key support
     connection.execute(
         "PRAGMA foreign_keys = ON"
     )
@@ -48,7 +47,7 @@ def get_connection():
 def init_database():
     """
     ERKEK AI үшін қажетті кестелерді жасайды
-    және қарапайым migration орындайды.
+    және migration орындайды.
     """
 
     connection = get_connection()
@@ -83,18 +82,21 @@ def init_database():
         """)
 
         # =============================================
-        # CONVERSATION MESSAGES
+        # CONVERSATION SESSIONS
         # =============================================
 
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS conversations (
+            CREATE TABLE IF NOT EXISTS conversation_sessions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
 
                 user_id TEXT NOT NULL,
-                role TEXT NOT NULL,
-                message TEXT NOT NULL,
+
+                title TEXT NOT NULL DEFAULT 'Жаңа әңгіме',
+
+                is_active INTEGER NOT NULL DEFAULT 1,
 
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
                 FOREIGN KEY (user_id)
                     REFERENCES users(user_id)
@@ -103,7 +105,35 @@ def init_database():
         """)
 
         # =============================================
+        # CONVERSATION MESSAGES
+        # =============================================
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS conversations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                user_id TEXT NOT NULL,
+
+                session_id INTEGER,
+
+                role TEXT NOT NULL,
+                message TEXT NOT NULL,
+
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+                FOREIGN KEY (user_id)
+                    REFERENCES users(user_id)
+                    ON DELETE CASCADE,
+
+                FOREIGN KEY (session_id)
+                    REFERENCES conversation_sessions(id)
+                    ON DELETE CASCADE
+            )
+        """)
+
+        # =============================================
         # CONVERSATION SUMMARY
+        # legacy-compatible initial creation
         # =============================================
 
         cursor.execute("""
@@ -134,6 +164,8 @@ def init_database():
 
                 user_id TEXT NOT NULL,
 
+                session_id INTEGER,
+
                 role TEXT NOT NULL,
 
                 message TEXT NOT NULL,
@@ -144,6 +176,10 @@ def init_database():
 
                 FOREIGN KEY (user_id)
                     REFERENCES users(user_id)
+                    ON DELETE CASCADE,
+
+                FOREIGN KEY (session_id)
+                    REFERENCES conversation_sessions(id)
                     ON DELETE CASCADE
             )
         """)
@@ -163,7 +199,6 @@ def init_database():
         ]
 
         if "last_message_id" not in summary_columns:
-
             cursor.execute("""
                 ALTER TABLE conversation_summaries
                 ADD COLUMN last_message_id INTEGER DEFAULT 0
@@ -201,8 +236,118 @@ def init_database():
                 )
 
         # =============================================
+        # CONVERSATIONS SESSION MIGRATION
+        # =============================================
+
+        cursor.execute("""
+            PRAGMA table_info(conversations)
+        """)
+
+        conversation_columns = [
+            row["name"]
+            for row in cursor.fetchall()
+        ]
+
+        if "session_id" not in conversation_columns:
+            cursor.execute("""
+                ALTER TABLE conversations
+                ADD COLUMN session_id INTEGER
+            """)
+
+        # =============================================
+        # CONVERSATION SUMMARIES SESSION MIGRATION
+        # =============================================
+
+        cursor.execute("""
+            PRAGMA table_info(conversation_summaries)
+        """)
+
+        summary_columns = [
+            row["name"]
+            for row in cursor.fetchall()
+        ]
+
+        if "session_id" not in summary_columns:
+
+            cursor.execute("""
+                ALTER TABLE conversation_summaries
+                RENAME TO conversation_summaries_legacy
+            """)
+
+            cursor.execute("""
+                CREATE TABLE conversation_summaries (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                    user_id TEXT NOT NULL,
+                    session_id INTEGER,
+
+                    summary TEXT NOT NULL,
+
+                    last_message_id INTEGER DEFAULT 0,
+
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+                    UNIQUE(user_id, session_id),
+
+                    FOREIGN KEY (user_id)
+                        REFERENCES users(user_id)
+                        ON DELETE CASCADE,
+
+                    FOREIGN KEY (session_id)
+                        REFERENCES conversation_sessions(id)
+                        ON DELETE CASCADE
+                )
+            """)
+
+            cursor.execute("""
+                INSERT INTO conversation_summaries (
+                    user_id,
+                    session_id,
+                    summary,
+                    last_message_id,
+                    updated_at
+                )
+                SELECT
+                    user_id,
+                    NULL,
+                    summary,
+                    last_message_id,
+                    updated_at
+                FROM conversation_summaries_legacy
+            """)
+
+            cursor.execute("""
+                DROP TABLE conversation_summaries_legacy
+            """)
+
+        # =============================================
+        # CONVERSATION ARCHIVE SESSION MIGRATION
+        # =============================================
+
+        cursor.execute("""
+            PRAGMA table_info(conversation_archive)
+        """)
+
+        archive_columns = [
+            row["name"]
+            for row in cursor.fetchall()
+        ]
+
+        if "session_id" not in archive_columns:
+            cursor.execute("""
+                ALTER TABLE conversation_archive
+                ADD COLUMN session_id INTEGER
+            """)
+
+        # =============================================
         # INDEXES
         # =============================================
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS
+            idx_conversation_sessions_user_id
+            ON conversation_sessions(user_id)
+        """)
 
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS
@@ -218,8 +363,32 @@ def init_database():
 
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS
+            idx_conversations_session_id
+            ON conversations(session_id)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS
+            idx_conversations_user_session_id
+            ON conversations(user_id, session_id, id)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS
+            idx_conversation_summaries_user_session
+            ON conversation_summaries(user_id, session_id)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS
             idx_conversation_archive_user_id
             ON conversation_archive(user_id)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS
+            idx_conversation_archive_user_session
+            ON conversation_archive(user_id, session_id)
         """)
 
         cursor.execute("""

@@ -20,6 +20,10 @@ from app.brain.conversation_archive import (
 SUMMARY_UPDATE_THRESHOLD = 4
 
 
+# =====================================================
+# FORMAT MESSAGES FOR SUMMARY
+# =====================================================
+
 def format_messages_for_summary(
     messages: list[dict]
 ) -> str:
@@ -34,6 +38,7 @@ def format_messages_for_summary(
     parts = []
 
     for message in messages:
+
         role = message["role"]
         content = message["content"]
 
@@ -50,12 +55,25 @@ def format_messages_for_summary(
     return "\n".join(parts)
 
 
+# =====================================================
+# UPDATE CONVERSATION SUMMARY
+# =====================================================
+
 def update_conversation_summary(
     user_id: str,
-    force: bool = False
+    force: bool = False,
+    session_id: int | None = None
 ) -> str:
     """
     Conversation summary-ді incremental түрде жаңартады.
+
+    session_id берілсе:
+    - тек сол conversation session summary жаңартылады;
+    - басқа session хабарламалары араласпайды;
+    - archive те тек сол session бойынша орындалады.
+
+    session_id берілмесе:
+    - legacy user-level режим жұмыс істейді.
 
     Логика:
     - бұрынғы summary алады;
@@ -71,7 +89,8 @@ def update_conversation_summary(
     # =================================================
 
     state = get_summary_state(
-        user_id
+        user_id=user_id,
+        session_id=session_id
     )
 
     old_summary = state["summary"]
@@ -84,7 +103,8 @@ def update_conversation_summary(
     new_messages = get_messages_after(
         user_id=user_id,
         last_message_id=last_message_id,
-        limit=20
+        limit=20,
+        session_id=session_id
     )
 
     # =================================================
@@ -172,7 +192,8 @@ def update_conversation_summary(
     save_summary(
         user_id=user_id,
         summary=new_summary,
-        last_message_id=newest_message_id
+        last_message_id=newest_message_id,
+        session_id=session_id
     )
 
     # =================================================
@@ -180,17 +201,21 @@ def update_conversation_summary(
     # =================================================
 
     try:
+
         archive_summarized_messages(
-            user_id
+            user_id=user_id,
+            session_id=session_id
         )
 
     except Exception as archive_error:
 
         # Archive істемей қалса да
         # summary pipeline тоқтамауы тиіс.
+
         print(
             f"[SUMMARY ARCHIVE ERROR] "
             f"user_id={user_id} "
+            f"session_id={session_id} "
             f"error={archive_error}"
         )
 
@@ -201,30 +226,48 @@ def update_conversation_summary(
     return new_summary
 
 
+# =====================================================
+# DEBUG STATE
+# =====================================================
+
 def get_summary_debug_state(
-    user_id: str
+    user_id: str,
+    session_id: int | None = None
 ) -> dict:
     """
     Debug үшін summary күйін көрсетеді.
+
+    session_id берілсе,
+    тек сол conversation session тексеріледі.
     """
 
     state = get_summary_state(
-        user_id
+        user_id=user_id,
+        session_id=session_id
     )
 
     latest_message_id = get_latest_message_id(
-        user_id
+        user_id=user_id,
+        session_id=session_id
     )
 
     pending_messages = get_messages_after(
         user_id=user_id,
         last_message_id=state["last_message_id"],
-        limit=100
+        limit=100,
+        session_id=session_id
     )
 
     return {
-        "summary_exists": bool(state["summary"]),
-        "last_summarized_message_id": state["last_message_id"],
+        "session_id": session_id,
+        "summary_exists": bool(
+            state["summary"]
+        ),
+        "last_summarized_message_id": state[
+            "last_message_id"
+        ],
         "latest_message_id": latest_message_id,
-        "pending_message_count": len(pending_messages)
+        "pending_message_count": len(
+            pending_messages
+        )
     }

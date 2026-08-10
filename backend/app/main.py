@@ -3,7 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes.chat import router as chat_router
 from app.routes.auth import router as auth_router
+from app.routes.sessions import router as sessions_router
 
+
+# =====================================================
+# APP
+# =====================================================
 
 app = FastAPI(
     title="ERKEK AI",
@@ -31,8 +36,9 @@ app.add_middleware(
 # ROUTES
 # =====================================================
 
-app.include_router(chat_router)
 app.include_router(auth_router)
+app.include_router(chat_router)
+app.include_router(sessions_router)
 
 
 # =====================================================

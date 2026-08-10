@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from app.auth.dependencies import get_current_user
@@ -11,6 +11,12 @@ from app.brain.formatter import format_answer
 from app.brain.risk import detect_risk
 from app.brain.risk_response import build_risk_response
 from app.brain.prompt_builder import build_full_prompt
+
+from app.brain.conversation_sessions import (
+    get_session,
+    touch_session,
+    generate_session_title
+)
 
 from app.core.logger import logger
 
@@ -46,6 +52,7 @@ router = APIRouter()
 # =====================================================
 
 class ChatRequest(BaseModel):
+    session_id: int
     message: str
 
 
@@ -66,12 +73,45 @@ def chat(
     user_id = current_user["user_id"]
 
     logger.info(
-        "Chat request started | user_id=%s",
-        user_id
+        "Chat request started | user_id=%s | session_id=%s",
+        user_id,
+        data.session_id
     )
 
     # =====================================================
-    # 2. USER PROFILE
+    # 2. SESSION VALIDATION
+    # =====================================================
+
+    session = get_session(
+        user_id=user_id,
+        session_id=data.session_id
+    )
+
+    if not session:
+
+        logger.warning(
+            "Chat session not found | user_id=%s | session_id=%s",
+            user_id,
+            data.session_id
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Әңгіме табылмады."
+        )
+
+    # =====================================================
+    # 3. AUTO SESSION TITLE
+    # =====================================================
+
+    generate_session_title(
+        user_id=user_id,
+        session_id=data.session_id,
+        message=data.message
+    )
+
+    # =====================================================
+    # 4. USER PROFILE
     # =====================================================
 
     profile = get_user_profile(
@@ -79,7 +119,7 @@ def chat(
     )
 
     # =====================================================
-    # 3. LANGUAGE
+    # 5. LANGUAGE
     # =====================================================
 
     language = detect_language(
@@ -91,7 +131,7 @@ def chat(
     )
 
     # =====================================================
-    # 4. MEMORY EXTRACTOR
+    # 6. MEMORY EXTRACTOR
     # =====================================================
 
     memory_data = extract_memory(
@@ -99,7 +139,7 @@ def chat(
     )
 
     # =====================================================
-    # 5. MEMORY CONFLICT / UPDATE
+    # 7. MEMORY CONFLICT / UPDATE
     # =====================================================
 
     resolved_memory = resolve_memory_update(
@@ -113,7 +153,7 @@ def chat(
         )
 
     # =====================================================
-    # 6. CATEGORY V2
+    # 8. CATEGORY V2
     # =====================================================
 
     category_result = detect_categories(
@@ -124,7 +164,7 @@ def chat(
     secondary_categories = category_result["secondary"]
 
     # =====================================================
-    # 7. EMOTION
+    # 9. EMOTION
     # =====================================================
 
     emotion = detect_emotion(
@@ -132,7 +172,7 @@ def chat(
     )
 
     # =====================================================
-    # 8. RISK
+    # 10. RISK
     # =====================================================
 
     risk = detect_risk(
@@ -141,10 +181,11 @@ def chat(
 
     logger.info(
         (
-            "Chat analysis | user_id=%s | category=%s | "
-            "secondary=%s | emotion=%s | risk=%s"
+            "Chat analysis | user_id=%s | session_id=%s | "
+            "category=%s | secondary=%s | emotion=%s | risk=%s"
         ),
         user_id,
+        data.session_id,
         category,
         secondary_categories,
         emotion,
@@ -152,13 +193,13 @@ def chat(
     )
 
     # =====================================================
-    # 9. LONG-TERM MEMORY
+    # 11. LONG-TERM MEMORY
     # =====================================================
 
     memory_context = profile.get_context()
 
     # =====================================================
-    # 10. SPECIAL RISK RESPONSE
+    # 12. SPECIAL RISK RESPONSE
     # =====================================================
 
     risk_answer = build_risk_response(
@@ -169,42 +210,60 @@ def chat(
     if risk_answer is not None:
 
         logger.warning(
-            "Safety response triggered | user_id=%s | risk=%s",
+            (
+                "Safety response triggered | "
+                "user_id=%s | session_id=%s | risk=%s"
+            ),
             user_id,
+            data.session_id,
             risk
         )
 
         add_message(
-            user_id,
-            "user",
-            data.message
+            user_id=user_id,
+            role="user",
+            content=data.message,
+            session_id=data.session_id
         )
 
         add_message(
-            user_id,
-            "assistant",
-            risk_answer
+            user_id=user_id,
+            role="assistant",
+            content=risk_answer,
+            session_id=data.session_id
+        )
+
+        touch_session(
+            user_id=user_id,
+            session_id=data.session_id
         )
 
         conversation_summary = get_summary(
-            user_id
+            user_id=user_id,
+            session_id=data.session_id
         )
 
         if not conversation_summary:
             conversation_summary = "Әңгіме summary жоқ."
 
         updated_recent_history = format_conversation(
-            user_id,
-            limit=4
+            user_id=user_id,
+            limit=4,
+            session_id=data.session_id
         )
 
         logger.info(
-            "Safety response completed | user_id=%s",
-            user_id
+            (
+                "Safety response completed | "
+                "user_id=%s | session_id=%s"
+            ),
+            user_id,
+            data.session_id
         )
 
         return {
             "user_id": user_id,
+            "session_id": data.session_id,
             "language": language,
             "category": category,
             "secondary_categories": secondary_categories,
@@ -218,7 +277,7 @@ def chat(
         }
 
     # =====================================================
-    # 11. RESPONSE STYLE
+    # 13. RESPONSE STYLE
     # =====================================================
 
     response_style = detect_response_style(
@@ -229,7 +288,7 @@ def chat(
     )
 
     # =====================================================
-    # 12. RESPONSE STYLE PROMPT
+    # 14. RESPONSE STYLE PROMPT
     # =====================================================
 
     response_style_prompt = build_response_style_prompt(
@@ -238,7 +297,7 @@ def chat(
     )
 
     # =====================================================
-    # 13. BRAIN / PLANNER
+    # 15. BRAIN / PLANNER
     # =====================================================
 
     brain_prompt = build_prompt(
@@ -248,27 +307,29 @@ def chat(
     )
 
     # =====================================================
-    # 14. SAVED CONVERSATION SUMMARY
+    # 16. SAVED CONVERSATION SUMMARY
     # =====================================================
 
     conversation_summary = get_summary(
-        user_id
+        user_id=user_id,
+        session_id=data.session_id
     )
 
     if not conversation_summary:
         conversation_summary = "Әңгіме summary жоқ."
 
     # =====================================================
-    # 15. RECENT HISTORY
+    # 17. RECENT HISTORY
     # =====================================================
 
     recent_history = format_conversation(
-        user_id,
-        limit=4
+        user_id=user_id,
+        limit=4,
+        session_id=data.session_id
     )
 
     # =====================================================
-    # 16. FULL AI PROMPT
+    # 18. FULL AI PROMPT
     # =====================================================
 
     full_prompt = build_full_prompt(
@@ -288,7 +349,7 @@ def chat(
     )
 
     # =====================================================
-    # 17. OPENAI
+    # 19. OPENAI
     # =====================================================
 
     answer = ask_ai(
@@ -298,7 +359,7 @@ def chat(
     )
 
     # =====================================================
-    # 18. FORMAT
+    # 20. FORMAT
     # =====================================================
 
     answer = format_answer(
@@ -306,54 +367,72 @@ def chat(
     )
 
     # =====================================================
-    # 19. SAVE USER MESSAGE
+    # 21. SAVE USER MESSAGE
     # =====================================================
 
     add_message(
-        user_id,
-        "user",
-        data.message
+        user_id=user_id,
+        role="user",
+        content=data.message,
+        session_id=data.session_id
     )
 
     # =====================================================
-    # 20. SAVE AI ANSWER
+    # 22. SAVE AI ANSWER
     # =====================================================
 
     add_message(
-        user_id,
-        "assistant",
-        answer
+        user_id=user_id,
+        role="assistant",
+        content=answer,
+        session_id=data.session_id
     )
 
     # =====================================================
-    # 21. INCREMENTAL SUMMARY UPDATE
+    # 23. SESSION UPDATED_AT
+    # =====================================================
+
+    touch_session(
+        user_id=user_id,
+        session_id=data.session_id
+    )
+
+    # =====================================================
+    # 24. INCREMENTAL SUMMARY UPDATE
     # =====================================================
 
     conversation_summary = update_conversation_summary(
-        user_id
+        user_id=user_id,
+        session_id=data.session_id
     )
 
     # =====================================================
-    # 22. UPDATED RECENT HISTORY
+    # 25. UPDATED RECENT HISTORY
     # =====================================================
 
     updated_recent_history = format_conversation(
-        user_id,
-        limit=4
+        user_id=user_id,
+        limit=4,
+        session_id=data.session_id
     )
 
     # =====================================================
-    # 23. RESPONSE
+    # 26. RESPONSE
     # =====================================================
 
     logger.info(
-        "Chat completed | user_id=%s | response_style=%s",
+        (
+            "Chat completed | user_id=%s | "
+            "session_id=%s | response_style=%s"
+        ),
         user_id,
+        data.session_id,
         response_style
     )
 
     return {
         "user_id": user_id,
+        "session_id": data.session_id,
         "language": language,
         "category": category,
         "secondary_categories": secondary_categories,

@@ -2,6 +2,9 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
+from app.auth.jwt import decode_access_token
+from app.brain.conversation_sessions import create_session
+
 
 client = TestClient(app)
 
@@ -16,10 +19,16 @@ TEST_PASSWORD = "TestPassword123!"
 
 
 # =====================================================
-# HELPER
+# HELPERS
 # =====================================================
 
 def register_test_user():
+    """
+    Test user-ді тіркейді.
+
+    Егер бұрыннан тіркелген болса,
+    409-ды қалыпты жағдай деп қабылдаймыз.
+    """
 
     response = client.post(
         "/auth/register",
@@ -30,11 +39,14 @@ def register_test_user():
         }
     )
 
-    # User бұрыннан бар болса да тест жалғаса береді
     assert response.status_code in [201, 409]
 
 
 def login_test_user():
+    """
+    Test user login жасап,
+    JWT access token қайтарады.
+    """
 
     response = client.post(
         "/auth/login",
@@ -50,8 +62,29 @@ def login_test_user():
 
     assert "access_token" in data
     assert "token_type" in data
+    assert data["token_type"] == "bearer"
 
     return data["access_token"]
+
+
+def create_test_session(token: str) -> int:
+    """
+    JWT ішінен user_id алып,
+    сол user үшін conversation session жасайды.
+    """
+
+    user_id = decode_access_token(token)
+
+    assert user_id is not None
+
+    session = create_session(
+        user_id=user_id,
+        title="Auth test chat"
+    )
+
+    assert session["id"] is not None
+
+    return session["id"]
 
 
 # =====================================================
@@ -70,7 +103,7 @@ def test_register():
     )
 
     # Тест бірнеше рет іске қосылғанда
-    # user бұрыннан болуы мүмкін
+    # user бұрыннан болуы мүмкін.
     assert response.status_code in [201, 409]
 
 
@@ -128,6 +161,7 @@ def test_chat_without_token():
     response = client.post(
         "/chat",
         json={
+            "session_id": 1,
             "message": "Сәлем"
         }
     )
@@ -145,7 +179,12 @@ def test_chat_with_token(monkeypatch):
 
     token = login_test_user()
 
-    # Бұл тест кезінде нақты OpenAI API-ға ақша жұмсамаймыз.
+    session_id = create_test_session(
+        token
+    )
+
+    # Бұл тест кезінде нақты OpenAI API-ға
+    # сұраныс жібермейміз.
     monkeypatch.setattr(
         "app.routes.chat.ask_ai",
         lambda *args, **kwargs: "Тест жауабы"
@@ -157,6 +196,7 @@ def test_chat_with_token(monkeypatch):
             "Authorization": f"Bearer {token}"
         },
         json={
+            "session_id": session_id,
             "message": "Жұмыс туралы кеңес керек."
         }
     )
@@ -166,5 +206,8 @@ def test_chat_with_token(monkeypatch):
     data = response.json()
 
     assert "user_id" in data
+    assert "session_id" in data
     assert "answer" in data
+
+    assert data["session_id"] == session_id
     assert data["answer"]
