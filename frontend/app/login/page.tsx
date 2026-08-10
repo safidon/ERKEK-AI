@@ -9,15 +9,25 @@ import { loginUser } from "@/lib/api";
 export default function LoginPage() {
   const router = useRouter();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] =
+    useState("");
 
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [password, setPassword] =
+    useState("");
 
+  const [error, setError] =
+    useState("");
+
+  const [loading, setLoading] =
+    useState(false);
+
+
+  // =====================================================
+  // LOGIN
+  // =====================================================
 
   async function handleSubmit(
-    event: React.FormEvent<HTMLFormElement>
+    event: React.FormEvent
   ) {
     event.preventDefault();
 
@@ -50,116 +60,297 @@ export default function LoginPage() {
   }
 
 
+  // =====================================================
+  // UI
+  // =====================================================
+
   return (
-    <main className="min-h-screen bg-black text-white flex items-center justify-center px-6">
+    <main className="relative flex min-h-screen overflow-hidden bg-black text-white">
 
-      <div className="w-full max-w-md">
+      {/* BACKGROUND */}
 
-        <div className="mb-10">
-          <h1 className="text-3xl font-semibold">
-            ERKEK AI
-          </h1>
+      <div className="pointer-events-none absolute inset-0">
 
-          <p className="mt-2 text-neutral-400">
-            Аккаунтқа кіру
-          </p>
+        <div className="absolute left-1/2 top-[-260px] h-[520px] w-[760px] -translate-x-1/2 rounded-full bg-white/[0.04] blur-3xl" />
+
+        <div className="absolute bottom-[-250px] left-[-180px] h-[500px] w-[500px] rounded-full bg-white/[0.025] blur-3xl" />
+
+      </div>
+
+
+      {/* HOME BUTTON */}
+
+      <button
+        onClick={() =>
+          router.push("/")
+        }
+        className="
+          absolute
+          left-5
+          top-5
+          z-20
+          flex
+          items-center
+          gap-3
+          rounded-xl
+          px-2
+          py-2
+          transition
+          hover:bg-white/[0.04]
+          sm:left-7
+          sm:top-7
+        "
+      >
+
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-sm font-black text-black">
+          E
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-5"
-        >
+        <div className="text-left">
 
-          <div>
-            <label className="text-sm text-neutral-400">
-              Email
-            </label>
-
-            <input
-              type="email"
-              value={email}
-              onChange={(e) =>
-                setEmail(e.target.value)
-              }
-              required
-              className="
-                mt-2
-                w-full
-                rounded-xl
-                border
-                border-neutral-800
-                bg-neutral-950
-                px-4
-                py-3
-                outline-none
-                focus:border-neutral-600
-              "
-            />
+          <div className="text-sm font-semibold">
+            ERKEK AI
           </div>
 
-          <div>
-            <label className="text-sm text-neutral-400">
-              Құпиясөз
-            </label>
-
-            <input
-              type="password"
-              value={password}
-              onChange={(e) =>
-                setPassword(e.target.value)
-              }
-              required
-              className="
-                mt-2
-                w-full
-                rounded-xl
-                border
-                border-neutral-800
-                bg-neutral-950
-                px-4
-                py-3
-                outline-none
-                focus:border-neutral-600
-              "
-            />
+          <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-600">
+            Digital mentor
           </div>
 
-          {error && (
-            <div className="text-sm text-red-400">
-              {error}
+        </div>
+
+      </button>
+
+
+      {/* CONTENT */}
+
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl items-center justify-center px-5 py-24 sm:px-6 lg:px-8">
+
+        <div className="grid w-full gap-14 lg:grid-cols-2 lg:items-center">
+
+
+          {/* LEFT */}
+
+          <div className="hidden lg:block">
+
+            <div className="max-w-xl">
+
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-xs text-neutral-500">
+
+                <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
+
+                Қайта келгеніңе қуаныштымыз
+
+              </div>
+
+              <h1 className="text-5xl font-semibold leading-tight tracking-[-0.04em]">
+
+                Әңгімеңді
+                <span className="block text-neutral-500">
+                  жалғастыр.
+                </span>
+
+              </h1>
+
+              <p className="mt-6 max-w-lg text-base leading-8 text-neutral-500">
+
+                Бұрынғы чаттарың, жеке контекст және
+                сақталған әңгімелерің аккаунтыңа кіргеннен
+                кейін қайта қолжетімді болады.
+
+              </p>
+
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="
-              w-full
-              rounded-xl
-              bg-white
-              text-black
-              py-3
-              font-medium
-              transition
-              hover:bg-neutral-200
-              disabled:opacity-50
-            "
-          >
-            {loading
-              ? "Кіруде..."
-              : "Кіру"}
-          </button>
+          </div>
 
-        </form>
 
-        <button
-          onClick={() =>
-            router.push("/register")
-          }
-          className="mt-6 text-sm text-neutral-400 hover:text-white"
-        >
-          Аккаунтың жоқ па? Тіркелу
-        </button>
+          {/* LOGIN CARD */}
+
+          <div className="mx-auto w-full max-w-md">
+
+            <div className="rounded-[28px] border border-white/[0.08] bg-neutral-950/80 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
+
+              <div className="mb-8">
+
+                <div className="mb-3 text-xs uppercase tracking-[0.22em] text-neutral-600">
+                  Аккаунт
+                </div>
+
+                <h2 className="text-3xl font-semibold tracking-tight">
+                  Кіру
+                </h2>
+
+                <p className="mt-2 text-sm leading-6 text-neutral-500">
+                  ERKEK AI аккаунтыңа кір.
+                </p>
+
+              </div>
+
+
+              <form
+                onSubmit={handleSubmit}
+                className="space-y-5"
+              >
+
+                {/* EMAIL */}
+
+                <div>
+
+                  <label
+                    htmlFor="email"
+                    className="text-sm text-neutral-400"
+                  >
+                    Email
+                  </label>
+
+                  <input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(event) =>
+                      setEmail(
+                        event.target.value
+                      )
+                    }
+                    required
+                    placeholder="name@example.com"
+                    className="
+                      mt-2
+                      w-full
+                      rounded-2xl
+                      border
+                      border-white/[0.08]
+                      bg-black
+                      px-4
+                      py-3.5
+                      text-white
+                      outline-none
+                      transition
+                      placeholder:text-neutral-700
+                      focus:border-white/[0.2]
+                      focus:bg-neutral-950
+                    "
+                  />
+
+                </div>
+
+
+                {/* PASSWORD */}
+
+                <div>
+
+                  <label
+                    htmlFor="password"
+                    className="text-sm text-neutral-400"
+                  >
+                    Құпиясөз
+                  </label>
+
+                  <input
+                    id="password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(event) =>
+                      setPassword(
+                        event.target.value
+                      )
+                    }
+                    required
+                    placeholder="••••••••"
+                    className="
+                      mt-2
+                      w-full
+                      rounded-2xl
+                      border
+                      border-white/[0.08]
+                      bg-black
+                      px-4
+                      py-3.5
+                      text-white
+                      outline-none
+                      transition
+                      placeholder:text-neutral-700
+                      focus:border-white/[0.2]
+                      focus:bg-neutral-950
+                    "
+                  />
+
+                </div>
+
+
+                {/* ERROR */}
+
+                {error && (
+                  <div className="rounded-xl border border-red-500/20 bg-red-500/[0.06] px-4 py-3 text-sm text-red-400">
+                    {error}
+                  </div>
+                )}
+
+
+                {/* SUBMIT */}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="
+                    flex
+                    w-full
+                    items-center
+                    justify-center
+                    rounded-2xl
+                    bg-white
+                    px-5
+                    py-3.5
+                    font-medium
+                    text-black
+                    transition
+                    hover:bg-neutral-200
+                    disabled:cursor-not-allowed
+                    disabled:opacity-50
+                  "
+                >
+                  {loading
+                    ? "Кіруде..."
+                    : "Кіру"}
+                </button>
+
+              </form>
+
+
+              {/* REGISTER */}
+
+              <div className="mt-7 border-t border-white/[0.06] pt-6 text-center">
+
+                <p className="text-sm text-neutral-600">
+                  Аккаунтың жоқ па?
+                </p>
+
+                <button
+                  onClick={() =>
+                    router.push("/register")
+                  }
+                  className="mt-2 text-sm font-medium text-neutral-300 transition hover:text-white"
+                >
+                  Жаңа аккаунт ашу →
+                </button>
+
+              </div>
+
+            </div>
+
+
+            {/* DISCLAIMER */}
+
+            <p className="mt-5 text-center text-xs leading-5 text-neutral-700">
+              Кіру арқылы ERKEK AI сервисін
+              пайдалануды жалғастырасың.
+            </p>
+
+          </div>
+
+        </div>
 
       </div>
 

@@ -42,11 +42,21 @@ export default function ChatPage() {
     useState(true);
 
   const [error, setError] = useState("");
-
   const [sidebarOpen, setSidebarOpen] =
     useState(false);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
+
+
+  // =====================================================
+  // ACTIVE SESSION
+  // =====================================================
+
+  const activeSession =
+    sessions.find(
+      (session) =>
+        session.id === activeSessionId
+    ) || null;
 
 
   // =====================================================
@@ -297,17 +307,8 @@ export default function ChatPage() {
       ]);
 
       setActiveSessionId(data.id);
-
-      setMessages([
-        {
-          role: "assistant",
-          content:
-            "Сәлем. Қандай мәселені бірге талдаймыз?",
-        },
-      ]);
-
+      setMessages([]);
       setInput("");
-
       setSidebarOpen(false);
 
     } catch (error) {
@@ -473,10 +474,6 @@ export default function ChatPage() {
           const nextId =
             remainingSessions[0].id;
 
-          setActiveSessionId(
-            nextId
-          );
-
           await loadSession(
             nextId,
             false
@@ -544,8 +541,7 @@ export default function ChatPage() {
           },
 
           body: JSON.stringify({
-            session_id:
-              activeSessionId,
+            session_id: activeSessionId,
             message,
           }),
         }
@@ -655,6 +651,17 @@ export default function ChatPage() {
 
 
   // =====================================================
+  // QUICK PROMPT
+  // =====================================================
+
+  function selectQuickPrompt(
+    prompt: string
+  ) {
+    setInput(prompt);
+  }
+
+
+  // =====================================================
   // SIDEBAR CONTENT
   // =====================================================
 
@@ -682,6 +689,7 @@ export default function ChatPage() {
                 rounded-lg
                 text-xl
                 text-neutral-400
+                transition
                 hover:bg-neutral-900
                 hover:text-white
               "
@@ -718,106 +726,133 @@ export default function ChatPage() {
         <div className="flex-1 overflow-y-auto p-2">
 
           {sessionsLoading && (
-            <div className="px-3 py-4 text-sm text-neutral-600">
-              Әңгімелер жүктелуде...
+            <div className="space-y-2 px-2 py-3">
+
+              {[1, 2, 3, 4].map(
+                (item) => (
+                  <div
+                    key={item}
+                    className="
+                      h-11
+                      animate-pulse
+                      rounded-lg
+                      bg-white/[0.04]
+                    "
+                  />
+                )
+              )}
+
             </div>
           )}
 
+
           {!sessionsLoading &&
             sessions.length === 0 && (
-              <div className="px-3 py-4 text-sm text-neutral-600">
-                Әзірге әңгіме жоқ.
+              <div className="px-3 py-4">
+
+                <div className="text-sm text-neutral-500">
+                  Әзірге әңгіме жоқ.
+                </div>
+
+                <div className="mt-1 text-xs leading-5 text-neutral-700">
+                  Жаңа чат ашып,
+                  ERKEK AI-мен сөйлесуді баста.
+                </div>
+
               </div>
             )}
 
-          {sessions.map(
-            (session) => (
-              <div
-                key={session.id}
-                className={`
-                  group
-                  mb-1
-                  flex
-                  items-center
-                  rounded-lg
-                  ${
-                    activeSessionId ===
-                    session.id
-                      ? "bg-neutral-900"
-                      : "hover:bg-neutral-900/60"
-                  }
-                `}
-              >
 
-                <button
-                  onClick={() =>
-                    loadSession(
-                      session.id
-                    )
-                  }
-                  onDoubleClick={() =>
-                    renameChat(
-                      session.id,
-                      session.title
-                    )
-                  }
-                  title="Ашу үшін бас. Атын өзгерту үшін екі рет бас."
-                  className="
-                    min-w-0
-                    flex-1
-                    truncate
-                    px-3
-                    py-3
-                    text-left
-                    text-sm
-                    text-neutral-300
-                  "
-                >
-                  {session.title}
-                </button>
-
-                <button
-                  onClick={() =>
-                    renameChat(
-                      session.id,
-                      session.title
-                    )
-                  }
-                  className="
-                    px-2
-                    text-neutral-600
+          {!sessionsLoading &&
+            sessions.map(
+              (session) => (
+                <div
+                  key={session.id}
+                  className={`
+                    group
+                    mb-1
+                    flex
+                    items-center
+                    rounded-lg
                     transition
-                    hover:text-white
-                    lg:hidden
-                    lg:group-hover:block
-                  "
-                  title="Атын өзгерту"
-                >
-                  ✎
-                </button>
-
-                <button
-                  onClick={() =>
-                    deleteChat(
+                    ${
+                      activeSessionId ===
                       session.id
-                    )
-                  }
-                  className="
-                    px-3
-                    text-neutral-600
-                    transition
-                    hover:text-red-400
-                    lg:hidden
-                    lg:group-hover:block
-                  "
-                  title="Өшіру"
+                        ? "bg-neutral-900"
+                        : "hover:bg-neutral-900/60"
+                    }
+                  `}
                 >
-                  ×
-                </button>
 
-              </div>
-            )
-          )}
+                  <button
+                    onClick={() =>
+                      loadSession(
+                        session.id
+                      )
+                    }
+                    onDoubleClick={() =>
+                      renameChat(
+                        session.id,
+                        session.title
+                      )
+                    }
+                    title="Ашу үшін бас. Атын өзгерту үшін екі рет бас."
+                    className="
+                      min-w-0
+                      flex-1
+                      truncate
+                      px-3
+                      py-3
+                      text-left
+                      text-sm
+                      text-neutral-300
+                    "
+                  >
+                    {session.title}
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      renameChat(
+                        session.id,
+                        session.title
+                      )
+                    }
+                    className="
+                      px-2
+                      text-neutral-600
+                      transition
+                      hover:text-white
+                      lg:hidden
+                      lg:group-hover:block
+                    "
+                    title="Атын өзгерту"
+                  >
+                    ✎
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      deleteChat(
+                        session.id
+                      )
+                    }
+                    className="
+                      px-3
+                      text-neutral-600
+                      transition
+                      hover:text-red-400
+                      lg:hidden
+                      lg:group-hover:block
+                    "
+                    title="Өшіру"
+                  >
+                    ×
+                  </button>
+
+                </div>
+              )
+            )}
 
         </div>
 
@@ -955,11 +990,15 @@ export default function ChatPage() {
           <div className="min-w-0">
 
             <div className="truncate font-semibold">
-              ERKEK AI
+              {activeSession
+                ? activeSession.title
+                : "ERKEK AI"}
             </div>
 
             <div className="text-xs text-neutral-500">
-              Digital mentor
+              {activeSession
+                ? "ERKEK AI · Digital mentor"
+                : "Digital mentor"}
             </div>
 
           </div>
@@ -977,13 +1016,17 @@ export default function ChatPage() {
 
               <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
 
-                <h1 className="text-2xl font-semibold sm:text-3xl">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-lg font-black text-black">
+                  E
+                </div>
+
+                <h1 className="mt-5 text-2xl font-semibold sm:text-3xl">
                   ERKEK AI
                 </h1>
 
-                <p className="mt-3 max-w-md text-sm text-neutral-500 sm:text-base">
+                <p className="mt-3 max-w-md text-sm leading-6 text-neutral-500 sm:text-base">
                   Жаңа әңгіме ашып,
-                  сұрағыңды жаз.
+                  ойыңдағы мәселені жаз.
                 </p>
 
                 <button
@@ -1009,12 +1052,74 @@ export default function ChatPage() {
 
               <div className="space-y-6 sm:space-y-7">
 
-                {messages.length ===
-                  0 && (
-                  <div className="text-sm text-neutral-500">
-                    Бұл әңгімеде әзірге хабарлама жоқ.
+
+                {/* EMPTY CHAT */}
+
+                {messages.length === 0 &&
+                  !loading && (
+                  <div className="flex min-h-[55vh] flex-col items-center justify-center px-4 text-center">
+
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-lg font-black text-black">
+                      E
+                    </div>
+
+                    <h2 className="mt-5 text-xl font-semibold sm:text-2xl">
+                      Не туралы сөйлесеміз?
+                    </h2>
+
+                    <p className="mt-2 max-w-md text-sm leading-6 text-neutral-500">
+                      Жұмыс, қаржы, отбасы,
+                      мақсаттар немесе ойыңда жүрген
+                      кез келген мәселені жаз.
+                    </p>
+
+
+                    {/* QUICK PROMPTS */}
+
+                    <div className="mt-6 grid w-full max-w-xl gap-2 sm:grid-cols-2">
+
+                      {[
+                        "Жұмыс туралы кеңес керек",
+                        "Қаржы жоспарымды талдайық",
+                        "Мақсаттарымды реттегім келеді",
+                        "Бір мәселе мазалап жүр",
+                      ].map(
+                        (prompt) => (
+                          <button
+                            key={prompt}
+                            onClick={() =>
+                              selectQuickPrompt(
+                                prompt
+                              )
+                            }
+                            className="
+                              rounded-2xl
+                              border
+                              border-white/[0.07]
+                              bg-white/[0.02]
+                              px-4
+                              py-3
+                              text-left
+                              text-sm
+                              text-neutral-400
+                              transition
+                              hover:border-white/[0.14]
+                              hover:bg-white/[0.04]
+                              hover:text-white
+                            "
+                          >
+                            {prompt}
+                          </button>
+                        )
+                      )}
+
+                    </div>
+
                   </div>
                 )}
+
+
+                {/* MESSAGES */}
 
                 {messages.map(
                   (
@@ -1063,9 +1168,7 @@ export default function ChatPage() {
                         )}
 
                         <div className="whitespace-pre-wrap break-words text-[15px] leading-7 sm:text-base">
-                          {
-                            message.content
-                          }
+                          {message.content}
                         </div>
 
                       </div>
@@ -1075,17 +1178,25 @@ export default function ChatPage() {
                 )}
 
 
+                {/* AI LOADING */}
+
                 {loading && (
                   <div className="flex justify-start">
 
-                    <div>
+                    <div className="max-w-[85%]">
 
-                      <div className="mb-2 text-xs text-neutral-500">
+                      <div className="mb-2 text-xs font-medium text-neutral-500">
                         ERKEK AI
                       </div>
 
-                      <div className="text-sm text-neutral-500">
-                        Жауап дайындалуда...
+                      <div className="flex items-center gap-1.5">
+
+                        <span className="h-2 w-2 animate-bounce rounded-full bg-neutral-600 [animation-delay:-0.3s]" />
+
+                        <span className="h-2 w-2 animate-bounce rounded-full bg-neutral-600 [animation-delay:-0.15s]" />
+
+                        <span className="h-2 w-2 animate-bounce rounded-full bg-neutral-600" />
+
                       </div>
 
                     </div>
@@ -1104,19 +1215,41 @@ export default function ChatPage() {
         </div>
 
 
+        {/* ================================================= */}
         {/* INPUT */}
+        {/* ================================================= */}
 
         <footer className="shrink-0 border-t border-neutral-900 bg-black">
 
           <div className="mx-auto w-full max-w-4xl px-3 py-3 sm:px-5 sm:py-5 lg:px-6">
 
+
+            {/* ERROR */}
+
             {error && (
-              <div className="mb-3 text-sm text-red-400">
-                {error}
+              <div className="mb-3 flex items-start justify-between gap-3 rounded-xl border border-red-500/20 bg-red-500/[0.06] px-4 py-3 text-sm text-red-400">
+
+                <span>
+                  {error}
+                </span>
+
+                <button
+                  onClick={() =>
+                    setError("")
+                  }
+                  className="shrink-0 text-red-400/60 transition hover:text-red-300"
+                  aria-label="Қатені жабу"
+                >
+                  ×
+                </button>
+
               </div>
             )}
 
-            <div className="flex items-end gap-2 rounded-2xl border border-neutral-800 bg-neutral-950 p-2 sm:gap-3">
+
+            {/* MESSAGE INPUT */}
+
+            <div className="flex items-end gap-2 rounded-2xl border border-neutral-800 bg-neutral-950 p-2 transition focus-within:border-neutral-700 sm:gap-3">
 
               <textarea
                 value={input}
@@ -1184,6 +1317,7 @@ export default function ChatPage() {
                   sm:text-base
                 "
               >
+
                 <span className="hidden sm:inline">
                   Жіберу
                 </span>
@@ -1191,9 +1325,11 @@ export default function ChatPage() {
                 <span className="sm:hidden">
                   ↑
                 </span>
+
               </button>
 
             </div>
+
 
             <div className="mt-2 text-center text-[10px] text-neutral-700 sm:mt-3 sm:text-xs">
               ERKEK AI қателесуі мүмкін.
