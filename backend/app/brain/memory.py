@@ -6,6 +6,34 @@ from app.database import get_connection
 
 class UserProfile:
 
+    # =====================================================
+    # MEMORY FIELDS
+    # =====================================================
+
+    SCALAR_MEMORY_FIELDS = {
+        "age",
+        "marital_status",
+        "children",
+        "career",
+        "financial_status",
+        "main_goal",
+    }
+
+    LIST_MEMORY_FIELDS = {
+        "goals",
+        "habits",
+        "important_events",
+    }
+
+    MEMORY_FIELDS = (
+        SCALAR_MEMORY_FIELDS
+        | LIST_MEMORY_FIELDS
+    )
+
+    # =====================================================
+    # INIT
+    # =====================================================
+
     def __init__(self, user_id: str):
         self.user_id = user_id
 
@@ -22,17 +50,104 @@ class UserProfile:
         self.habits: list[str] = []
         self.important_events: list[str] = []
 
+    # =====================================================
+    # UPDATE
+    # =====================================================
+
     def update(self, **kwargs):
         """
         Профильді жаңартып, SQLite-ке сақтайды.
+
+        kwargs ішінде берілген field None болса да,
+        ол мән профильге жазылады.
+
+        Бұл Settings / Memory UI арқылы
+        сақталған мәндерді тазалауға мүмкіндік береді.
         """
 
         for key, value in kwargs.items():
 
-            if hasattr(self, key) and value is not None:
-                setattr(self, key, value)
+            if not hasattr(self, key):
+                continue
+
+            # user_id-ді update арқылы өзгертуге болмайды
+            if key == "user_id":
+                continue
+
+            setattr(
+                self,
+                key,
+                value
+            )
 
         self.save()
+
+    # =====================================================
+    # CLEAR ONE MEMORY FIELD
+    # =====================================================
+
+    def clear_memory_field(
+        self,
+        field_name: str
+    ) -> bool:
+        """
+        Бір memory field-ті толық тазартады.
+
+        Мысалы:
+            goals -> []
+            career -> None
+            main_goal -> None
+        """
+
+        if field_name not in self.MEMORY_FIELDS:
+            return False
+
+        if field_name in self.LIST_MEMORY_FIELDS:
+            setattr(
+                self,
+                field_name,
+                []
+            )
+        else:
+            setattr(
+                self,
+                field_name,
+                None
+            )
+
+        self.save()
+
+        return True
+
+    # =====================================================
+    # CLEAR ALL MEMORY
+    # =====================================================
+
+    def clear_memory(self):
+        """
+        AI сақтаған барлық long-term memory-ді тазартады.
+
+        language сақталады, себебі ол интерфейс/жауап тілі
+        ретінде қолданылуы мүмкін.
+        """
+
+        self.age = None
+        self.marital_status = None
+        self.children = None
+
+        self.career = None
+        self.financial_status = None
+        self.main_goal = None
+
+        self.goals = []
+        self.habits = []
+        self.important_events = []
+
+        self.save()
+
+    # =====================================================
+    # SAVE
+    # =====================================================
 
     def save(self):
         """
@@ -60,7 +175,10 @@ class UserProfile:
                     important_events,
                     updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                    CURRENT_TIMESTAMP
+                )
 
                 ON CONFLICT(user_id) DO UPDATE SET
                     language = excluded.language,
@@ -104,7 +222,14 @@ class UserProfile:
         finally:
             connection.close()
 
+    # =====================================================
+    # MEMORY CONTEXT
+    # =====================================================
+
     def get_context(self) -> str:
+        """
+        AI prompt-қа берілетін long-term memory context.
+        """
 
         context = []
 
@@ -113,7 +238,7 @@ class UserProfile:
                 f"Тілі: {self.language}"
             )
 
-        if self.age:
+        if self.age is not None:
             context.append(
                 f"Жасы: {self.age}"
             )
@@ -145,34 +270,50 @@ class UserProfile:
 
         if self.goals:
             context.append(
-                "Мақсаттары: " + ", ".join(self.goals)
+                "Мақсаттары: "
+                + ", ".join(self.goals)
             )
 
         if self.habits:
             context.append(
-                "Әдеттері: " + ", ".join(self.habits)
+                "Әдеттері: "
+                + ", ".join(self.habits)
             )
 
         if self.important_events:
             context.append(
                 "Маңызды оқиғалар: "
-                + ", ".join(self.important_events)
+                + ", ".join(
+                    self.important_events
+                )
             )
 
         if not context:
-            return "Пайдаланушы туралы сақталған ақпарат жоқ."
+            return (
+                "Пайдаланушы туралы "
+                "сақталған ақпарат жоқ."
+            )
 
         return "\n".join(context)
 
 
-def get_user_profile(user_id: str) -> UserProfile:
+# =====================================================
+# GET USER PROFILE
+# =====================================================
+
+def get_user_profile(
+    user_id: str
+) -> UserProfile:
     """
     SQLite базасынан пайдаланушы профилін алады.
 
-    Егер жоқ болса — жаңа профиль жасайды.
+    Егер профиль жоқ болса —
+    жаңа профиль жасайды.
     """
 
-    profile = UserProfile(user_id)
+    profile = UserProfile(
+        user_id
+    )
 
     connection = get_connection()
 
@@ -196,11 +337,15 @@ def get_user_profile(user_id: str) -> UserProfile:
 
         profile.language = row["language"]
         profile.age = row["age"]
-        profile.marital_status = row["marital_status"]
+        profile.marital_status = (
+            row["marital_status"]
+        )
         profile.children = row["children"]
 
         profile.career = row["career"]
-        profile.financial_status = row["financial_status"]
+        profile.financial_status = (
+            row["financial_status"]
+        )
         profile.main_goal = row["main_goal"]
 
         profile.goals = _load_json_list(
@@ -211,8 +356,10 @@ def get_user_profile(user_id: str) -> UserProfile:
             row["habits"]
         )
 
-        profile.important_events = _load_json_list(
-            row["important_events"]
+        profile.important_events = (
+            _load_json_list(
+                row["important_events"]
+            )
         )
 
         return profile
@@ -221,21 +368,35 @@ def get_user_profile(user_id: str) -> UserProfile:
         connection.close()
 
 
-def _load_json_list(value) -> list[str]:
+# =====================================================
+# JSON LIST LOADER
+# =====================================================
+
+def _load_json_list(
+    value
+) -> list[str]:
     """
-    SQLite TEXT -> Python list
+    SQLite TEXT -> Python list[str]
     """
 
     if not value:
         return []
 
     try:
-        result = json.loads(value)
+        result = json.loads(
+            value
+        )
 
         if isinstance(result, list):
-            return result
+            return [
+                str(item)
+                for item in result
+            ]
 
-    except (json.JSONDecodeError, TypeError):
+    except (
+        json.JSONDecodeError,
+        TypeError
+    ):
         pass
 
     return []

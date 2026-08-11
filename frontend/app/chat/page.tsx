@@ -725,6 +725,11 @@ export default function ChatPage() {
       HTMLDivElement | null
     >(null);
 
+  const streamAbortControllerRef =
+    useRef<AbortController | null>(
+      null
+    );
+
   const chatScrollRef =
     useRef<
       HTMLDivElement | null
@@ -1494,13 +1499,21 @@ export default function ChatPage() {
 
 
   // =====================================================
-  // SEND MESSAGE
+  // STOP GENERATING
+  // =====================================================
+
+  function stopGenerating() {
+    streamAbortControllerRef.current?.abort();
+  }
+
+
+  // =====================================================
+  // SEND MESSAGE (STREAMING)
   // =====================================================
 
   async function sendMessage() {
     const message =
       input.trim();
-
 
     if (
       !message ||
@@ -1512,25 +1525,30 @@ export default function ChatPage() {
       return;
     }
 
-
     const token =
       getToken();
-
 
     if (!token) {
       handleUnauthorized();
       return;
     }
 
+    const sessionId =
+      activeSessionId;
 
     setError("");
     setIsUserNearBottom(
       true
     );
 
-    const optimisticMessage: ChatMessage = {
+    const optimisticUserMessage: ChatMessage = {
       role: "user",
       content: message,
+    };
+
+    const streamingAssistantMessage: ChatMessage = {
+      role: "assistant",
+      content: "",
     };
 
     setMessages(
@@ -1538,24 +1556,29 @@ export default function ChatPage() {
         current
       ) => [
         ...current,
-        optimisticMessage,
+        optimisticUserMessage,
+        streamingAssistantMessage,
       ]
     );
 
     setInput("");
+    setLoading(true);
 
-    setLoading(
-      true
-    );
+    const controller =
+      new AbortController();
 
+    streamAbortControllerRef.current =
+      controller;
 
     try {
       const response =
         await fetch(
-          `${API_URL}/chat`,
+          `${API_URL}/chat/stream`,
           {
-            method:
-              "POST",
+            method: "POST",
+
+            signal:
+              controller.signal,
 
             headers: {
               "Content-Type":
@@ -1568,13 +1591,12 @@ export default function ChatPage() {
             body:
               JSON.stringify({
                 session_id:
-                  activeSessionId,
+                  sessionId,
 
                 message,
               }),
           }
         );
-
 
       if (
         response.status ===
@@ -1584,79 +1606,254 @@ export default function ChatPage() {
         return;
       }
 
-
-      const data =
-        await response.json();
-
-
       if (!response.ok) {
+        let detail =
+          "Сұраныс кезінде қате шықты.";
+
+        try {
+          const data =
+            await response.json();
+
+          if (
+            typeof data.detail ===
+            "string"
+          ) {
+            detail =
+              data.detail;
+          }
+        } catch {
+          // Streaming емес error body болса да
+          // generic message жеткілікті.
+        }
+
         throw new Error(
-          data.detail ||
-            "Сұраныс кезінде қате шықты."
+          detail
         );
       }
 
+      if (!response.body) {
+        throw new Error(
+          "Streaming response body табылмады."
+        );
+      }
 
-      setMessages(
-        (
-          current
-        ) => [
-          ...current,
-          {
-            role:
-              "assistant",
+      const reader =
+        response.body.getReader();
 
-            content:
-              data.answer,
-          },
-        ]
-      );
+      const decoder =
+        new TextDecoder(
+          "utf-8"
+        );
 
+      let assistantText =
+        "";
+
+      while (true) {
+        const {
+          done,
+          value,
+        } =
+          await reader.read();
+
+        if (done) {
+          break;
+        }
+
+        const chunk =
+          decoder.decode(
+            value,
+            {
+              stream: true,
+            }
+          );
+
+        if (!chunk) {
+          continue;
+        }
+
+        assistantText +=
+          chunk;
+
+        setMessages(
+          (
+            current
+          ) => {
+            const next =
+              [...current];
+
+            for (
+              let index =
+                next.length - 1;
+              index >= 0;
+              index -= 1
+            ) {
+              if (
+                next[index].role ===
+                "assistant"
+              ) {
+                next[index] = {
+                  ...next[index],
+                  content:
+                    assistantText,
+                };
+
+                break;
+              }
+            }
+
+            return next;
+          }
+        );
+      }
+
+      const finalChunk =
+        decoder.decode();
+
+      if (finalChunk) {
+        assistantText +=
+          finalChunk;
+
+        setMessages(
+          (
+            current
+          ) => {
+            const next =
+              [...current];
+
+            for (
+              let index =
+                next.length - 1;
+              index >= 0;
+              index -= 1
+            ) {
+              if (
+                next[index].role ===
+                "assistant"
+              ) {
+                next[index] = {
+                  ...next[index],
+                  content:
+                    assistantText,
+                };
+
+                break;
+              }
+            }
+
+            return next;
+          }
+        );
+      }
+
+      if (
+        !assistantText.trim()
+      ) {
+        throw new Error(
+          "AI жауабы бос келді."
+        );
+      }
 
       await refreshSessionList();
 
     } catch (error) {
-      setMessages(
-        (
-          current
-        ) => {
-          const next =
-            [...current];
+      const wasAborted =
+        error instanceof DOMException &&
+        error.name ===
+          "AbortError";
 
-          const last =
-            next[
-              next.length - 1
-            ];
+      if (wasAborted) {
+        // Stop басылса, келіп үлгерген partial жауапты қалдырамыз.
+        // Бірде-бір chunk келмесе, бос assistant placeholder өшеді.
+        setMessages(
+          (
+            current
+          ) => {
+            const next =
+              [...current];
 
-          if (
-            last &&
-            last.role === "user" &&
-            last.content === message
-          ) {
-            next.pop();
+            const last =
+              next[
+                next.length - 1
+              ];
+
+            if (
+              last?.role ===
+                "assistant" &&
+              !last.content.trim()
+            ) {
+              next.pop();
+            }
+
+            return next;
           }
-
-          return next;
-        }
-      );
-
-      setInput(
-        message
-      );
-
-      if (
-        error instanceof Error
-      ) {
-        setError(
-          error.message
         );
+
       } else {
-        setError(
-          "Белгісіз қате шықты."
+        setMessages(
+          (
+            current
+          ) => {
+            const next =
+              [...current];
+
+            if (
+              next.length > 0 &&
+              next[
+                next.length - 1
+              ].role ===
+                "assistant"
+            ) {
+              next.pop();
+            }
+
+            if (
+              next.length > 0
+            ) {
+              const last =
+                next[
+                  next.length - 1
+                ];
+
+              if (
+                last.role ===
+                  "user" &&
+                last.content ===
+                  message
+              ) {
+                next.pop();
+              }
+            }
+
+            return next;
+          }
         );
+
+        setInput(
+          message
+        );
+
+        if (
+          error instanceof Error
+        ) {
+          setError(
+            error.message
+          );
+        } else {
+          setError(
+            "Белгісіз қате шықты."
+          );
+        }
       }
 
     } finally {
+      if (
+        streamAbortControllerRef.current ===
+        controller
+      ) {
+        streamAbortControllerRef.current =
+          null;
+      }
+
       setLoading(
         false
       );
@@ -2130,28 +2327,66 @@ export default function ChatPage() {
         </div>
 
 
-        <div className="border-t border-neutral-900 p-4">
+<div className="border-t border-neutral-900 p-4">
 
-          <div className="mb-3 text-sm font-medium">
-            ERKEK AI
-          </div>
+  <div className="mb-3 text-sm font-medium">
+    ERKEK AI
+  </div>
 
+  <div className="space-y-1">
 
-          <button
-            onClick={
-              handleLogout
-            }
-            className="
-              text-sm
-              text-neutral-500
-              transition
-              hover:text-white
-            "
-          >
-            Шығу
-          </button>
+    <button
+      type="button"
+      onClick={() => {
+        setSidebarOpen(false);
+        router.push("/settings");
+      }}
+      className="
+        flex
+        w-full
+        items-center
+        gap-3
+        rounded-lg
+        px-2
+        py-2
+        text-left
+        text-sm
+        text-neutral-500
+        transition
+        hover:bg-neutral-900
+        hover:text-white
+      "
+    >
+      <span>⚙</span>
+      <span>Баптаулар</span>
+    </button>
 
-        </div>
+    <button
+      type="button"
+      onClick={handleLogout}
+      className="
+        flex
+        w-full
+        items-center
+        gap-3
+        rounded-lg
+        px-2
+        py-2
+        text-left
+        text-sm
+        text-neutral-500
+        transition
+        hover:bg-neutral-900
+        hover:text-white
+      "
+    >
+      <span>↪</span>
+      <span>Шығу</span>
+    </button>
+
+  </div>
+
+</div>
       </>
     );
   }
@@ -2543,8 +2778,19 @@ export default function ChatPage() {
 
                 {/* AI LOADING */}
 
-                {(loading ||
-                  regenerating) && (
+                {(
+                  regenerating ||
+                  (
+                    loading &&
+                    messages[
+                      messages.length - 1
+                    ]?.role ===
+                      "assistant" &&
+                    !messages[
+                      messages.length - 1
+                    ]?.content
+                  )
+                ) && (
                   <div className="flex justify-start">
 
                     <div className="max-w-[85%]">
@@ -2564,7 +2810,7 @@ export default function ChatPage() {
                         <span>
                           {regenerating
                             ? "Жауап қайта дайындалуда..."
-                            : "Жауап дайындалуда..."}
+                            : "Жауап басталуда..."}
                         </span>
 
                       </div>
@@ -2679,46 +2925,78 @@ export default function ChatPage() {
               />
 
 
-              <button
-                type="button"
-                onClick={
-                  sendMessage
-                }
-                aria-label="Хабарламаны жіберу"
-                disabled={
-                  loading ||
-                  regenerating ||
-                  !input.trim() ||
-                  activeSessionId ===
-                    null
-                }
-                className="
-                  h-11
-                  shrink-0
-                  rounded-xl
-                  bg-white
-                  px-3
-                  text-sm
-                  font-medium
-                  text-black
-                  transition
-                  hover:bg-neutral-200
-                  disabled:cursor-not-allowed
-                  disabled:opacity-30
-                  sm:px-5
-                  sm:text-base
-                "
-              >
+              {loading ? (
+                <button
+                  type="button"
+                  onClick={
+                    stopGenerating
+                  }
+                  aria-label="Жауапты тоқтату"
+                  title="Жауапты тоқтату"
+                  className="
+                    flex
+                    h-11
+                    shrink-0
+                    items-center
+                    justify-center
+                    gap-2
+                    rounded-xl
+                    bg-white
+                    px-3
+                    text-sm
+                    font-medium
+                    text-black
+                    transition
+                    hover:bg-neutral-200
+                    sm:px-5
+                    sm:text-base
+                  "
+                >
+                  <span className="h-3 w-3 rounded-[2px] bg-black" />
 
-                <span className="hidden sm:inline">
-                  Жіберу
-                </span>
+                  <span className="hidden sm:inline">
+                    Тоқтату
+                  </span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={
+                    sendMessage
+                  }
+                  aria-label="Хабарламаны жіберу"
+                  disabled={
+                    regenerating ||
+                    !input.trim() ||
+                    activeSessionId ===
+                      null
+                  }
+                  className="
+                    h-11
+                    shrink-0
+                    rounded-xl
+                    bg-white
+                    px-3
+                    text-sm
+                    font-medium
+                    text-black
+                    transition
+                    hover:bg-neutral-200
+                    disabled:cursor-not-allowed
+                    disabled:opacity-30
+                    sm:px-5
+                    sm:text-base
+                  "
+                >
+                  <span className="hidden sm:inline">
+                    Жіберу
+                  </span>
 
-                <span className="sm:hidden">
-                  ↑
-                </span>
-
-              </button>
+                  <span className="sm:hidden">
+                    ↑
+                  </span>
+                </button>
+              )}
 
             </div>
 

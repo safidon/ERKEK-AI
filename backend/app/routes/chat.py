@@ -4,6 +4,7 @@ from fastapi import (
     HTTPException,
     status,
 )
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.auth.dependencies import get_current_user
@@ -49,7 +50,11 @@ from app.brain.response_style import (
 )
 
 from app.prompts.system_prompt import SYSTEM_PROMPT
-from app.services.openai_service import ask_ai
+
+from app.services.openai_service import (
+    ask_ai,
+    stream_ai,
+)
 
 
 router = APIRouter()
@@ -475,6 +480,473 @@ def chat(
         "recent_history": updated_recent_history,
         "answer": answer,
     }
+
+
+# =====================================================
+# STREAM CHAT
+# =====================================================
+
+@router.post("/chat/stream")
+def stream_chat(
+    data: ChatRequest,
+    current_user=Depends(get_current_user),
+):
+    """
+    ERKEK AI жауабын chunk-by-chunk streaming режимде қайтарады.
+    """
+
+    # =====================================================
+    # 1. AUTHENTICATED USER
+    # =====================================================
+
+    user_id = current_user["user_id"]
+
+    logger.info(
+        (
+            "Streaming chat started | "
+            "user_id=%s | session_id=%s"
+        ),
+        user_id,
+        data.session_id,
+    )
+
+    # =====================================================
+    # 2. SESSION VALIDATION
+    # =====================================================
+
+    session = get_session(
+        user_id=user_id,
+        session_id=data.session_id,
+    )
+
+    if not session:
+
+        logger.warning(
+            (
+                "Streaming chat session not found | "
+                "user_id=%s | session_id=%s"
+            ),
+            user_id,
+            data.session_id,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Әңгіме табылмады.",
+        )
+
+    # =====================================================
+    # 3. AUTO SESSION TITLE
+    # =====================================================
+
+    generate_session_title(
+        user_id=user_id,
+        session_id=data.session_id,
+        message=data.message,
+    )
+
+    # =====================================================
+    # 4. USER PROFILE
+    # =====================================================
+
+    profile = get_user_profile(
+        user_id,
+    )
+
+    # =====================================================
+    # 5. LANGUAGE
+    # =====================================================
+
+    language = detect_language(
+        data.message,
+    )
+
+    profile.update(
+        language=language,
+    )
+
+    # =====================================================
+    # 6. MEMORY EXTRACTOR
+    # =====================================================
+
+    memory_data = extract_memory(
+        data.message,
+    )
+
+    # =====================================================
+    # 7. MEMORY CONFLICT / UPDATE
+    # =====================================================
+
+    resolved_memory = resolve_memory_update(
+        profile,
+        memory_data,
+    )
+
+    if resolved_memory:
+        profile.update(
+            **resolved_memory,
+        )
+
+    # =====================================================
+    # 8. CATEGORY
+    # =====================================================
+
+    category_result = detect_categories(
+        data.message,
+    )
+
+    category = category_result["primary"]
+
+    secondary_categories = (
+        category_result["secondary"]
+    )
+
+    # =====================================================
+    # 9. EMOTION
+    # =====================================================
+
+    emotion = detect_emotion(
+        data.message,
+    )
+
+    # =====================================================
+    # 10. RISK
+    # =====================================================
+
+    risk = detect_risk(
+        data.message,
+    )
+
+    logger.info(
+        (
+            "Streaming chat analysis | "
+            "user_id=%s | session_id=%s | "
+            "category=%s | secondary=%s | "
+            "emotion=%s | risk=%s"
+        ),
+        user_id,
+        data.session_id,
+        category,
+        secondary_categories,
+        emotion,
+        risk,
+    )
+
+    # =====================================================
+    # 11. LONG-TERM MEMORY
+    # =====================================================
+
+    memory_context = profile.get_context()
+
+    # =====================================================
+    # 12. SPECIAL RISK RESPONSE
+    # =====================================================
+
+    risk_answer = build_risk_response(
+        risk=risk,
+        language=language,
+    )
+
+    if risk_answer is not None:
+
+        logger.warning(
+            (
+                "Streaming safety response triggered | "
+                "user_id=%s | session_id=%s | risk=%s"
+            ),
+            user_id,
+            data.session_id,
+            risk,
+        )
+
+        add_message(
+            user_id=user_id,
+            role="user",
+            content=data.message,
+            session_id=data.session_id,
+        )
+
+        add_message(
+            user_id=user_id,
+            role="assistant",
+            content=risk_answer,
+            session_id=data.session_id,
+        )
+
+        touch_session(
+            user_id=user_id,
+            session_id=data.session_id,
+        )
+
+        try:
+            update_conversation_summary(
+                user_id=user_id,
+                session_id=data.session_id,
+            )
+
+        except Exception:
+            logger.exception(
+                (
+                    "Streaming safety summary update failed | "
+                    "user_id=%s | session_id=%s"
+                ),
+                user_id,
+                data.session_id,
+            )
+
+        def stream_risk_answer():
+            yield risk_answer
+
+        return StreamingResponse(
+            stream_risk_answer(),
+            media_type="text/plain; charset=utf-8",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
+    # =====================================================
+    # 13. RESPONSE STYLE
+    # =====================================================
+
+    response_style = detect_response_style(
+        data.message,
+        category,
+        risk,
+        emotion,
+    )
+
+    # =====================================================
+    # 14. RESPONSE STYLE PROMPT
+    # =====================================================
+
+    response_style_prompt = (
+        build_response_style_prompt(
+            response_style,
+            language,
+        )
+    )
+
+    # =====================================================
+    # 15. BRAIN / PLANNER
+    # =====================================================
+
+    brain_prompt = build_prompt(
+        category=category,
+        language=language,
+        secondary_categories=secondary_categories,
+    )
+
+    # =====================================================
+    # 16. SAVED CONVERSATION SUMMARY
+    # =====================================================
+
+    conversation_summary = get_summary(
+        user_id=user_id,
+        session_id=data.session_id,
+    )
+
+    if not conversation_summary:
+        conversation_summary = (
+            "Әңгіме summary жоқ."
+        )
+
+    # =====================================================
+    # 17. RECENT HISTORY
+    # =====================================================
+
+    recent_history = format_conversation(
+        user_id=user_id,
+        limit=4,
+        session_id=data.session_id,
+    )
+
+    # =====================================================
+    # 18. FULL AI PROMPT
+    # =====================================================
+
+    full_prompt = build_full_prompt(
+        system_prompt=SYSTEM_PROMPT,
+        brain_prompt=brain_prompt,
+        response_style_prompt=response_style_prompt,
+        memory_context=memory_context,
+        conversation_summary=conversation_summary,
+        recent_history=recent_history,
+        current_message=data.message,
+        language=language,
+        category=category,
+        secondary_categories=secondary_categories,
+        emotion=emotion,
+        risk=risk,
+        response_style=response_style,
+    )
+
+    # =====================================================
+    # 19. SAVE USER MESSAGE BEFORE STREAM
+    # =====================================================
+
+    add_message(
+        user_id=user_id,
+        role="user",
+        content=data.message,
+        session_id=data.session_id,
+    )
+
+    touch_session(
+        user_id=user_id,
+        session_id=data.session_id,
+    )
+
+    # =====================================================
+    # 20. STREAM GENERATOR
+    # =====================================================
+
+    def generate_response():
+        answer_parts: list[str] = []
+        stream_completed = False
+
+        try:
+
+            for chunk in stream_ai(
+                full_prompt,
+                data.message,
+                language=language,
+            ):
+                if not chunk:
+                    continue
+
+                answer_parts.append(
+                    chunk
+                )
+
+                yield chunk
+
+            stream_completed = True
+
+        except GeneratorExit:
+
+            logger.info(
+                (
+                    "Streaming client disconnected | "
+                    "user_id=%s | session_id=%s"
+                ),
+                user_id,
+                data.session_id,
+            )
+
+            raise
+
+        except Exception:
+
+            logger.exception(
+                (
+                    "Streaming generator failed | "
+                    "user_id=%s | session_id=%s"
+                ),
+                user_id,
+                data.session_id,
+            )
+
+        finally:
+
+            # Client disconnect немесе stream ортасында unexpected
+            # exception болса, incomplete assistant answer DB-ге
+            # сақталмайды.
+
+            if not stream_completed:
+                return
+
+            raw_answer = "".join(
+                answer_parts
+            )
+
+            if not raw_answer.strip():
+
+                logger.warning(
+                    (
+                        "Streaming answer empty | "
+                        "user_id=%s | session_id=%s"
+                    ),
+                    user_id,
+                    data.session_id,
+                )
+
+                return
+
+            final_answer = format_answer(
+                raw_answer,
+            )
+
+            if not final_answer:
+                final_answer = raw_answer
+
+            try:
+                add_message(
+                    user_id=user_id,
+                    role="assistant",
+                    content=final_answer,
+                    session_id=data.session_id,
+                )
+
+                touch_session(
+                    user_id=user_id,
+                    session_id=data.session_id,
+                )
+
+            except Exception:
+
+                logger.exception(
+                    (
+                        "Streaming answer save failed | "
+                        "user_id=%s | session_id=%s"
+                    ),
+                    user_id,
+                    data.session_id,
+                )
+
+                return
+
+            try:
+                update_conversation_summary(
+                    user_id=user_id,
+                    session_id=data.session_id,
+                )
+
+            except Exception:
+
+                logger.exception(
+                    (
+                        "Streaming summary update failed | "
+                        "user_id=%s | session_id=%s"
+                    ),
+                    user_id,
+                    data.session_id,
+                )
+
+            logger.info(
+                (
+                    "Streaming chat completed | "
+                    "user_id=%s | session_id=%s | "
+                    "response_style=%s"
+                ),
+                user_id,
+                data.session_id,
+                response_style,
+            )
+
+    # =====================================================
+    # 21. STREAMING RESPONSE
+    # =====================================================
+
+    return StreamingResponse(
+        generate_response(),
+        media_type="text/plain; charset=utf-8",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 # =====================================================
