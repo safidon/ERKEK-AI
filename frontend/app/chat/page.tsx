@@ -1,7 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  isValidElement,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
 import { useRouter } from "next/navigation";
+
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 
 type ChatMessage = {
@@ -26,26 +36,704 @@ const API_URL =
   "http://127.0.0.1:8000";
 
 
-export default function ChatPage() {
-  const router = useRouter();
+// =====================================================
+// COPY TEXT
+// =====================================================
 
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [activeSessionId, setActiveSessionId] =
-    useState<number | null>(null);
+async function copyText(
+  text: string
+) {
+  if (
+    typeof navigator !== "undefined" &&
+    navigator.clipboard
+  ) {
+    await navigator.clipboard.writeText(
+      text
+    );
 
-  const [messages, setMessages] =
-    useState<ChatMessage[]>([]);
+    return;
+  }
 
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [sessionsLoading, setSessionsLoading] =
-    useState(true);
+  const textarea =
+    document.createElement("textarea");
 
-  const [error, setError] = useState("");
-  const [sidebarOpen, setSidebarOpen] =
+  textarea.value = text;
+
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+
+  document.body.appendChild(
+    textarea
+  );
+
+  textarea.focus();
+  textarea.select();
+
+  document.execCommand("copy");
+
+  document.body.removeChild(
+    textarea
+  );
+}
+
+
+// =====================================================
+// COPY BUTTON
+// =====================================================
+
+function CopyButton({
+  text,
+  label = "Көшіру",
+  copiedLabel = "Көшірілді ✓",
+  compact = false,
+}: {
+  text: string;
+  label?: string;
+  copiedLabel?: string;
+  compact?: boolean;
+}) {
+  const [copied, setCopied] =
     useState(false);
 
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  async function handleCopy() {
+    try {
+      await copyText(text);
+
+      setCopied(true);
+
+      window.setTimeout(
+        () => {
+          setCopied(false);
+        },
+        1800
+      );
+
+    } catch {
+      setCopied(false);
+    }
+  }
+
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className={
+        compact
+          ? `
+              rounded-lg
+              border
+              border-white/[0.08]
+              bg-black/50
+              px-2.5
+              py-1.5
+              text-[11px]
+              text-neutral-400
+              backdrop-blur
+              transition
+              hover:bg-neutral-900
+              hover:text-white
+            `
+          : `
+              inline-flex
+              items-center
+              rounded-lg
+              px-2
+              py-1
+              text-xs
+              text-neutral-600
+              transition
+              hover:bg-white/[0.04]
+              hover:text-neutral-300
+            `
+      }
+    >
+      {copied
+        ? copiedLabel
+        : label}
+    </button>
+  );
+}
+
+
+// =====================================================
+// REACT NODE -> TEXT
+// =====================================================
+
+function getNodeText(
+  node: ReactNode
+): string {
+  if (
+    typeof node === "string" ||
+    typeof node === "number"
+  ) {
+    return String(node);
+  }
+
+  if (Array.isArray(node)) {
+    return node
+      .map(getNodeText)
+      .join("");
+  }
+
+  if (isValidElement(node)) {
+    const props =
+      node.props as {
+        children?: ReactNode;
+      };
+
+    return getNodeText(
+      props.children
+    );
+  }
+
+  return "";
+}
+
+
+// =====================================================
+// MARKDOWN NORMALIZER
+// =====================================================
+
+function normalizeMarkdown(
+  content: string
+): string {
+  if (!content) {
+    return "";
+  }
+
+  let normalized = content
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n");
+
+  const fenceMatches =
+    normalized.match(/```/g);
+
+  const fenceCount =
+    fenceMatches?.length ?? 0;
+
+  if (fenceCount % 2 !== 0) {
+    normalized += "\n```";
+  }
+
+  return normalized;
+}
+
+
+// =====================================================
+// MARKDOWN MESSAGE
+// =====================================================
+
+function MarkdownMessage({
+  content,
+}: {
+  content: string;
+}) {
+  const normalizedContent =
+    normalizeMarkdown(content);
+
+
+  return (
+    <div
+      className="
+        min-w-0
+        max-w-full
+        break-words
+        text-[15px]
+        leading-7
+        text-neutral-200
+        sm:text-base
+      "
+    >
+      <ReactMarkdown
+        remarkPlugins={[
+          remarkGfm
+        ]}
+        components={{
+
+          // =================================================
+          // HEADINGS
+          // =================================================
+
+          h1: ({
+            children,
+          }) => (
+            <h1 className="mb-4 mt-6 text-2xl font-bold tracking-tight text-white first:mt-0">
+              {children}
+            </h1>
+          ),
+
+          h2: ({
+            children,
+          }) => (
+            <h2 className="mb-3 mt-5 text-xl font-semibold tracking-tight text-white first:mt-0">
+              {children}
+            </h2>
+          ),
+
+          h3: ({
+            children,
+          }) => (
+            <h3 className="mb-2 mt-4 text-lg font-semibold text-white first:mt-0">
+              {children}
+            </h3>
+          ),
+
+
+          // =================================================
+          // TEXT
+          // =================================================
+
+          p: ({
+            children,
+          }) => (
+            <p className="my-3 whitespace-normal break-words leading-7 first:mt-0 last:mb-0">
+              {children}
+            </p>
+          ),
+
+          strong: ({
+            children,
+          }) => (
+            <strong className="font-semibold text-white">
+              {children}
+            </strong>
+          ),
+
+          em: ({
+            children,
+          }) => (
+            <em className="italic text-neutral-300">
+              {children}
+            </em>
+          ),
+
+
+          // =================================================
+          // LISTS
+          // =================================================
+
+          ul: ({
+            children,
+          }) => (
+            <ul className="my-3 list-disc space-y-1.5 pl-6">
+              {children}
+            </ul>
+          ),
+
+          ol: ({
+            children,
+          }) => (
+            <ol className="my-3 list-decimal space-y-1.5 pl-6">
+              {children}
+            </ol>
+          ),
+
+          li: ({
+            children,
+          }) => (
+            <li className="break-words pl-1 leading-7">
+              {children}
+            </li>
+          ),
+
+
+          // =================================================
+          // QUOTE
+          // =================================================
+
+          blockquote: ({
+            children,
+          }) => (
+            <blockquote
+              className="
+                my-4
+                border-l-2
+                border-neutral-700
+                bg-white/[0.02]
+                py-1
+                pl-4
+                pr-3
+                text-neutral-400
+              "
+            >
+              {children}
+            </blockquote>
+          ),
+
+
+          // =================================================
+          // LINKS
+          // =================================================
+
+          a: ({
+            href,
+            children,
+          }) => (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="
+                break-all
+                text-blue-400
+                underline
+                decoration-blue-400/40
+                underline-offset-4
+                transition
+                hover:text-blue-300
+              "
+            >
+              {children}
+            </a>
+          ),
+
+
+          // =================================================
+          // CODE
+          // =================================================
+
+          code: ({
+            className,
+            children,
+            ...props
+          }) => {
+            const codeText =
+              String(
+                children
+              ).replace(
+                /\n$/,
+                ""
+              );
+
+            const isBlock =
+              Boolean(
+                className
+              ) ||
+              codeText.includes(
+                "\n"
+              );
+
+
+            if (isBlock) {
+              return (
+                <code
+                  className={`
+                    ${className ?? ""}
+                    block
+                    font-mono
+                    text-[13px]
+                    leading-6
+                    text-neutral-200
+                    sm:text-sm
+                  `}
+                  {...props}
+                >
+                  {children}
+                </code>
+              );
+            }
+
+
+            return (
+              <code
+                className="
+                  rounded-md
+                  border
+                  border-white/[0.06]
+                  bg-white/[0.07]
+                  px-1.5
+                  py-0.5
+                  font-mono
+                  text-[0.88em]
+                  text-neutral-100
+                "
+                {...props}
+              >
+                {children}
+              </code>
+            );
+          },
+
+
+          // =================================================
+          // CODE BLOCK + COPY
+          // =================================================
+
+          pre: ({
+            children,
+          }) => {
+            const codeText =
+              getNodeText(
+                children
+              ).replace(
+                /\n$/,
+                ""
+              );
+
+
+            return (
+              <div
+                className="
+                  group/code
+                  relative
+                  my-4
+                  max-w-full
+                  overflow-hidden
+                  rounded-xl
+                  border
+                  border-neutral-800
+                  bg-neutral-950
+                "
+              >
+
+                {/* CODE HEADER */}
+
+                <div
+                  className="
+                    flex
+                    h-10
+                    items-center
+                    justify-between
+                    border-b
+                    border-neutral-800
+                    bg-black/30
+                    px-3
+                  "
+                >
+
+                  <span className="text-[11px] text-neutral-600">
+                    Code
+                  </span>
+
+                  <CopyButton
+                    text={
+                      codeText
+                    }
+                    label="Copy"
+                    copiedLabel="Copied ✓"
+                    compact
+                  />
+
+                </div>
+
+
+                {/* CODE */}
+
+                <pre
+                  className="
+                    max-w-full
+                    overflow-x-auto
+                    whitespace-pre
+                    p-4
+                    font-mono
+                    text-[13px]
+                    leading-6
+                    sm:text-sm
+                  "
+                >
+                  {children}
+                </pre>
+
+              </div>
+            );
+          },
+
+
+          // =================================================
+          // DIVIDER
+          // =================================================
+
+          hr: () => (
+            <hr className="my-6 border-neutral-800" />
+          ),
+
+
+          // =================================================
+          // TABLE
+          // =================================================
+
+          table: ({
+            children,
+          }) => (
+            <div
+              className="
+                my-4
+                max-w-full
+                overflow-x-auto
+                rounded-xl
+                border
+                border-neutral-800
+              "
+            >
+              <table className="w-full min-w-[480px] border-collapse text-sm">
+                {children}
+              </table>
+            </div>
+          ),
+
+          thead: ({
+            children,
+          }) => (
+            <thead className="bg-white/[0.04] text-white">
+              {children}
+            </thead>
+          ),
+
+          tbody: ({
+            children,
+          }) => (
+            <tbody className="divide-y divide-neutral-900">
+              {children}
+            </tbody>
+          ),
+
+          tr: ({
+            children,
+          }) => (
+            <tr>
+              {children}
+            </tr>
+          ),
+
+          th: ({
+            children,
+          }) => (
+            <th
+              className="
+                border-r
+                border-neutral-800
+                px-4
+                py-3
+                text-left
+                font-semibold
+                last:border-r-0
+              "
+            >
+              {children}
+            </th>
+          ),
+
+          td: ({
+            children,
+          }) => (
+            <td
+              className="
+                border-r
+                border-neutral-900
+                px-4
+                py-3
+                align-top
+                last:border-r-0
+              "
+            >
+              {children}
+            </td>
+          ),
+        }}
+      >
+        {normalizedContent}
+      </ReactMarkdown>
+    </div>
+  );
+}
+
+
+// =====================================================
+// CHAT PAGE
+// =====================================================
+
+export default function ChatPage() {
+  const router =
+    useRouter();
+
+  const [
+    sessions,
+    setSessions,
+  ] =
+    useState<
+      ChatSession[]
+    >([]);
+
+  const [
+    activeSessionId,
+    setActiveSessionId,
+  ] =
+    useState<
+      number | null
+    >(null);
+
+  const [
+    messages,
+    setMessages,
+  ] =
+    useState<
+      ChatMessage[]
+    >([]);
+
+  const [
+    input,
+    setInput,
+  ] =
+    useState("");
+
+  const [
+    loading,
+    setLoading,
+  ] =
+    useState(false);
+
+  const [
+    regenerating,
+    setRegenerating,
+  ] =
+    useState(false);
+
+  const [
+    sessionsLoading,
+    setSessionsLoading,
+  ] =
+    useState(true);
+
+  const [
+    error,
+    setError,
+  ] =
+    useState("");
+
+  const [
+    sidebarOpen,
+    setSidebarOpen,
+  ] =
+    useState(false);
+
+  const [
+    sessionLoading,
+    setSessionLoading,
+  ] =
+    useState(false);
+
+  const [
+    isUserNearBottom,
+    setIsUserNearBottom,
+  ] =
+    useState(true);
+
+  const bottomRef =
+    useRef<
+      HTMLDivElement | null
+    >(null);
+
+  const chatScrollRef =
+    useRef<
+      HTMLDivElement | null
+    >(null);
+
+  const textareaRef =
+    useRef<
+      HTMLTextAreaElement | null
+    >(null);
 
 
   // =====================================================
@@ -54,8 +742,11 @@ export default function ChatPage() {
 
   const activeSession =
     sessions.find(
-      (session) =>
-        session.id === activeSessionId
+      (
+        session
+      ) =>
+        session.id ===
+        activeSessionId
     ) || null;
 
 
@@ -63,52 +754,166 @@ export default function ChatPage() {
   // AUTH
   // =====================================================
 
-  useEffect(() => {
-    const token = localStorage.getItem("access_token");
+  useEffect(
+    () => {
+      const token =
+        localStorage.getItem(
+          "access_token"
+        );
 
-    if (!token) {
-      router.replace("/login");
+      if (!token) {
+        router.replace(
+          "/login"
+        );
+
+        return;
+      }
+
+      loadSessions();
+
+    },
+    [router]
+  );
+
+
+  // =====================================================
+  // SMART AUTO SCROLL
+  // =====================================================
+
+  useEffect(
+    () => {
+      if (
+        !isUserNearBottom
+      ) {
+        return;
+      }
+
+      bottomRef.current
+        ?.scrollIntoView({
+          behavior:
+            loading ||
+            regenerating
+              ? "auto"
+              : "smooth",
+        });
+
+    },
+    [
+      messages,
+      loading,
+      regenerating,
+      isUserNearBottom,
+    ]
+  );
+
+
+  // =====================================================
+  // TRACK SCROLL POSITION
+  // =====================================================
+
+  function handleChatScroll() {
+    const container =
+      chatScrollRef.current;
+
+    if (!container) {
       return;
     }
 
-    loadSessions();
-  }, [router]);
+    const distanceFromBottom =
+      container.scrollHeight -
+      container.scrollTop -
+      container.clientHeight;
+
+    setIsUserNearBottom(
+      distanceFromBottom < 140
+    );
+  }
+
+
+  function scrollToBottom() {
+    setIsUserNearBottom(
+      true
+    );
+
+    bottomRef.current
+      ?.scrollIntoView({
+        behavior:
+          "smooth",
+      });
+  }
 
 
   // =====================================================
-  // AUTO SCROLL
+  // TEXTAREA AUTO RESIZE
   // =====================================================
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({
-      behavior: "smooth",
-    });
-  }, [messages, loading]);
+  useEffect(
+    () => {
+      const textarea =
+        textareaRef.current;
+
+      if (!textarea) {
+        return;
+      }
+
+      textarea.style.height =
+        "auto";
+
+      const maxHeight = 160;
+
+      const nextHeight =
+        Math.min(
+          textarea.scrollHeight,
+          maxHeight
+        );
+
+      textarea.style.height =
+        `${nextHeight}px`;
+
+      textarea.style.overflowY =
+        textarea.scrollHeight >
+        maxHeight
+          ? "auto"
+          : "hidden";
+    },
+    [input]
+  );
 
 
   // =====================================================
   // ESC CLOSE MOBILE SIDEBAR
   // =====================================================
 
-  useEffect(() => {
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setSidebarOpen(false);
+  useEffect(
+    () => {
+      function handleEscape(
+        event: KeyboardEvent
+      ) {
+        if (
+          event.key ===
+          "Escape"
+        ) {
+          setSidebarOpen(
+            false
+          );
+        }
       }
-    }
 
-    window.addEventListener(
-      "keydown",
-      handleEscape
-    );
-
-    return () => {
-      window.removeEventListener(
+      window.addEventListener(
         "keydown",
         handleEscape
       );
-    };
-  }, []);
+
+      return () => {
+        window.removeEventListener(
+          "keydown",
+          handleEscape
+        );
+      };
+
+    },
+    []
+  );
 
 
   // =====================================================
@@ -116,7 +921,9 @@ export default function ChatPage() {
   // =====================================================
 
   function getToken() {
-    return localStorage.getItem("access_token");
+    return localStorage.getItem(
+      "access_token"
+    );
   }
 
 
@@ -125,8 +932,13 @@ export default function ChatPage() {
   // =====================================================
 
   function handleUnauthorized() {
-    localStorage.removeItem("access_token");
-    router.replace("/login");
+    localStorage.removeItem(
+      "access_token"
+    );
+
+    router.replace(
+      "/login"
+    );
   }
 
 
@@ -135,32 +947,45 @@ export default function ChatPage() {
   // =====================================================
 
   async function loadSessions() {
-    const token = getToken();
+    const token =
+      getToken();
 
     if (!token) {
       handleUnauthorized();
       return;
     }
 
-    setSessionsLoading(true);
+    setSessionsLoading(
+      true
+    );
+
     setError("");
 
     try {
-      const response = await fetch(
-        `${API_URL}/sessions`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response =
+        await fetch(
+          `${API_URL}/sessions`,
+          {
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
 
-      if (response.status === 401) {
+
+      if (
+        response.status ===
+        401
+      ) {
         handleUnauthorized();
         return;
       }
 
-      const data = await response.json();
+
+      const data =
+        await response.json();
+
 
       if (!response.ok) {
         throw new Error(
@@ -169,31 +994,54 @@ export default function ChatPage() {
         );
       }
 
-      setSessions(data);
 
-      if (data.length > 0) {
-        const firstSessionId = data[0].id;
+      setSessions(
+        data
+      );
 
-        setActiveSessionId(firstSessionId);
+
+      if (
+        data.length > 0
+      ) {
+        const firstSessionId =
+          data[0].id;
+
+        setActiveSessionId(
+          firstSessionId
+        );
 
         await loadSession(
           firstSessionId,
           false
         );
+
       } else {
-        setMessages([]);
-        setActiveSessionId(null);
+        setMessages(
+          []
+        );
+
+        setActiveSessionId(
+          null
+        );
       }
 
     } catch (error) {
-      if (error instanceof Error) {
-        setError(error.message);
+      if (
+        error instanceof Error
+      ) {
+        setError(
+          error.message
+        );
       } else {
-        setError("Белгісіз қате шықты.");
+        setError(
+          "Белгісіз қате шықты."
+        );
       }
 
     } finally {
-      setSessionsLoading(false);
+      setSessionsLoading(
+        false
+      );
     }
   }
 
@@ -204,9 +1052,11 @@ export default function ChatPage() {
 
   async function loadSession(
     sessionId: number,
-    closeSidebar: boolean = true
+    closeSidebar:
+      boolean = true
   ) {
-    const token = getToken();
+    const token =
+      getToken();
 
     if (!token) {
       handleUnauthorized();
@@ -214,23 +1064,33 @@ export default function ChatPage() {
     }
 
     setError("");
+    setSessionLoading(true);
 
     try {
-      const response = await fetch(
-        `${API_URL}/sessions/${sessionId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response =
+        await fetch(
+          `${API_URL}/sessions/${sessionId}`,
+          {
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
 
-      if (response.status === 401) {
+
+      if (
+        response.status ===
+        401
+      ) {
         handleUnauthorized();
         return;
       }
 
-      const data = await response.json();
+
+      const data =
+        await response.json();
+
 
       if (!response.ok) {
         throw new Error(
@@ -239,19 +1099,46 @@ export default function ChatPage() {
         );
       }
 
-      setActiveSessionId(sessionId);
-      setMessages(data.messages || []);
 
-      if (closeSidebar) {
-        setSidebarOpen(false);
+      setActiveSessionId(
+        sessionId
+      );
+
+      setMessages(
+        data.messages ||
+          []
+      );
+
+      setIsUserNearBottom(
+        true
+      );
+
+
+      if (
+        closeSidebar
+      ) {
+        setSidebarOpen(
+          false
+        );
       }
 
     } catch (error) {
-      if (error instanceof Error) {
-        setError(error.message);
+      if (
+        error instanceof Error
+      ) {
+        setError(
+          error.message
+        );
       } else {
-        setError("Белгісіз қате шықты.");
+        setError(
+          "Белгісіз қате шықты."
+        );
       }
+
+    } finally {
+      setSessionLoading(
+        false
+      );
     }
   }
 
@@ -261,7 +1148,8 @@ export default function ChatPage() {
   // =====================================================
 
   async function createNewChat() {
-    const token = getToken();
+    const token =
+      getToken();
 
     if (!token) {
       handleUnauthorized();
@@ -271,28 +1159,42 @@ export default function ChatPage() {
     setError("");
 
     try {
-      const response = await fetch(
-        `${API_URL}/sessions`,
-        {
-          method: "POST",
+      const response =
+        await fetch(
+          `${API_URL}/sessions`,
+          {
+            method:
+              "POST",
 
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+            headers: {
+              "Content-Type":
+                "application/json",
 
-          body: JSON.stringify({
-            title: "Жаңа әңгіме",
-          }),
-        }
-      );
+              Authorization:
+                `Bearer ${token}`,
+            },
 
-      if (response.status === 401) {
+            body:
+              JSON.stringify({
+                title:
+                  "Жаңа әңгіме",
+              }),
+          }
+        );
+
+
+      if (
+        response.status ===
+        401
+      ) {
         handleUnauthorized();
         return;
       }
 
-      const data = await response.json();
+
+      const data =
+        await response.json();
+
 
       if (!response.ok) {
         throw new Error(
@@ -301,21 +1203,45 @@ export default function ChatPage() {
         );
       }
 
-      setSessions((current) => [
-        data,
-        ...current,
-      ]);
 
-      setActiveSessionId(data.id);
-      setMessages([]);
+      setSessions(
+        (
+          current
+        ) => [
+          data,
+          ...current,
+        ]
+      );
+
+      setActiveSessionId(
+        data.id
+      );
+
+      setMessages(
+        []
+      );
+
+      setIsUserNearBottom(
+        true
+      );
+
       setInput("");
-      setSidebarOpen(false);
+
+      setSidebarOpen(
+        false
+      );
 
     } catch (error) {
-      if (error instanceof Error) {
-        setError(error.message);
+      if (
+        error instanceof Error
+      ) {
+        setError(
+          error.message
+        );
       } else {
-        setError("Белгісіз қате шықты.");
+        setError(
+          "Белгісіз қате шықты."
+        );
       }
     }
   }
@@ -329,53 +1255,76 @@ export default function ChatPage() {
     sessionId: number,
     currentTitle: string
   ) {
-    const token = getToken();
+    const token =
+      getToken();
 
     if (!token) {
       handleUnauthorized();
       return;
     }
 
-    const newTitle = window.prompt(
-      "Жаңа атау:",
-      currentTitle
-    );
+    const newTitle =
+      window.prompt(
+        "Жаңа атау:",
+        currentTitle
+      );
 
-    if (newTitle === null) {
+
+    if (
+      newTitle === null
+    ) {
       return;
     }
 
-    const cleanTitle = newTitle.trim();
+
+    const cleanTitle =
+      newTitle.trim();
+
 
     if (!cleanTitle) {
       return;
     }
 
+
     setError("");
 
     try {
-      const response = await fetch(
-        `${API_URL}/sessions/${sessionId}`,
-        {
-          method: "PATCH",
+      const response =
+        await fetch(
+          `${API_URL}/sessions/${sessionId}`,
+          {
+            method:
+              "PATCH",
 
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+            headers: {
+              "Content-Type":
+                "application/json",
 
-          body: JSON.stringify({
-            title: cleanTitle,
-          }),
-        }
-      );
+              Authorization:
+                `Bearer ${token}`,
+            },
 
-      if (response.status === 401) {
+            body:
+              JSON.stringify({
+                title:
+                  cleanTitle,
+              }),
+          }
+        );
+
+
+      if (
+        response.status ===
+        401
+      ) {
         handleUnauthorized();
         return;
       }
 
-      const data = await response.json();
+
+      const data =
+        await response.json();
+
 
       if (!response.ok) {
         throw new Error(
@@ -384,22 +1333,37 @@ export default function ChatPage() {
         );
       }
 
-      setSessions((current) =>
-        current.map((session) =>
-          session.id === sessionId
-            ? {
-                ...session,
-                title: cleanTitle,
-              }
-            : session
-        )
+
+      setSessions(
+        (
+          current
+        ) =>
+          current.map(
+            (
+              session
+            ) =>
+              session.id ===
+              sessionId
+                ? {
+                    ...session,
+                    title:
+                      cleanTitle,
+                  }
+                : session
+          )
       );
 
     } catch (error) {
-      if (error instanceof Error) {
-        setError(error.message);
+      if (
+        error instanceof Error
+      ) {
+        setError(
+          error.message
+        );
       } else {
-        setError("Белгісіз қате шықты.");
+        setError(
+          "Белгісіз қате шықты."
+        );
       }
     }
   }
@@ -412,41 +1376,55 @@ export default function ChatPage() {
   async function deleteChat(
     sessionId: number
   ) {
-    const token = getToken();
+    const token =
+      getToken();
 
     if (!token) {
       handleUnauthorized();
       return;
     }
 
-    const confirmed = window.confirm(
-      "Бұл әңгімені өшіргің келе ме?"
-    );
+    const confirmed =
+      window.confirm(
+        "Бұл әңгімені өшіргің келе ме?"
+      );
+
 
     if (!confirmed) {
       return;
     }
 
+
     setError("");
 
     try {
-      const response = await fetch(
-        `${API_URL}/sessions/${sessionId}`,
-        {
-          method: "DELETE",
+      const response =
+        await fetch(
+          `${API_URL}/sessions/${sessionId}`,
+          {
+            method:
+              "DELETE",
 
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
 
-      if (response.status === 401) {
+
+      if (
+        response.status ===
+        401
+      ) {
         handleUnauthorized();
         return;
       }
 
-      const data = await response.json();
+
+      const data =
+        await response.json();
+
 
       if (!response.ok) {
         throw new Error(
@@ -455,40 +1433,61 @@ export default function ChatPage() {
         );
       }
 
+
       const remainingSessions =
         sessions.filter(
-          (session) =>
-            session.id !== sessionId
+          (
+            session
+          ) =>
+            session.id !==
+            sessionId
         );
+
 
       setSessions(
         remainingSessions
       );
 
+
       if (
-        activeSessionId === sessionId
+        activeSessionId ===
+        sessionId
       ) {
         if (
-          remainingSessions.length > 0
+          remainingSessions.length >
+          0
         ) {
           const nextId =
-            remainingSessions[0].id;
+            remainingSessions[0]
+              .id;
 
           await loadSession(
             nextId,
             false
           );
+
         } else {
-          setActiveSessionId(null);
-          setMessages([]);
+          setActiveSessionId(
+            null
+          );
+
+          setMessages(
+            []
+          );
         }
       }
 
     } catch (error) {
-      if (error instanceof Error) {
-        setError(error.message);
+      if (
+        error instanceof Error
+      ) {
+        setError(
+          error.message
+        );
       } else {
-        setError("Белгісіз қате шықты.");
+        setError(
+          "Белгісіз қате шықты."
+        );
       }
     }
   }
@@ -499,60 +1498,96 @@ export default function ChatPage() {
   // =====================================================
 
   async function sendMessage() {
-    const message = input.trim();
+    const message =
+      input.trim();
+
 
     if (
       !message ||
       loading ||
-      activeSessionId === null
+      regenerating ||
+      activeSessionId ===
+        null
     ) {
       return;
     }
 
-    const token = getToken();
+
+    const token =
+      getToken();
+
 
     if (!token) {
       handleUnauthorized();
       return;
     }
 
-    setError("");
 
-    setMessages((current) => [
-      ...current,
-      {
-        role: "user",
-        content: message,
-      },
-    ]);
+    setError("");
+    setIsUserNearBottom(
+      true
+    );
+
+    const optimisticMessage: ChatMessage = {
+      role: "user",
+      content: message,
+    };
+
+    setMessages(
+      (
+        current
+      ) => [
+        ...current,
+        optimisticMessage,
+      ]
+    );
 
     setInput("");
-    setLoading(true);
+
+    setLoading(
+      true
+    );
+
 
     try {
-      const response = await fetch(
-        `${API_URL}/chat`,
-        {
-          method: "POST",
+      const response =
+        await fetch(
+          `${API_URL}/chat`,
+          {
+            method:
+              "POST",
 
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+            headers: {
+              "Content-Type":
+                "application/json",
 
-          body: JSON.stringify({
-            session_id: activeSessionId,
-            message,
-          }),
-        }
-      );
+              Authorization:
+                `Bearer ${token}`,
+            },
 
-      if (response.status === 401) {
+            body:
+              JSON.stringify({
+                session_id:
+                  activeSessionId,
+
+                message,
+              }),
+          }
+        );
+
+
+      if (
+        response.status ===
+        401
+      ) {
         handleUnauthorized();
         return;
       }
 
-      const data = await response.json();
+
+      const data =
+        await response.json();
+
 
       if (!response.ok) {
         throw new Error(
@@ -561,25 +1596,204 @@ export default function ChatPage() {
         );
       }
 
-      setMessages((current) => [
-        ...current,
-        {
-          role: "assistant",
-          content: data.answer,
-        },
-      ]);
+
+      setMessages(
+        (
+          current
+        ) => [
+          ...current,
+          {
+            role:
+              "assistant",
+
+            content:
+              data.answer,
+          },
+        ]
+      );
+
 
       await refreshSessionList();
 
     } catch (error) {
-      if (error instanceof Error) {
-        setError(error.message);
+      setMessages(
+        (
+          current
+        ) => {
+          const next =
+            [...current];
+
+          const last =
+            next[
+              next.length - 1
+            ];
+
+          if (
+            last &&
+            last.role === "user" &&
+            last.content === message
+          ) {
+            next.pop();
+          }
+
+          return next;
+        }
+      );
+
+      setInput(
+        message
+      );
+
+      if (
+        error instanceof Error
+      ) {
+        setError(
+          error.message
+        );
       } else {
-        setError("Белгісіз қате шықты.");
+        setError(
+          "Белгісіз қате шықты."
+        );
       }
 
     } finally {
-      setLoading(false);
+      setLoading(
+        false
+      );
+    }
+  }
+
+
+  // =====================================================
+  // REGENERATE LAST ANSWER
+  // =====================================================
+
+  async function regenerateLastAnswer() {
+    if (
+      loading ||
+      regenerating ||
+      activeSessionId === null
+    ) {
+      return;
+    }
+
+    const token =
+      getToken();
+
+    if (!token) {
+      handleUnauthorized();
+      return;
+    }
+
+    let lastAssistantIndex = -1;
+    let lastUserMessage = "";
+
+    for (
+      let index = messages.length - 1;
+      index >= 0;
+      index -= 1
+    ) {
+      if (
+        lastAssistantIndex === -1 &&
+        messages[index].role === "assistant"
+      ) {
+        lastAssistantIndex = index;
+        continue;
+      }
+
+      if (
+        lastAssistantIndex !== -1 &&
+        messages[index].role === "user"
+      ) {
+        lastUserMessage =
+          messages[index].content;
+        break;
+      }
+    }
+
+    if (
+      lastAssistantIndex === -1 ||
+      !lastUserMessage
+    ) {
+      setError(
+        "Қайта жауап беруге жарамды соңғы сұрақ табылмады."
+      );
+      return;
+    }
+
+    setError("");
+    setIsUserNearBottom(
+      true
+    );
+    setRegenerating(true);
+
+    try {
+      const response =
+        await fetch(
+          `${API_URL}/chat/regenerate`,
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+
+              Authorization:
+                `Bearer ${token}`,
+            },
+
+            body:
+              JSON.stringify({
+                session_id:
+                  activeSessionId,
+              }),
+          }
+        );
+
+      if (
+        response.status ===
+        401
+      ) {
+        handleUnauthorized();
+        return;
+      }
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail ||
+            "Жауапты қайта дайындау кезінде қате шықты."
+        );
+      }
+
+      // Backend соңғы assistant жауабын DB-де
+      // ауыстырғаннан кейін session-ды қайта жүктейміз.
+      await loadSession(
+        activeSessionId,
+        false
+      );
+
+      await refreshSessionList();
+
+    } catch (error) {
+      if (
+        error instanceof Error
+      ) {
+        setError(
+          error.message
+        );
+      } else {
+        setError(
+          "Белгісіз қате шықты."
+        );
+      }
+
+    } finally {
+      setRegenerating(
+        false
+      );
     }
   }
 
@@ -589,32 +1803,42 @@ export default function ChatPage() {
   // =====================================================
 
   async function refreshSessionList() {
-    const token = getToken();
+    const token =
+      getToken();
 
     if (!token) {
       return;
     }
 
     try {
-      const response = await fetch(
-        `${API_URL}/sessions`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response =
+        await fetch(
+          `${API_URL}/sessions`,
+          {
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
+
 
       if (!response.ok) {
         return;
       }
 
-      const data = await response.json();
 
-      setSessions(data);
+      const data =
+        await response.json();
+
+
+      setSessions(
+        data
+      );
 
     } catch {
-      // Sidebar жаңармаса да chat тоқтамауы тиіс.
+      // Sidebar жаңармаса да
+      // chat тоқтамауы тиіс.
     }
   }
 
@@ -628,7 +1852,9 @@ export default function ChatPage() {
       "access_token"
     );
 
-    router.replace("/login");
+    router.replace(
+      "/login"
+    );
   }
 
 
@@ -637,10 +1863,18 @@ export default function ChatPage() {
   // =====================================================
 
   function handleKeyDown(
-    event: React.KeyboardEvent<HTMLTextAreaElement>
+    event:
+      React.KeyboardEvent<HTMLTextAreaElement>
   ) {
     if (
-      event.key === "Enter" &&
+      event.nativeEvent.isComposing
+    ) {
+      return;
+    }
+
+    if (
+      event.key ===
+        "Enter" &&
       !event.shiftKey
     ) {
       event.preventDefault();
@@ -657,7 +1891,16 @@ export default function ChatPage() {
   function selectQuickPrompt(
     prompt: string
   ) {
-    setInput(prompt);
+    setInput(
+      prompt
+    );
+
+    window.requestAnimationFrame(
+      () => {
+        textareaRef.current
+          ?.focus();
+      }
+    );
   }
 
 
@@ -676,9 +1919,12 @@ export default function ChatPage() {
               ERKEK AI
             </div>
 
+
             <button
               onClick={() =>
-                setSidebarOpen(false)
+                setSidebarOpen(
+                  false
+                )
               }
               className="
                 flex
@@ -700,8 +1946,17 @@ export default function ChatPage() {
 
           </div>
 
+
           <button
-            onClick={createNewChat}
+            type="button"
+            onClick={
+              createNewChat
+            }
+            disabled={
+              loading ||
+              regenerating ||
+              sessionLoading
+            }
             className="
               w-full
               rounded-xl
@@ -713,6 +1968,8 @@ export default function ChatPage() {
               text-sm
               transition
               hover:bg-neutral-900
+              disabled:cursor-not-allowed
+              disabled:opacity-50
             "
           >
             + Жаңа чат
@@ -721,17 +1978,24 @@ export default function ChatPage() {
         </div>
 
 
-        {/* SESSION LIST */}
-
         <div className="flex-1 overflow-y-auto p-2">
 
           {sessionsLoading && (
             <div className="space-y-2 px-2 py-3">
 
-              {[1, 2, 3, 4].map(
-                (item) => (
+              {[
+                1,
+                2,
+                3,
+                4,
+              ].map(
+                (
+                  item
+                ) => (
                   <div
-                    key={item}
+                    key={
+                      item
+                    }
                     className="
                       h-11
                       animate-pulse
@@ -747,7 +2011,8 @@ export default function ChatPage() {
 
 
           {!sessionsLoading &&
-            sessions.length === 0 && (
+            sessions.length ===
+              0 && (
               <div className="px-3 py-4">
 
                 <div className="text-sm text-neutral-500">
@@ -765,9 +2030,13 @@ export default function ChatPage() {
 
           {!sessionsLoading &&
             sessions.map(
-              (session) => (
+              (
+                session
+              ) => (
                 <div
-                  key={session.id}
+                  key={
+                    session.id
+                  }
                   className={`
                     group
                     mb-1
@@ -808,8 +2077,11 @@ export default function ChatPage() {
                       text-neutral-300
                     "
                   >
-                    {session.title}
+                    {
+                      session.title
+                    }
                   </button>
+
 
                   <button
                     onClick={() =>
@@ -830,6 +2102,7 @@ export default function ChatPage() {
                   >
                     ✎
                   </button>
+
 
                   <button
                     onClick={() =>
@@ -857,16 +2130,17 @@ export default function ChatPage() {
         </div>
 
 
-        {/* SIDEBAR FOOTER */}
-
         <div className="border-t border-neutral-900 p-4">
 
           <div className="mb-3 text-sm font-medium">
             ERKEK AI
           </div>
 
+
           <button
-            onClick={handleLogout}
+            onClick={
+              handleLogout
+            }
             className="
               text-sm
               text-neutral-500
@@ -890,25 +2164,23 @@ export default function ChatPage() {
   return (
     <main className="flex h-dvh overflow-hidden bg-black text-white">
 
-      {/* ================================================= */}
       {/* DESKTOP SIDEBAR */}
-      {/* ================================================= */}
 
       <aside className="hidden w-72 shrink-0 flex-col border-r border-neutral-900 bg-neutral-950 lg:flex">
         <SidebarContent />
       </aside>
 
 
-      {/* ================================================= */}
       {/* MOBILE OVERLAY */}
-      {/* ================================================= */}
 
       {sidebarOpen && (
         <button
           type="button"
           aria-label="Мәзірді жабу"
           onClick={() =>
-            setSidebarOpen(false)
+            setSidebarOpen(
+              false
+            )
           }
           className="
             fixed
@@ -922,9 +2194,7 @@ export default function ChatPage() {
       )}
 
 
-      {/* ================================================= */}
       {/* MOBILE SIDEBAR */}
-      {/* ================================================= */}
 
       <aside
         className={`
@@ -954,9 +2224,7 @@ export default function ChatPage() {
       </aside>
 
 
-      {/* ================================================= */}
       {/* MAIN CHAT */}
-      {/* ================================================= */}
 
       <section className="flex min-w-0 flex-1 flex-col">
 
@@ -966,7 +2234,9 @@ export default function ChatPage() {
 
           <button
             onClick={() =>
-              setSidebarOpen(true)
+              setSidebarOpen(
+                true
+              )
             }
             className="
               mr-3
@@ -987,18 +2257,23 @@ export default function ChatPage() {
             ☰
           </button>
 
+
           <div className="min-w-0">
 
             <div className="truncate font-semibold">
-              {activeSession
-                ? activeSession.title
-                : "ERKEK AI"}
+              {
+                activeSession
+                  ? activeSession.title
+                  : "ERKEK AI"
+              }
             </div>
 
             <div className="text-xs text-neutral-500">
-              {activeSession
-                ? "ERKEK AI · Digital mentor"
-                : "Digital mentor"}
+              {
+                activeSession
+                  ? "ERKEK AI · Digital mentor"
+                  : "Digital mentor"
+              }
             </div>
 
           </div>
@@ -1008,11 +2283,35 @@ export default function ChatPage() {
 
         {/* CHAT MESSAGES */}
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div
+          ref={chatScrollRef}
+          onScroll={handleChatScroll}
+          className="relative min-h-0 flex-1 overflow-y-auto"
+        >
+
+          {sessionLoading && (
+            <div className="pointer-events-none sticky top-3 z-20 mx-auto flex w-fit items-center gap-2 rounded-full border border-white/[0.08] bg-neutral-950/90 px-3 py-1.5 text-xs text-neutral-400 shadow-lg backdrop-blur">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-neutral-500" />
+              Әңгіме жүктелуде...
+            </div>
+          )}
+
+          {!isUserNearBottom &&
+            activeSessionId !== null && (
+              <button
+                type="button"
+                onClick={scrollToBottom}
+                className="sticky top-[calc(100%-3rem)] z-20 mx-auto mb-2 flex h-9 items-center gap-2 rounded-full border border-white/[0.08] bg-neutral-950/95 px-3 text-xs text-neutral-300 shadow-lg backdrop-blur transition hover:bg-neutral-900 hover:text-white"
+                aria-label="Соңғы хабарламаға өту"
+              >
+                ↓ Соңғы хабарлама
+              </button>
+            )}
 
           <div className="mx-auto w-full max-w-4xl px-3 py-6 sm:px-5 sm:py-8 lg:px-6">
 
-            {activeSessionId === null ? (
+            {activeSessionId ===
+            null ? (
 
               <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
 
@@ -1030,7 +2329,9 @@ export default function ChatPage() {
                 </p>
 
                 <button
-                  onClick={createNewChat}
+                  onClick={
+                    createNewChat
+                  }
                   className="
                     mt-7
                     rounded-xl
@@ -1052,10 +2353,10 @@ export default function ChatPage() {
 
               <div className="space-y-6 sm:space-y-7">
 
-
                 {/* EMPTY CHAT */}
 
-                {messages.length === 0 &&
+                {messages.length ===
+                  0 &&
                   !loading && (
                   <div className="flex min-h-[55vh] flex-col items-center justify-center px-4 text-center">
 
@@ -1068,13 +2369,12 @@ export default function ChatPage() {
                     </h2>
 
                     <p className="mt-2 max-w-md text-sm leading-6 text-neutral-500">
-                      Жұмыс, қаржы, отбасы,
-                      мақсаттар немесе ойыңда жүрген
+                      Жұмыс, қаржы,
+                      отбасы, мақсаттар
+                      немесе ойыңда жүрген
                       кез келген мәселені жаз.
                     </p>
 
-
-                    {/* QUICK PROMPTS */}
 
                     <div className="mt-6 grid w-full max-w-xl gap-2 sm:grid-cols-2">
 
@@ -1084,9 +2384,13 @@ export default function ChatPage() {
                         "Мақсаттарымды реттегім келеді",
                         "Бір мәселе мазалап жүр",
                       ].map(
-                        (prompt) => (
+                        (
+                          prompt
+                        ) => (
                           <button
-                            key={prompt}
+                            key={
+                              prompt
+                            }
                             onClick={() =>
                               selectQuickPrompt(
                                 prompt
@@ -1108,7 +2412,9 @@ export default function ChatPage() {
                               hover:text-white
                             "
                           >
-                            {prompt}
+                            {
+                              prompt
+                            }
                           </button>
                         )
                       )}
@@ -1144,19 +2450,20 @@ export default function ChatPage() {
                           message.role ===
                           "user"
                             ? `
-                              max-w-[88%]
-                              rounded-2xl
-                              bg-white
-                              px-4
-                              py-3
-                              text-black
-                              sm:max-w-[80%]
-                            `
+                                max-w-[88%]
+                                rounded-2xl
+                                bg-white
+                                px-4
+                                py-3
+                                text-black
+                                sm:max-w-[80%]
+                              `
                             : `
-                              max-w-[95%]
-                              text-neutral-200
-                              sm:max-w-[85%]
-                            `
+                                group/message
+                                max-w-[95%]
+                                text-neutral-200
+                                sm:max-w-[85%]
+                              `
                         }
                       >
 
@@ -1167,9 +2474,65 @@ export default function ChatPage() {
                           </div>
                         )}
 
-                        <div className="whitespace-pre-wrap break-words text-[15px] leading-7 sm:text-base">
-                          {message.content}
-                        </div>
+
+                        {message.role ===
+                        "assistant" ? (
+                          <>
+                            <MarkdownMessage
+                              content={
+                                message.content
+                              }
+                            />
+
+                            {/* MESSAGE COPY */}
+
+                            <div className="mt-2 flex items-center gap-1">
+                              <CopyButton
+                                text={
+                                  message.content
+                                }
+                              />
+
+                              {index ===
+                                messages.length - 1 && (
+                                <button
+                                  type="button"
+                                  onClick={
+                                    regenerateLastAnswer
+                                  }
+                                  disabled={
+                                    loading ||
+                                    regenerating
+                                  }
+                                  className="
+                                    inline-flex
+                                    items-center
+                                    rounded-lg
+                                    px-2
+                                    py-1
+                                    text-xs
+                                    text-neutral-600
+                                    transition
+                                    hover:bg-white/[0.04]
+                                    hover:text-neutral-300
+                                    disabled:cursor-not-allowed
+                                    disabled:opacity-40
+                                  "
+                                >
+                                  {regenerating
+                                    ? "Қайта дайындалуда..."
+                                    : "Қайта жауап беру"}
+                                </button>
+                              )}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="whitespace-pre-wrap break-words text-[15px] leading-7 sm:text-base">
+                            {
+                              message.content
+                            }
+                          </div>
+                        )}
 
                       </div>
 
@@ -1180,7 +2543,8 @@ export default function ChatPage() {
 
                 {/* AI LOADING */}
 
-                {loading && (
+                {(loading ||
+                  regenerating) && (
                   <div className="flex justify-start">
 
                     <div className="max-w-[85%]">
@@ -1189,13 +2553,19 @@ export default function ChatPage() {
                         ERKEK AI
                       </div>
 
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-2 text-sm text-neutral-500">
 
-                        <span className="h-2 w-2 animate-bounce rounded-full bg-neutral-600 [animation-delay:-0.3s]" />
+                        <div className="flex items-center gap-1.5">
+                          <span className="h-2 w-2 animate-bounce rounded-full bg-neutral-600 [animation-delay:-0.3s]" />
+                          <span className="h-2 w-2 animate-bounce rounded-full bg-neutral-600 [animation-delay:-0.15s]" />
+                          <span className="h-2 w-2 animate-bounce rounded-full bg-neutral-600" />
+                        </div>
 
-                        <span className="h-2 w-2 animate-bounce rounded-full bg-neutral-600 [animation-delay:-0.15s]" />
-
-                        <span className="h-2 w-2 animate-bounce rounded-full bg-neutral-600" />
+                        <span>
+                          {regenerating
+                            ? "Жауап қайта дайындалуда..."
+                            : "Жауап дайындалуда..."}
+                        </span>
 
                       </div>
 
@@ -1204,7 +2574,12 @@ export default function ChatPage() {
                   </div>
                 )}
 
-                <div ref={bottomRef} />
+
+                <div
+                  ref={
+                    bottomRef
+                  }
+                />
 
               </div>
 
@@ -1215,14 +2590,11 @@ export default function ChatPage() {
         </div>
 
 
-        {/* ================================================= */}
         {/* INPUT */}
-        {/* ================================================= */}
 
         <footer className="shrink-0 border-t border-neutral-900 bg-black">
 
           <div className="mx-auto w-full max-w-4xl px-3 py-3 sm:px-5 sm:py-5 lg:px-6">
-
 
             {/* ERROR */}
 
@@ -1235,7 +2607,9 @@ export default function ChatPage() {
 
                 <button
                   onClick={() =>
-                    setError("")
+                    setError(
+                      ""
+                    )
                   }
                   className="shrink-0 text-red-400/60 transition hover:text-red-300"
                   aria-label="Қатені жабу"
@@ -1252,10 +2626,16 @@ export default function ChatPage() {
             <div className="flex items-end gap-2 rounded-2xl border border-neutral-800 bg-neutral-950 p-2 transition focus-within:border-neutral-700 sm:gap-3">
 
               <textarea
-                value={input}
-                onChange={(event) =>
+                ref={textareaRef}
+                value={
+                  input
+                }
+                onChange={(
+                  event
+                ) =>
                   setInput(
-                    event.target.value
+                    event.target
+                      .value
                   )
                 }
                 onKeyDown={
@@ -1267,8 +2647,14 @@ export default function ChatPage() {
                     : "Алдымен жаңа чат аш."
                 }
                 rows={1}
+                aria-label="Хабарлама"
+                aria-busy={
+                  loading ||
+                  regenerating
+                }
                 disabled={
                   loading ||
+                  regenerating ||
                   activeSessionId ===
                     null
                 }
@@ -1292,10 +2678,16 @@ export default function ChatPage() {
                 "
               />
 
+
               <button
-                onClick={sendMessage}
+                type="button"
+                onClick={
+                  sendMessage
+                }
+                aria-label="Хабарламаны жіберу"
                 disabled={
                   loading ||
+                  regenerating ||
                   !input.trim() ||
                   activeSessionId ===
                     null

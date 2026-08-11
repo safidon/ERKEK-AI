@@ -1,4 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+)
 from pydantic import BaseModel
 
 from app.auth.dependencies import get_current_user
@@ -15,7 +20,15 @@ from app.brain.prompt_builder import build_full_prompt
 from app.brain.conversation_sessions import (
     get_session,
     touch_session,
-    generate_session_title
+    generate_session_title,
+)
+
+from app.brain.conversation import (
+    add_message,
+    format_conversation,
+    get_regenerate_target,
+    format_conversation_before_message,
+    replace_assistant_message,
 )
 
 from app.core.logger import logger
@@ -24,20 +37,15 @@ from app.brain.memory import get_user_profile
 from app.brain.memory_extractor import extract_memory
 from app.brain.memory_conflict import resolve_memory_update
 
-from app.brain.conversation import (
-    add_message,
-    format_conversation
-)
-
 from app.brain.summary_storage import get_summary
 
 from app.brain.summary_manager import (
-    update_conversation_summary
+    update_conversation_summary,
 )
 
 from app.brain.response_style import (
     detect_response_style,
-    build_response_style_prompt
+    build_response_style_prompt,
 )
 
 from app.prompts.system_prompt import SYSTEM_PROMPT
@@ -48,12 +56,16 @@ router = APIRouter()
 
 
 # =====================================================
-# REQUEST SCHEMA
+# REQUEST SCHEMAS
 # =====================================================
 
 class ChatRequest(BaseModel):
     session_id: int
     message: str
+
+
+class RegenerateRequest(BaseModel):
+    session_id: int
 
 
 # =====================================================
@@ -63,7 +75,7 @@ class ChatRequest(BaseModel):
 @router.post("/chat")
 def chat(
     data: ChatRequest,
-    current_user=Depends(get_current_user)
+    current_user=Depends(get_current_user),
 ):
 
     # =====================================================
@@ -75,7 +87,7 @@ def chat(
     logger.info(
         "Chat request started | user_id=%s | session_id=%s",
         user_id,
-        data.session_id
+        data.session_id,
     )
 
     # =====================================================
@@ -84,20 +96,23 @@ def chat(
 
     session = get_session(
         user_id=user_id,
-        session_id=data.session_id
+        session_id=data.session_id,
     )
 
     if not session:
 
         logger.warning(
-            "Chat session not found | user_id=%s | session_id=%s",
+            (
+                "Chat session not found | "
+                "user_id=%s | session_id=%s"
+            ),
             user_id,
-            data.session_id
+            data.session_id,
         )
 
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Әңгіме табылмады."
+            detail="Әңгіме табылмады.",
         )
 
     # =====================================================
@@ -107,7 +122,7 @@ def chat(
     generate_session_title(
         user_id=user_id,
         session_id=data.session_id,
-        message=data.message
+        message=data.message,
     )
 
     # =====================================================
@@ -115,7 +130,7 @@ def chat(
     # =====================================================
 
     profile = get_user_profile(
-        user_id
+        user_id,
     )
 
     # =====================================================
@@ -123,11 +138,11 @@ def chat(
     # =====================================================
 
     language = detect_language(
-        data.message
+        data.message,
     )
 
     profile.update(
-        language=language
+        language=language,
     )
 
     # =====================================================
@@ -135,7 +150,7 @@ def chat(
     # =====================================================
 
     memory_data = extract_memory(
-        data.message
+        data.message,
     )
 
     # =====================================================
@@ -144,31 +159,34 @@ def chat(
 
     resolved_memory = resolve_memory_update(
         profile,
-        memory_data
+        memory_data,
     )
 
     if resolved_memory:
         profile.update(
-            **resolved_memory
+            **resolved_memory,
         )
 
     # =====================================================
-    # 8. CATEGORY V2
+    # 8. CATEGORY
     # =====================================================
 
     category_result = detect_categories(
-        data.message
+        data.message,
     )
 
     category = category_result["primary"]
-    secondary_categories = category_result["secondary"]
+
+    secondary_categories = (
+        category_result["secondary"]
+    )
 
     # =====================================================
     # 9. EMOTION
     # =====================================================
 
     emotion = detect_emotion(
-        data.message
+        data.message,
     )
 
     # =====================================================
@@ -176,20 +194,21 @@ def chat(
     # =====================================================
 
     risk = detect_risk(
-        data.message
+        data.message,
     )
 
     logger.info(
         (
             "Chat analysis | user_id=%s | session_id=%s | "
-            "category=%s | secondary=%s | emotion=%s | risk=%s"
+            "category=%s | secondary=%s | "
+            "emotion=%s | risk=%s"
         ),
         user_id,
         data.session_id,
         category,
         secondary_categories,
         emotion,
-        risk
+        risk,
     )
 
     # =====================================================
@@ -204,7 +223,7 @@ def chat(
 
     risk_answer = build_risk_response(
         risk=risk,
-        language=language
+        language=language,
     )
 
     if risk_answer is not None:
@@ -216,40 +235,44 @@ def chat(
             ),
             user_id,
             data.session_id,
-            risk
+            risk,
         )
 
         add_message(
             user_id=user_id,
             role="user",
             content=data.message,
-            session_id=data.session_id
+            session_id=data.session_id,
         )
 
         add_message(
             user_id=user_id,
             role="assistant",
             content=risk_answer,
-            session_id=data.session_id
+            session_id=data.session_id,
         )
 
         touch_session(
             user_id=user_id,
-            session_id=data.session_id
+            session_id=data.session_id,
         )
 
         conversation_summary = get_summary(
             user_id=user_id,
-            session_id=data.session_id
+            session_id=data.session_id,
         )
 
         if not conversation_summary:
-            conversation_summary = "Әңгіме summary жоқ."
+            conversation_summary = (
+                "Әңгіме summary жоқ."
+            )
 
-        updated_recent_history = format_conversation(
-            user_id=user_id,
-            limit=4,
-            session_id=data.session_id
+        updated_recent_history = (
+            format_conversation(
+                user_id=user_id,
+                limit=4,
+                session_id=data.session_id,
+            )
         )
 
         logger.info(
@@ -258,7 +281,7 @@ def chat(
                 "user_id=%s | session_id=%s"
             ),
             user_id,
-            data.session_id
+            data.session_id,
         )
 
         return {
@@ -273,7 +296,7 @@ def chat(
             "memory": memory_context,
             "conversation_summary": conversation_summary,
             "recent_history": updated_recent_history,
-            "answer": risk_answer
+            "answer": risk_answer,
         }
 
     # =====================================================
@@ -284,16 +307,18 @@ def chat(
         data.message,
         category,
         risk,
-        emotion
+        emotion,
     )
 
     # =====================================================
     # 14. RESPONSE STYLE PROMPT
     # =====================================================
 
-    response_style_prompt = build_response_style_prompt(
-        response_style,
-        language
+    response_style_prompt = (
+        build_response_style_prompt(
+            response_style,
+            language,
+        )
     )
 
     # =====================================================
@@ -303,7 +328,7 @@ def chat(
     brain_prompt = build_prompt(
         category=category,
         language=language,
-        secondary_categories=secondary_categories
+        secondary_categories=secondary_categories,
     )
 
     # =====================================================
@@ -312,11 +337,13 @@ def chat(
 
     conversation_summary = get_summary(
         user_id=user_id,
-        session_id=data.session_id
+        session_id=data.session_id,
     )
 
     if not conversation_summary:
-        conversation_summary = "Әңгіме summary жоқ."
+        conversation_summary = (
+            "Әңгіме summary жоқ."
+        )
 
     # =====================================================
     # 17. RECENT HISTORY
@@ -325,7 +352,7 @@ def chat(
     recent_history = format_conversation(
         user_id=user_id,
         limit=4,
-        session_id=data.session_id
+        session_id=data.session_id,
     )
 
     # =====================================================
@@ -345,7 +372,7 @@ def chat(
         secondary_categories=secondary_categories,
         emotion=emotion,
         risk=risk,
-        response_style=response_style
+        response_style=response_style,
     )
 
     # =====================================================
@@ -355,7 +382,7 @@ def chat(
     answer = ask_ai(
         full_prompt,
         data.message,
-        language=language
+        language=language,
     )
 
     # =====================================================
@@ -363,7 +390,7 @@ def chat(
     # =====================================================
 
     answer = format_answer(
-        answer
+        answer,
     )
 
     # =====================================================
@@ -374,7 +401,7 @@ def chat(
         user_id=user_id,
         role="user",
         content=data.message,
-        session_id=data.session_id
+        session_id=data.session_id,
     )
 
     # =====================================================
@@ -385,7 +412,7 @@ def chat(
         user_id=user_id,
         role="assistant",
         content=answer,
-        session_id=data.session_id
+        session_id=data.session_id,
     )
 
     # =====================================================
@@ -394,26 +421,30 @@ def chat(
 
     touch_session(
         user_id=user_id,
-        session_id=data.session_id
+        session_id=data.session_id,
     )
 
     # =====================================================
     # 24. INCREMENTAL SUMMARY UPDATE
     # =====================================================
 
-    conversation_summary = update_conversation_summary(
-        user_id=user_id,
-        session_id=data.session_id
+    conversation_summary = (
+        update_conversation_summary(
+            user_id=user_id,
+            session_id=data.session_id,
+        )
     )
 
     # =====================================================
     # 25. UPDATED RECENT HISTORY
     # =====================================================
 
-    updated_recent_history = format_conversation(
-        user_id=user_id,
-        limit=4,
-        session_id=data.session_id
+    updated_recent_history = (
+        format_conversation(
+            user_id=user_id,
+            limit=4,
+            session_id=data.session_id,
+        )
     )
 
     # =====================================================
@@ -427,7 +458,7 @@ def chat(
         ),
         user_id,
         data.session_id,
-        response_style
+        response_style,
     )
 
     return {
@@ -442,5 +473,423 @@ def chat(
         "memory": memory_context,
         "conversation_summary": conversation_summary,
         "recent_history": updated_recent_history,
-        "answer": answer
+        "answer": answer,
+    }
+
+
+# =====================================================
+# REGENERATE LAST ANSWER
+# =====================================================
+
+@router.post("/chat/regenerate")
+def regenerate_chat_answer(
+    data: RegenerateRequest,
+    current_user=Depends(get_current_user),
+):
+
+    # =====================================================
+    # 1. AUTHENTICATED USER
+    # =====================================================
+
+    user_id = current_user["user_id"]
+
+    logger.info(
+        (
+            "Regenerate request started | "
+            "user_id=%s | session_id=%s"
+        ),
+        user_id,
+        data.session_id,
+    )
+
+    # =====================================================
+    # 2. SESSION VALIDATION
+    # =====================================================
+
+    session = get_session(
+        user_id=user_id,
+        session_id=data.session_id,
+    )
+
+    if not session:
+
+        logger.warning(
+            (
+                "Regenerate session not found | "
+                "user_id=%s | session_id=%s"
+            ),
+            user_id,
+            data.session_id,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Әңгіме табылмады.",
+        )
+
+    # =====================================================
+    # 3. FIND REGENERATE TARGET
+    # =====================================================
+
+    target = get_regenerate_target(
+        user_id=user_id,
+        session_id=data.session_id,
+    )
+
+    if target is None:
+
+        logger.warning(
+            (
+                "Regenerate target not found | "
+                "user_id=%s | session_id=%s"
+            ),
+            user_id,
+            data.session_id,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Қайта жауап беруге жарамды "
+                "соңғы сұрақ табылмады."
+            ),
+        )
+
+    user_message = target[
+        "user_message"
+    ]
+
+    user_message_id = target[
+        "user_message_id"
+    ]
+
+    assistant_message_id = target[
+        "assistant_message_id"
+    ]
+
+    # =====================================================
+    # 4. USER PROFILE
+    # =====================================================
+
+    profile = get_user_profile(
+        user_id,
+    )
+
+    memory_context = profile.get_context()
+
+    # =====================================================
+    # 5. LANGUAGE
+    # =====================================================
+
+    language = detect_language(
+        user_message,
+    )
+
+    # =====================================================
+    # 6. CATEGORY
+    # =====================================================
+
+    category_result = detect_categories(
+        user_message,
+    )
+
+    category = category_result[
+        "primary"
+    ]
+
+    secondary_categories = (
+        category_result["secondary"]
+    )
+
+    # =====================================================
+    # 7. EMOTION
+    # =====================================================
+
+    emotion = detect_emotion(
+        user_message,
+    )
+
+    # =====================================================
+    # 8. RISK
+    # =====================================================
+
+    risk = detect_risk(
+        user_message,
+    )
+
+    logger.info(
+        (
+            "Regenerate analysis | "
+            "user_id=%s | session_id=%s | "
+            "category=%s | secondary=%s | "
+            "emotion=%s | risk=%s"
+        ),
+        user_id,
+        data.session_id,
+        category,
+        secondary_categories,
+        emotion,
+        risk,
+    )
+
+    # =====================================================
+    # 9. SAFETY RESPONSE
+    # =====================================================
+
+    risk_answer = build_risk_response(
+        risk=risk,
+        language=language,
+    )
+
+    if risk_answer is not None:
+
+        replaced = replace_assistant_message(
+            user_id=user_id,
+            session_id=data.session_id,
+            message_id=assistant_message_id,
+            content=risk_answer,
+        )
+
+        if not replaced:
+
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "Алдыңғы жауапты "
+                    "ауыстыру мүмкін болмады."
+                ),
+            )
+
+        touch_session(
+            user_id=user_id,
+            session_id=data.session_id,
+        )
+
+        logger.info(
+            (
+                "Safety regenerate completed | "
+                "user_id=%s | session_id=%s"
+            ),
+            user_id,
+            data.session_id,
+        )
+
+        return {
+            "user_id": user_id,
+            "session_id": data.session_id,
+            "language": language,
+            "category": category,
+            "secondary_categories": secondary_categories,
+            "emotion": emotion,
+            "risk": risk,
+            "response_style": "safety",
+            "answer": risk_answer,
+            "regenerated": True,
+        }
+
+    # =====================================================
+    # 10. RESPONSE STYLE
+    # =====================================================
+
+    response_style = detect_response_style(
+        user_message,
+        category,
+        risk,
+        emotion,
+    )
+
+    response_style_prompt = (
+        build_response_style_prompt(
+            response_style,
+            language,
+        )
+    )
+
+    # =====================================================
+    # 11. BRAIN / PLANNER
+    # =====================================================
+
+    brain_prompt = build_prompt(
+        category=category,
+        language=language,
+        secondary_categories=secondary_categories,
+    )
+
+    # =====================================================
+    # 12. SAVED SUMMARY
+    # =====================================================
+
+    conversation_summary = get_summary(
+        user_id=user_id,
+        session_id=data.session_id,
+    )
+
+    if not conversation_summary:
+        conversation_summary = (
+            "Әңгіме summary жоқ."
+        )
+
+    # =====================================================
+    # 13. HISTORY BEFORE CURRENT USER MESSAGE
+    # =====================================================
+
+    recent_history = (
+        format_conversation_before_message(
+            user_id=user_id,
+            session_id=data.session_id,
+            message_id=user_message_id,
+            limit=4,
+        )
+    )
+
+    # =====================================================
+    # 14. FULL PROMPT
+    # =====================================================
+
+    full_prompt = build_full_prompt(
+        system_prompt=SYSTEM_PROMPT,
+        brain_prompt=brain_prompt,
+        response_style_prompt=response_style_prompt,
+        memory_context=memory_context,
+        conversation_summary=conversation_summary,
+        recent_history=recent_history,
+        current_message=user_message,
+        language=language,
+        category=category,
+        secondary_categories=secondary_categories,
+        emotion=emotion,
+        risk=risk,
+        response_style=response_style,
+    )
+
+    # =====================================================
+    # 15. REGENERATE INSTRUCTION
+    # =====================================================
+
+    full_prompt += (
+        "\n\n"
+        "ҚОСЫМША НҰСҚАУ:\n"
+        "Бұл — пайдаланушының соңғы сұрағына "
+        "жауапты қайта генерациялау.\n"
+        "Алдыңғы assistant жауабын сөзбе-сөз "
+        "қайталама.\n"
+        "Сұраққа жаңа, пайдалы және мүмкін болса "
+        "жақсартылған нұсқада жауап бер.\n"
+        "Пайдаланушы жаңа сұрақ қойған жоқ."
+    )
+
+    # =====================================================
+    # 16. OPENAI
+    # =====================================================
+
+    answer = ask_ai(
+        full_prompt,
+        user_message,
+        language=language,
+    )
+
+    # =====================================================
+    # 17. FORMAT
+    # =====================================================
+
+    answer = format_answer(
+        answer,
+    )
+
+    if not answer:
+
+        logger.error(
+            (
+                "Regenerate empty answer | "
+                "user_id=%s | session_id=%s"
+            ),
+            user_id,
+            data.session_id,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Жаңа жауап алынбады.",
+        )
+
+    # =====================================================
+    # 18. REPLACE OLD ASSISTANT MESSAGE
+    # =====================================================
+
+    replaced = replace_assistant_message(
+        user_id=user_id,
+        session_id=data.session_id,
+        message_id=assistant_message_id,
+        content=answer,
+    )
+
+    if not replaced:
+
+        logger.error(
+            (
+                "Regenerate replace failed | "
+                "user_id=%s | session_id=%s | "
+                "assistant_message_id=%s"
+            ),
+            user_id,
+            data.session_id,
+            assistant_message_id,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Алдыңғы жауапты "
+                "ауыстыру мүмкін болмады."
+            ),
+        )
+
+    # =====================================================
+    # 19. SESSION UPDATED_AT
+    # =====================================================
+
+    touch_session(
+        user_id=user_id,
+        session_id=data.session_id,
+    )
+
+    # =====================================================
+    # 20. UPDATED HISTORY
+    # =====================================================
+
+    updated_recent_history = (
+        format_conversation(
+            user_id=user_id,
+            limit=4,
+            session_id=data.session_id,
+        )
+    )
+
+    # =====================================================
+    # 21. RESULT
+    # =====================================================
+
+    logger.info(
+        (
+            "Regenerate completed | "
+            "user_id=%s | session_id=%s | "
+            "assistant_message_id=%s"
+        ),
+        user_id,
+        data.session_id,
+        assistant_message_id,
+    )
+
+    return {
+        "user_id": user_id,
+        "session_id": data.session_id,
+        "language": language,
+        "category": category,
+        "secondary_categories": secondary_categories,
+        "emotion": emotion,
+        "risk": risk,
+        "response_style": response_style,
+        "recent_history": updated_recent_history,
+        "answer": answer,
+        "regenerated": True,
     }

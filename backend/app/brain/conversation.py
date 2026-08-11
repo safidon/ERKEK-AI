@@ -528,3 +528,181 @@ def get_message_count(
 
     finally:
         connection.close()
+        # =====================================================
+# REGENERATE HELPERS
+# =====================================================
+
+def get_regenerate_target(
+    user_id: str,
+    session_id: int
+) -> dict | None:
+    """
+    Regenerate үшін соңғы assistant жауабын
+    және оның алдындағы user хабарламасын табады.
+
+    Тек session-ның ең соңғы екі хабарламасы:
+    user -> assistant
+    болған жағдайда ғана regenerate жасауға рұқсат.
+    """
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                id,
+                role,
+                message
+            FROM conversations
+            WHERE user_id = ?
+              AND session_id = ?
+            ORDER BY id DESC
+            LIMIT 2
+            """,
+            (
+                user_id,
+                session_id
+            )
+        )
+
+        rows = cursor.fetchall()
+
+        if len(rows) < 2:
+            return None
+
+        latest = rows[0]
+        previous = rows[1]
+
+        if latest["role"] != "assistant":
+            return None
+
+        if previous["role"] != "user":
+            return None
+
+        return {
+            "assistant_message_id": latest["id"],
+            "assistant_message": latest["message"],
+            "user_message_id": previous["id"],
+            "user_message": previous["message"]
+        }
+
+    finally:
+        connection.close()
+
+
+def format_conversation_before_message(
+    user_id: str,
+    session_id: int,
+    message_id: int,
+    limit: int = 4
+) -> str:
+    """
+    Белгілі бір message ID-ден бұрынғы
+    conversation history-ді prompt үшін format жасайды.
+
+    Regenerate кезінде соңғы user сұрағын және
+    ескі assistant жауабын history-ге қоспау үшін қажет.
+    """
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                role,
+                message
+            FROM conversations
+            WHERE user_id = ?
+              AND session_id = ?
+              AND id < ?
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (
+                user_id,
+                session_id,
+                message_id,
+                limit
+            )
+        )
+
+        rows = list(
+            reversed(
+                cursor.fetchall()
+            )
+        )
+
+        if not rows:
+            return "Бұрынғы әңгіме жоқ."
+
+        history = []
+
+        for row in rows:
+
+            if row["role"] == "user":
+                history.append(
+                    f"Пайдаланушы: {row['message']}"
+                )
+
+            elif row["role"] == "assistant":
+                history.append(
+                    f"ERKEK AI: {row['message']}"
+                )
+
+        if not history:
+            return "Бұрынғы әңгіме жоқ."
+
+        return "\n".join(history)
+
+    finally:
+        connection.close()
+
+
+def replace_assistant_message(
+    user_id: str,
+    session_id: int,
+    message_id: int,
+    content: str
+) -> bool:
+    """
+    Белгілі assistant хабарламасының мәтінін
+    жаңа жауаппен ауыстырады.
+
+    Жаңа conversation row жасалмайды.
+    Сондықтан user сұрағы duplicate болмайды.
+    """
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            UPDATE conversations
+            SET message = ?
+            WHERE id = ?
+              AND user_id = ?
+              AND session_id = ?
+              AND role = 'assistant'
+            """,
+            (
+                content,
+                message_id,
+                user_id,
+                session_id
+            )
+        )
+
+        connection.commit()
+
+        return cursor.rowcount > 0
+
+    finally:
+        connection.close()
