@@ -46,6 +46,7 @@ from app.brain.summary_manager import (
 
 from app.brain.response_style import (
     detect_response_style,
+    detect_tone,
     build_response_style_prompt,
 )
 
@@ -298,6 +299,7 @@ def chat(
             "emotion": emotion,
             "risk": risk,
             "response_style": "safety",
+            "tone": "calm",
             "memory": memory_context,
             "conversation_summary": conversation_summary,
             "recent_history": updated_recent_history,
@@ -305,7 +307,7 @@ def chat(
         }
 
     # =====================================================
-    # 13. RESPONSE STYLE
+    # 13. RESPONSE STYLE / TONE
     # =====================================================
 
     response_style = detect_response_style(
@@ -313,6 +315,25 @@ def chat(
         category,
         risk,
         emotion,
+    )
+
+    tone = detect_tone(
+        data.message,
+        category,
+        risk,
+        emotion,
+    )
+
+    logger.info(
+        (
+            "ERKEK response mode | "
+            "user_id=%s | session_id=%s | "
+            "style=%s | tone=%s"
+        ),
+        user_id,
+        data.session_id,
+        response_style,
+        tone,
     )
 
     # =====================================================
@@ -323,6 +344,7 @@ def chat(
         build_response_style_prompt(
             response_style,
             language,
+            tone=tone,
         )
     )
 
@@ -459,11 +481,12 @@ def chat(
     logger.info(
         (
             "Chat completed | user_id=%s | "
-            "session_id=%s | response_style=%s"
+            "session_id=%s | response_style=%s | tone=%s"
         ),
         user_id,
         data.session_id,
         response_style,
+        tone,
     )
 
     return {
@@ -475,6 +498,7 @@ def chat(
         "emotion": emotion,
         "risk": risk,
         "response_style": response_style,
+        "tone": tone,
         "memory": memory_context,
         "conversation_summary": conversation_summary,
         "recent_history": updated_recent_history,
@@ -707,7 +731,7 @@ def stream_chat(
         )
 
     # =====================================================
-    # 13. RESPONSE STYLE
+    # 13. RESPONSE STYLE / TONE
     # =====================================================
 
     response_style = detect_response_style(
@@ -715,6 +739,25 @@ def stream_chat(
         category,
         risk,
         emotion,
+    )
+
+    tone = detect_tone(
+        data.message,
+        category,
+        risk,
+        emotion,
+    )
+
+    logger.info(
+        (
+            "ERKEK streaming response mode | "
+            "user_id=%s | session_id=%s | "
+            "style=%s | tone=%s"
+        ),
+        user_id,
+        data.session_id,
+        response_style,
+        tone,
     )
 
     # =====================================================
@@ -725,6 +768,7 @@ def stream_chat(
         build_response_style_prompt(
             response_style,
             language,
+            tone=tone,
         )
     )
 
@@ -850,9 +894,8 @@ def stream_chat(
 
         finally:
 
-            # Client disconnect немесе stream ортасында unexpected
-            # exception болса, incomplete assistant answer DB-ге
-            # сақталмайды.
+            # If the client disconnects or streaming fails unexpectedly,
+            # do not save an incomplete assistant response.
 
             if not stream_completed:
                 return
@@ -928,11 +971,12 @@ def stream_chat(
                 (
                     "Streaming chat completed | "
                     "user_id=%s | session_id=%s | "
-                    "response_style=%s"
+                    "response_style=%s | tone=%s"
                 ),
                 user_id,
                 data.session_id,
                 response_style,
+                tone,
             )
 
     # =====================================================
@@ -1155,12 +1199,13 @@ def regenerate_chat_answer(
             "emotion": emotion,
             "risk": risk,
             "response_style": "safety",
+            "tone": "calm",
             "answer": risk_answer,
             "regenerated": True,
         }
 
     # =====================================================
-    # 10. RESPONSE STYLE
+    # 10. RESPONSE STYLE / TONE
     # =====================================================
 
     response_style = detect_response_style(
@@ -1170,10 +1215,30 @@ def regenerate_chat_answer(
         emotion,
     )
 
+    tone = detect_tone(
+        user_message,
+        category,
+        risk,
+        emotion,
+    )
+
+    logger.info(
+        (
+            "ERKEK regenerate response mode | "
+            "user_id=%s | session_id=%s | "
+            "style=%s | tone=%s"
+        ),
+        user_id,
+        data.session_id,
+        response_style,
+        tone,
+    )
+
     response_style_prompt = (
         build_response_style_prompt(
             response_style,
             language,
+            tone=tone,
         )
     )
 
@@ -1240,14 +1305,11 @@ def regenerate_chat_answer(
 
     full_prompt += (
         "\n\n"
-        "ҚОСЫМША НҰСҚАУ:\n"
-        "Бұл — пайдаланушының соңғы сұрағына "
-        "жауапты қайта генерациялау.\n"
-        "Алдыңғы assistant жауабын сөзбе-сөз "
-        "қайталама.\n"
-        "Сұраққа жаңа, пайдалы және мүмкін болса "
-        "жақсартылған нұсқада жауап бер.\n"
-        "Пайдаланушы жаңа сұрақ қойған жоқ."
+        "ADDITIONAL INSTRUCTION:\n"
+        "Regenerate the answer to the user's latest message.\n"
+        "Do not repeat the previous assistant response verbatim.\n"
+        "Give a fresh, useful, and preferably improved answer.\n"
+        "The user has not asked a new question."
     )
 
     # =====================================================
@@ -1345,11 +1407,14 @@ def regenerate_chat_answer(
         (
             "Regenerate completed | "
             "user_id=%s | session_id=%s | "
-            "assistant_message_id=%s"
+            "assistant_message_id=%s | "
+            "response_style=%s | tone=%s"
         ),
         user_id,
         data.session_id,
         assistant_message_id,
+        response_style,
+        tone,
     )
 
     return {
@@ -1361,6 +1426,7 @@ def regenerate_chat_answer(
         "emotion": emotion,
         "risk": risk,
         "response_style": response_style,
+        "tone": tone,
         "recent_history": updated_recent_history,
         "answer": answer,
         "regenerated": True,
