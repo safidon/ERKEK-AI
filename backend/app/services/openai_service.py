@@ -16,21 +16,27 @@ from app.core.logger import logger
 MODEL = "gpt-5-mini"
 
 NON_STREAM_TIMEOUT = httpx.Timeout(
-    60.0,
-    connect=10.0,
-    read=60.0,
-    write=20.0,
+    timeout=90.0,
+    connect=20.0,
+    read=90.0,
+    write=30.0,
+    pool=20.0,
 )
 
 STREAM_TIMEOUT = httpx.Timeout(
-    90.0,
-    connect=10.0,
-    read=90.0,
-    write=20.0,
+    timeout=180.0,
+    connect=20.0,
+    read=180.0,
+    write=30.0,
+    pool=20.0,
 )
 
-STREAM_MAX_ATTEMPTS = 2
-STREAM_RETRY_DELAY = 1.5
+STREAM_MAX_ATTEMPTS = 3
+
+STREAM_RETRY_DELAYS = {
+    1: 1.5,
+    2: 3.0,
+}
 
 
 # =====================================================
@@ -91,8 +97,12 @@ def ask_ai(
 ) -> str:
 
     fallback_response = (
-        get_fallback_response(language)
+        get_fallback_response(
+            language
+        )
     )
+
+    started_at = time.monotonic()
 
     try:
         response = (
@@ -116,6 +126,19 @@ def ask_ai(
             )
         )
 
+        elapsed = (
+            time.monotonic()
+            - started_at
+        )
+
+        logger.info(
+            (
+                "OpenAI non-stream response completed | "
+                "latency=%.2fs"
+            ),
+            elapsed,
+        )
+
         if not response.output_text:
 
             logger.warning(
@@ -129,21 +152,33 @@ def ask_ai(
     except openai.APITimeoutError as error:
 
         logger.warning(
-            "OpenAI timeout: %s",
+            (
+                "OpenAI timeout | "
+                "latency=%.2fs | error=%s"
+            ),
+            time.monotonic() - started_at,
             str(error),
         )
 
     except openai.APIConnectionError as error:
 
         logger.error(
-            "OpenAI connection error: %s",
+            (
+                "OpenAI connection error | "
+                "latency=%.2fs | error=%s"
+            ),
+            time.monotonic() - started_at,
             str(error),
         )
 
     except openai.RateLimitError as error:
 
         logger.warning(
-            "OpenAI rate limit: %s",
+            (
+                "OpenAI rate limit | "
+                "latency=%.2fs | error=%s"
+            ),
+            time.monotonic() - started_at,
             str(error),
         )
 
@@ -152,7 +187,8 @@ def ask_ai(
         logger.error(
             (
                 "OpenAI API status error | "
-                "status=%s | request_id=%s"
+                "status=%s | request_id=%s | "
+                "latency=%.2fs"
             ),
             error.status_code,
             getattr(
@@ -160,19 +196,28 @@ def ask_ai(
                 "request_id",
                 None,
             ),
+            time.monotonic() - started_at,
         )
 
     except openai.APIError as error:
 
         logger.error(
-            "OpenAI API error: %s",
+            (
+                "OpenAI API error | "
+                "latency=%.2fs | error=%s"
+            ),
+            time.monotonic() - started_at,
             str(error),
         )
 
     except Exception:
 
         logger.exception(
-            "Unexpected OpenAI error"
+            (
+                "Unexpected OpenAI error | "
+                "latency=%.2fs"
+            ),
+            time.monotonic() - started_at,
         )
 
     return fallback_response
@@ -189,7 +234,9 @@ def stream_ai(
 ) -> Generator[str, None, None]:
 
     fallback_response = (
-        get_fallback_response(language)
+        get_fallback_response(
+            language
+        )
     )
 
     for attempt in range(
@@ -198,13 +245,27 @@ def stream_ai(
     ):
 
         has_output = False
+        first_token_logged = False
+
+        attempt_started_at = (
+            time.monotonic()
+        )
 
         try:
+            logger.info(
+                (
+                    "OpenAI stream attempt started | "
+                    "attempt=%s"
+                ),
+                attempt,
+            )
+
             stream = (
                 client.with_options(
                     timeout=STREAM_TIMEOUT,
 
-                    # Retry-ды өзіміз басқарамыз.
+                    # Streaming retry is controlled manually
+                    # to avoid duplicate partial answers.
                     max_retries=0,
                 )
                 .responses.create(
@@ -237,69 +298,154 @@ def stream_ai(
                     event_type
                     == "response.output_text.delta"
                 ):
+
                     delta = getattr(
                         event,
                         "delta",
                         "",
                     )
 
-                    if delta:
+                    if not delta:
+                        continue
 
-                        has_output = True
+                    if not first_token_logged:
 
-                        yield delta
+                        first_token_latency = (
+                            time.monotonic()
+                            - attempt_started_at
+                        )
+
+                        logger.info(
+                            (
+                                "OpenAI first token | "
+                                "attempt=%s | "
+                                "latency=%.2fs"
+                            ),
+                            attempt,
+                            first_token_latency,
+                        )
+
+                        first_token_logged = True
+
+                    has_output = True
+
+                    yield delta
+
+            total_latency = (
+                time.monotonic()
+                - attempt_started_at
+            )
 
             if has_output:
+
+                logger.info(
+                    (
+                        "OpenAI stream finished | "
+                        "attempt=%s | "
+                        "total=%.2fs"
+                    ),
+                    attempt,
+                    total_latency,
+                )
+
                 return
 
             logger.warning(
                 (
-                    "OpenAI stream returned "
-                    "empty output | attempt=%s"
+                    "OpenAI stream returned empty output | "
+                    "attempt=%s | total=%.2fs"
                 ),
                 attempt,
+                total_latency,
             )
 
+    # =================================================
+    # TIMEOUT
+    # =================================================
+
         except openai.APITimeoutError as error:
+
+            elapsed = (
+                time.monotonic()
+                - attempt_started_at
+            )
 
             logger.warning(
                 (
                     "OpenAI streaming timeout | "
-                    "attempt=%s | error=%s"
+                    "attempt=%s | "
+                    "elapsed=%.2fs | "
+                    "error=%s"
                 ),
                 attempt,
+                elapsed,
                 str(error),
             )
 
+    # =================================================
+    # CONNECTION ERROR
+    # =================================================
+
         except openai.APIConnectionError as error:
+
+            elapsed = (
+                time.monotonic()
+                - attempt_started_at
+            )
 
             logger.error(
                 (
                     "OpenAI streaming connection error | "
-                    "attempt=%s | error=%s"
+                    "attempt=%s | "
+                    "elapsed=%.2fs | "
+                    "error=%s"
                 ),
                 attempt,
+                elapsed,
                 str(error),
             )
 
+    # =================================================
+    # RATE LIMIT
+    # =================================================
+
         except openai.RateLimitError as error:
+
+            elapsed = (
+                time.monotonic()
+                - attempt_started_at
+            )
 
             logger.warning(
                 (
                     "OpenAI streaming rate limit | "
-                    "attempt=%s | error=%s"
+                    "attempt=%s | "
+                    "elapsed=%.2fs | "
+                    "error=%s"
                 ),
                 attempt,
+                elapsed,
                 str(error),
             )
 
+    # =================================================
+    # API STATUS ERROR
+    # =================================================
+
         except openai.APIStatusError as error:
+
+            elapsed = (
+                time.monotonic()
+                - attempt_started_at
+            )
 
             logger.error(
                 (
                     "OpenAI streaming API status error | "
-                    "attempt=%s | status=%s | "
-                    "request_id=%s"
+                    "attempt=%s | "
+                    "status=%s | "
+                    "request_id=%s | "
+                    "elapsed=%.2fs"
                 ),
                 attempt,
                 error.status_code,
@@ -308,10 +454,11 @@ def stream_ai(
                     "request_id",
                     None,
                 ),
+                elapsed,
             )
 
-            # 4xx сияқты permanent error болса
-            # қайта retry жасаудың қажеті жоқ.
+            # Permanent 4xx error:
+            # retrying usually will not help.
             if (
                 error.status_code
                 and error.status_code < 500
@@ -319,44 +466,103 @@ def stream_ai(
             ):
                 break
 
+    # =================================================
+    # GENERIC OPENAI ERROR
+    # =================================================
+
         except openai.APIError as error:
+
+            elapsed = (
+                time.monotonic()
+                - attempt_started_at
+            )
 
             logger.error(
                 (
                     "OpenAI streaming API error | "
-                    "attempt=%s | error=%s"
+                    "attempt=%s | "
+                    "elapsed=%.2fs | "
+                    "error=%s"
                 ),
                 attempt,
+                elapsed,
                 str(error),
             )
 
+    # =================================================
+    # UNEXPECTED ERROR
+    # =================================================
+
         except Exception:
+
+            elapsed = (
+                time.monotonic()
+                - attempt_started_at
+            )
 
             logger.exception(
                 (
-                    "Unexpected OpenAI "
-                    "streaming error | attempt=%s"
+                    "Unexpected OpenAI streaming error | "
+                    "attempt=%s | "
+                    "elapsed=%.2fs"
+                ),
+                attempt,
+                elapsed,
+            )
+
+        # =================================================
+        # DO NOT RETRY AFTER PARTIAL OUTPUT
+        # =================================================
+
+        if has_output:
+
+            logger.warning(
+                (
+                    "OpenAI stream interrupted after output | "
+                    "attempt=%s | retry_skipped=true"
                 ),
                 attempt,
             )
 
-        # Егер мәтіннің бір бөлігі келіп қойған болса,
-        # қайта бастауға болмайды.
-        if has_output:
             return
 
+        # =================================================
+        # RETRY
+        # =================================================
+
         if attempt < STREAM_MAX_ATTEMPTS:
+
+            delay = (
+                STREAM_RETRY_DELAYS.get(
+                    attempt,
+                    3.0,
+                )
+            )
 
             logger.info(
                 (
                     "Retrying OpenAI stream | "
-                    "next_attempt=%s"
+                    "next_attempt=%s | "
+                    "delay=%.1fs"
                 ),
                 attempt + 1,
+                delay,
             )
 
             time.sleep(
-                STREAM_RETRY_DELAY
+                delay
             )
+
+    # =====================================================
+    # FINAL FALLBACK
+    # =====================================================
+
+    logger.error(
+        (
+            "OpenAI stream failed after all attempts | "
+            "attempts=%s"
+        ),
+        STREAM_MAX_ATTEMPTS,
+    )
 
     yield fallback_response
