@@ -2,34 +2,50 @@ from app.brain.memory import get_user_profile
 
 from app.brain.conversation import (
     add_message,
-    get_message_count
+    get_message_count,
 )
 
 from app.brain.conversation_sessions import (
-    create_session
+    create_session,
 )
 
 from app.brain.summary_storage import (
-    save_summary
+    save_summary,
 )
 
 from app.brain.conversation_archive import (
     archive_summarized_messages,
     get_archive_count,
-    get_archived_messages
+    get_archived_messages,
+)
+
+from app.database import (
+    get_connection,
+    adapt_query,
 )
 
 
 TEST_USER_ID = "pytest_archive_sessions_001"
 
 
+# =====================================================
+# PREPARE USER
+# =====================================================
+
 def prepare_user():
     """
-    Test user users кестесінде бар екеніне кепілдік береді.
+    Test user users кестесінде бар екеніне
+    кепілдік береді.
     """
 
-    get_user_profile(TEST_USER_ID)
+    get_user_profile(
+        TEST_USER_ID
+    )
 
+
+# =====================================================
+# ARCHIVE SESSION ISOLATION TEST
+# =====================================================
 
 def test_archive_isolated_between_sessions():
     """
@@ -39,26 +55,26 @@ def test_archive_isolated_between_sessions():
 
     prepare_user()
 
-    # =====================================================
+    # =================================================
     # 1. ЕКІ SESSION ЖАСАЙМЫЗ
-    # =====================================================
+    # =================================================
 
     session_a = create_session(
         user_id=TEST_USER_ID,
-        title="Archive Session A"
+        title="Archive Session A",
     )
 
     session_b = create_session(
         user_id=TEST_USER_ID,
-        title="Archive Session B"
+        title="Archive Session B",
     )
 
     session_a_id = session_a["id"]
     session_b_id = session_b["id"]
 
-    # =====================================================
+    # =================================================
     # 2. SESSION A-ҒА 10 MESSAGE
-    # =====================================================
+    # =================================================
 
     for index in range(10):
 
@@ -71,13 +87,16 @@ def test_archive_isolated_between_sessions():
         add_message(
             user_id=TEST_USER_ID,
             role=role,
-            content=f"Session A message {index + 1}",
-            session_id=session_a_id
+            content=(
+                f"Session A message "
+                f"{index + 1}"
+            ),
+            session_id=session_a_id,
         )
 
-    # =====================================================
+    # =================================================
     # 3. SESSION B-ҒА 8 MESSAGE
-    # =====================================================
+    # =================================================
 
     for index in range(8):
 
@@ -90,32 +109,33 @@ def test_archive_isolated_between_sessions():
         add_message(
             user_id=TEST_USER_ID,
             role=role,
-            content=f"Session B message {index + 1}",
-            session_id=session_b_id
+            content=(
+                f"Session B message "
+                f"{index + 1}"
+            ),
+            session_id=session_b_id,
         )
 
-    # =====================================================
+    # =================================================
     # 4. БАСТАПҚЫ COUNT
-    # =====================================================
+    # =================================================
 
     session_a_before = get_message_count(
         user_id=TEST_USER_ID,
-        session_id=session_a_id
+        session_id=session_a_id,
     )
 
     session_b_before = get_message_count(
         user_id=TEST_USER_ID,
-        session_id=session_b_id
+        session_id=session_b_id,
     )
 
     assert session_a_before == 10
     assert session_b_before == 8
 
-    # =====================================================
+    # =================================================
     # 5. SESSION A SUMMARY STATE ЖАСАЙМЫЗ
-    # =====================================================
-
-    from app.database import get_connection
+    # =================================================
 
     connection = get_connection()
 
@@ -123,19 +143,24 @@ def test_archive_isolated_between_sessions():
         cursor = connection.cursor()
 
         cursor.execute(
-            """
-            SELECT MAX(id) AS latest_id
-            FROM conversations
-            WHERE user_id = ?
-              AND session_id = ?
-            """,
+            adapt_query(
+                """
+                SELECT MAX(id) AS latest_id
+                FROM conversations
+                WHERE user_id = ?
+                  AND session_id = ?
+                """
+            ),
             (
                 TEST_USER_ID,
-                session_a_id
-            )
+                session_a_id,
+            ),
         )
 
         row = cursor.fetchone()
+
+        assert row is not None
+        assert row["latest_id"] is not None
 
         latest_a_message_id = int(
             row["latest_id"]
@@ -148,16 +173,16 @@ def test_archive_isolated_between_sessions():
         user_id=TEST_USER_ID,
         session_id=session_a_id,
         summary="Session A test summary",
-        last_message_id=latest_a_message_id
+        last_message_id=latest_a_message_id,
     )
 
-    # =====================================================
+    # =================================================
     # 6. ТЕК SESSION A ARCHIVE
-    # =====================================================
+    # =================================================
 
     result = archive_summarized_messages(
         user_id=TEST_USER_ID,
-        session_id=session_a_id
+        session_id=session_a_id,
     )
 
     assert result["reason"] == "success"
@@ -171,62 +196,68 @@ def test_archive_isolated_between_sessions():
     assert result["archived"] == 4
     assert result["deleted"] == 4
 
-    # =====================================================
+    # =================================================
     # 7. ACTIVE MESSAGE COUNT
-    # =====================================================
+    # =================================================
 
     session_a_after = get_message_count(
         user_id=TEST_USER_ID,
-        session_id=session_a_id
+        session_id=session_a_id,
     )
 
     session_b_after = get_message_count(
         user_id=TEST_USER_ID,
-        session_id=session_b_id
+        session_id=session_b_id,
     )
 
     assert session_a_after == 6
 
-    # Ең маңызды isolation assertion
+    # Ең маңызды isolation assertion:
+    # Session A archive операциясы
+    # Session B-ға тимеуі керек.
+
     assert session_b_after == 8
 
-    # =====================================================
+    # =================================================
     # 8. ARCHIVE COUNT
-    # =====================================================
+    # =================================================
 
     archive_a_count = get_archive_count(
         user_id=TEST_USER_ID,
-        session_id=session_a_id
+        session_id=session_a_id,
     )
 
     archive_b_count = get_archive_count(
         user_id=TEST_USER_ID,
-        session_id=session_b_id
+        session_id=session_b_id,
     )
 
     assert archive_a_count == 4
 
     # Session B архивтелмеуі керек.
+
     assert archive_b_count == 0
 
-    # =====================================================
+    # =================================================
     # 9. ARCHIVED MESSAGE CONTENT
-    # =====================================================
+    # =================================================
 
     archived_a = get_archived_messages(
         user_id=TEST_USER_ID,
         session_id=session_a_id,
-        limit=20
+        limit=20,
     )
 
     assert len(archived_a) == 4
 
     assert all(
-        message["session_id"] == session_a_id
+        message["session_id"]
+        == session_a_id
         for message in archived_a
     )
 
     assert all(
-        "Session A message" in message["content"]
+        "Session A message"
+        in message["content"]
         for message in archived_a
     )

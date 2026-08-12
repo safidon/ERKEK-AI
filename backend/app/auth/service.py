@@ -1,13 +1,23 @@
 import uuid
 
-from app.database import get_connection
+from app.database import (
+    get_connection,
+    adapt_query,
+)
+
 from app.auth.security import (
     hash_password,
-    verify_password
+    verify_password,
 )
 
 
-def get_user_by_email(email: str):
+# =====================================================
+# GET USER BY EMAIL
+# =====================================================
+
+def get_user_by_email(
+    email: str
+):
     """
     Email арқылы пайдаланушыны іздейді.
     """
@@ -18,12 +28,16 @@ def get_user_by_email(email: str):
         cursor = connection.cursor()
 
         cursor.execute(
-            """
-            SELECT *
-            FROM users
-            WHERE LOWER(email) = LOWER(?)
-            """,
-            (email.strip(),)
+            adapt_query(
+                """
+                SELECT *
+                FROM users
+                WHERE LOWER(email) = LOWER(?)
+                """
+            ),
+            (
+                email.strip(),
+            ),
         )
 
         return cursor.fetchone()
@@ -32,7 +46,13 @@ def get_user_by_email(email: str):
         connection.close()
 
 
-def get_user_by_username(username: str):
+# =====================================================
+# GET USER BY USERNAME
+# =====================================================
+
+def get_user_by_username(
+    username: str
+):
     """
     Username арқылы пайдаланушыны іздейді.
     """
@@ -43,12 +63,16 @@ def get_user_by_username(username: str):
         cursor = connection.cursor()
 
         cursor.execute(
-            """
-            SELECT *
-            FROM users
-            WHERE LOWER(username) = LOWER(?)
-            """,
-            (username.strip(),)
+            adapt_query(
+                """
+                SELECT *
+                FROM users
+                WHERE LOWER(username) = LOWER(?)
+                """
+            ),
+            (
+                username.strip(),
+            ),
         )
 
         return cursor.fetchone()
@@ -57,35 +81,77 @@ def get_user_by_username(username: str):
         connection.close()
 
 
+# =====================================================
+# CREATE USER
+# =====================================================
+
 def create_user(
     email: str,
     username: str,
-    password: str
+    password: str,
 ) -> dict:
     """
     Жаңа пайдаланушы жасайды.
     """
 
-    email = email.strip().lower()
-    username = username.strip()
+    # =================================================
+    # NORMALIZE
+    # =================================================
 
-    # Email duplicate
-    if get_user_by_email(email):
+    email = (
+        email
+        .strip()
+        .lower()
+    )
+
+    username = (
+        username
+        .strip()
+    )
+
+    # =================================================
+    # EMAIL DUPLICATE
+    # =================================================
+
+    if get_user_by_email(
+        email
+    ):
         raise ValueError(
             "Бұл email бұрын тіркелген."
         )
 
-    # Username duplicate
-    if get_user_by_username(username):
+    # =================================================
+    # USERNAME DUPLICATE
+    # =================================================
+
+    if get_user_by_username(
+        username
+    ):
         raise ValueError(
             "Бұл username бұрын тіркелген."
         )
 
+    # =================================================
     # UUID
-    user_id = str(uuid.uuid4())
+    # =================================================
 
-    # Password hash
-    password_hash = hash_password(password)
+    user_id = str(
+        uuid.uuid4()
+    )
+
+    # =================================================
+    # PASSWORD HASH
+    # =================================================
+
+    password_hash = (
+        hash_password(
+            password
+        )
+    )
+
+    # =================================================
+    # DATABASE
+    # =================================================
 
     connection = get_connection()
 
@@ -93,41 +159,55 @@ def create_user(
         cursor = connection.cursor()
 
         cursor.execute(
-            """
-            INSERT INTO users (
-                user_id,
-                email,
-                username,
-                password_hash,
-                is_active
-            )
-            VALUES (?, ?, ?, ?, 1)
-            """,
+            adapt_query(
+                """
+                INSERT INTO users (
+                    user_id,
+                    email,
+                    username,
+                    password_hash,
+                    is_active
+                )
+                VALUES (?, ?, ?, ?, 1)
+                """
+            ),
             (
                 user_id,
                 email,
                 username,
-                password_hash
-            )
+                password_hash,
+            ),
         )
 
         connection.commit()
 
+    except Exception:
+
+        connection.rollback()
+        raise
+
     finally:
         connection.close()
+
+    # =================================================
+    # RESULT
+    # =================================================
 
     return {
         "user_id": user_id,
         "email": email,
         "username": username,
-        "is_active": True
+        "is_active": True,
     }
-from app.auth.security import verify_password
 
+
+# =====================================================
+# AUTHENTICATE USER
+# =====================================================
 
 def authenticate_user(
     email: str,
-    password: str
+    password: str,
 ):
     """
     Email және password арқылы
@@ -144,23 +224,46 @@ def authenticate_user(
     if not user:
         return None
 
-    if not user["is_active"]:
+    # =================================================
+    # ACTIVE CHECK
+    # =================================================
+
+    if not user[
+        "is_active"
+    ]:
         return None
 
-    password_hash = user["password_hash"]
+    # =================================================
+    # PASSWORD HASH
+    # =================================================
+
+    password_hash = user[
+        "password_hash"
+    ]
 
     if not password_hash:
         return None
 
+    # =================================================
+    # PASSWORD VERIFY
+    # =================================================
+
     if not verify_password(
         password,
-        password_hash
+        password_hash,
     ):
         return None
 
     return user
 
-def get_user_by_id(user_id: str):
+
+# =====================================================
+# GET USER BY ID
+# =====================================================
+
+def get_user_by_id(
+    user_id: str
+):
     """
     user_id арқылы пайдаланушыны қайтарады.
     """
@@ -171,12 +274,16 @@ def get_user_by_id(user_id: str):
         cursor = connection.cursor()
 
         cursor.execute(
-            """
-            SELECT *
-            FROM users
-            WHERE user_id = ?
-            """,
-            (user_id,)
+            adapt_query(
+                """
+                SELECT *
+                FROM users
+                WHERE user_id = ?
+                """
+            ),
+            (
+                user_id,
+            ),
         )
 
         return cursor.fetchone()

@@ -1,4 +1,8 @@
-from app.database import get_connection
+from app.database import (
+    get_connection,
+    adapt_query,
+    is_postgresql,
+)
 
 
 # =====================================================
@@ -7,10 +11,12 @@ from app.database import get_connection
 
 def create_session(
     user_id: str,
-    title: str = "Жаңа әңгіме"
+    title: str = "Жаңа әңгіме",
 ) -> dict:
     """
     Жаңа conversation session жасайды.
+
+    SQLite және PostgreSQL compatible.
     """
 
     connection = get_connection()
@@ -23,22 +29,74 @@ def create_session(
             or "Жаңа әңгіме"
         )
 
-        cursor.execute(
-            """
-            INSERT INTO conversation_sessions (
-                user_id,
-                title,
-                is_active
-            )
-            VALUES (?, ?, 1)
-            """,
-            (
-                user_id,
-                clean_title
-            )
-        )
+        # =================================================
+        # POSTGRESQL
+        # =================================================
+        #
+        # is_active schema-да INTEGER (0/1) ретінде тұр.
+        # Сондықтан PostgreSQL-де TRUE емес, 1 жазамыз.
+        #
 
-        session_id = cursor.lastrowid
+        if is_postgresql():
+            cursor.execute(
+                """
+                INSERT INTO conversation_sessions (
+                    user_id,
+                    title,
+                    is_active
+                )
+                VALUES (%s, %s, 1)
+                RETURNING id
+                """,
+                (
+                    user_id,
+                    clean_title,
+                ),
+            )
+
+            row = cursor.fetchone()
+
+            if row is None:
+                raise RuntimeError(
+                    "Жаңа session ID алынбады."
+                )
+
+            session_id = int(
+                row["id"]
+            )
+
+        # =================================================
+        # SQLITE
+        # =================================================
+
+        else:
+            cursor.execute(
+                """
+                INSERT INTO conversation_sessions (
+                    user_id,
+                    title,
+                    is_active
+                )
+                VALUES (?, ?, 1)
+                """,
+                (
+                    user_id,
+                    clean_title,
+                ),
+            )
+
+            session_id = (
+                cursor.lastrowid
+            )
+
+            if session_id is None:
+                raise RuntimeError(
+                    "Жаңа session ID алынбады."
+                )
+
+            session_id = int(
+                session_id
+            )
 
         connection.commit()
 
@@ -46,8 +104,12 @@ def create_session(
             "id": session_id,
             "user_id": user_id,
             "title": clean_title,
-            "is_active": True
+            "is_active": True,
         }
+
+    except Exception:
+        connection.rollback()
+        raise
 
     finally:
         connection.close()
@@ -59,28 +121,26 @@ def create_session(
 
 def get_session(
     user_id: str,
-    session_id: int
+    session_id: int,
 ):
-    """
-    Белгілі бір session-ді қайтарады.
-    """
-
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
         cursor.execute(
-            """
-            SELECT *
-            FROM conversation_sessions
-            WHERE id = ?
-              AND user_id = ?
-            """,
+            adapt_query(
+                """
+                SELECT *
+                FROM conversation_sessions
+                WHERE id = ?
+                  AND user_id = ?
+                """
+            ),
             (
                 session_id,
-                user_id
-            )
+                user_id,
+            ),
         )
 
         return cursor.fetchone()
@@ -95,34 +155,32 @@ def get_session(
 
 def list_sessions(
     user_id: str,
-    limit: int = 50
+    limit: int = 50,
 ) -> list[dict]:
-    """
-    Пайдаланушының conversation session тізімін қайтарады.
-    """
-
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
         cursor.execute(
-            """
-            SELECT
-                id,
-                title,
-                is_active,
-                created_at,
-                updated_at
-            FROM conversation_sessions
-            WHERE user_id = ?
-            ORDER BY updated_at DESC, id DESC
-            LIMIT ?
-            """,
+            adapt_query(
+                """
+                SELECT
+                    id,
+                    title,
+                    is_active,
+                    created_at,
+                    updated_at
+                FROM conversation_sessions
+                WHERE user_id = ?
+                ORDER BY updated_at DESC, id DESC
+                LIMIT ?
+                """
+            ),
             (
                 user_id,
-                limit
-            )
+                limit,
+            ),
         )
 
         rows = cursor.fetchall()
@@ -135,7 +193,7 @@ def list_sessions(
                     row["is_active"]
                 ),
                 "created_at": row["created_at"],
-                "updated_at": row["updated_at"]
+                "updated_at": row["updated_at"],
             }
             for row in rows
         ]
@@ -151,13 +209,11 @@ def list_sessions(
 def rename_session(
     user_id: str,
     session_id: int,
-    title: str
+    title: str,
 ) -> bool:
-    """
-    Session title өзгертеді.
-    """
-
-    clean_title = title.strip()
+    clean_title = (
+        title.strip()
+    )
 
     if not clean_title:
         return False
@@ -168,24 +224,34 @@ def rename_session(
         cursor = connection.cursor()
 
         cursor.execute(
-            """
-            UPDATE conversation_sessions
-            SET
-                title = ?,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-              AND user_id = ?
-            """,
+            adapt_query(
+                """
+                UPDATE conversation_sessions
+                SET
+                    title = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                  AND user_id = ?
+                """
+            ),
             (
                 clean_title,
                 session_id,
-                user_id
-            )
+                user_id,
+            ),
+        )
+
+        updated = (
+            cursor.rowcount > 0
         )
 
         connection.commit()
 
-        return cursor.rowcount > 0
+        return updated
+
+    except Exception:
+        connection.rollback()
+        raise
 
     finally:
         connection.close()
@@ -197,33 +263,39 @@ def rename_session(
 
 def touch_session(
     user_id: str,
-    session_id: int
+    session_id: int,
 ) -> bool:
-    """
-    Session updated_at уақытын жаңартады.
-    """
-
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
         cursor.execute(
-            """
-            UPDATE conversation_sessions
-            SET updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-              AND user_id = ?
-            """,
+            adapt_query(
+                """
+                UPDATE conversation_sessions
+                SET updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                  AND user_id = ?
+                """
+            ),
             (
                 session_id,
-                user_id
-            )
+                user_id,
+            ),
+        )
+
+        updated = (
+            cursor.rowcount > 0
         )
 
         connection.commit()
 
-        return cursor.rowcount > 0
+        return updated
+
+    except Exception:
+        connection.rollback()
+        raise
 
     finally:
         connection.close()
@@ -235,32 +307,38 @@ def touch_session(
 
 def delete_session(
     user_id: str,
-    session_id: int
+    session_id: int,
 ) -> bool:
-    """
-    Session-ді өшіреді.
-    """
-
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
         cursor.execute(
-            """
-            DELETE FROM conversation_sessions
-            WHERE id = ?
-              AND user_id = ?
-            """,
+            adapt_query(
+                """
+                DELETE FROM conversation_sessions
+                WHERE id = ?
+                  AND user_id = ?
+                """
+            ),
             (
                 session_id,
-                user_id
-            )
+                user_id,
+            ),
+        )
+
+        deleted = (
+            cursor.rowcount > 0
         )
 
         connection.commit()
 
-        return cursor.rowcount > 0
+        return deleted
+
+    except Exception:
+        connection.rollback()
+        raise
 
     finally:
         connection.close()
@@ -273,46 +351,36 @@ def delete_session(
 def get_session_messages(
     user_id: str,
     session_id: int,
-    limit: int = 100
+    limit: int = 100,
 ) -> list[dict]:
-    """
-    Нақты conversation session-ның толық history-сін қайтарады.
-
-    Бұл функция:
-    - archive-тегі ескі message-терді;
-    - active conversations message-терін;
-
-    біріктіріп қайтарады.
-    """
-
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
-        # =================================================
-        # 1. ARCHIVED MESSAGES
-        # =================================================
-
         cursor.execute(
-            """
-            SELECT
-                original_message_id AS id,
-                role,
-                message,
-                original_created_at AS created_at
-            FROM conversation_archive
-            WHERE user_id = ?
-              AND session_id = ?
-            ORDER BY original_message_id ASC
-            """,
+            adapt_query(
+                """
+                SELECT
+                    original_message_id AS id,
+                    role,
+                    message,
+                    original_created_at AS created_at
+                FROM conversation_archive
+                WHERE user_id = ?
+                  AND session_id = ?
+                ORDER BY original_message_id ASC
+                """
+            ),
             (
                 user_id,
-                session_id
-            )
+                session_id,
+            ),
         )
 
-        archived_rows = cursor.fetchall()
+        archived_rows = (
+            cursor.fetchall()
+        )
 
         archived_messages = [
             {
@@ -320,34 +388,34 @@ def get_session_messages(
                 "role": row["role"],
                 "content": row["message"],
                 "created_at": row["created_at"],
-                "archived": True
+                "archived": True,
             }
             for row in archived_rows
         ]
 
-        # =================================================
-        # 2. ACTIVE MESSAGES
-        # =================================================
-
         cursor.execute(
-            """
-            SELECT
-                id,
-                role,
-                message,
-                created_at
-            FROM conversations
-            WHERE user_id = ?
-              AND session_id = ?
-            ORDER BY id ASC
-            """,
+            adapt_query(
+                """
+                SELECT
+                    id,
+                    role,
+                    message,
+                    created_at
+                FROM conversations
+                WHERE user_id = ?
+                  AND session_id = ?
+                ORDER BY id ASC
+                """
+            ),
             (
                 user_id,
-                session_id
-            )
+                session_id,
+            ),
         )
 
-        active_rows = cursor.fetchall()
+        active_rows = (
+            cursor.fetchall()
+        )
 
         active_messages = [
             {
@@ -355,14 +423,10 @@ def get_session_messages(
                 "role": row["role"],
                 "content": row["message"],
                 "created_at": row["created_at"],
-                "archived": False
+                "archived": False,
             }
             for row in active_rows
         ]
-
-        # =================================================
-        # 3. MERGE HISTORY
-        # =================================================
 
         messages = (
             archived_messages
@@ -370,15 +434,14 @@ def get_session_messages(
         )
 
         messages.sort(
-            key=lambda item: item["id"]
+            key=lambda item:
+                item["id"]
         )
 
-        # =================================================
-        # 4. LIMIT
-        # =================================================
-
         if limit > 0:
-            messages = messages[-limit:]
+            messages = (
+                messages[-limit:]
+            )
 
         return messages
 
@@ -393,30 +456,30 @@ def get_session_messages(
 def generate_session_title(
     user_id: str,
     session_id: int,
-    message: str
+    message: str,
 ) -> str:
-    """
-    Session әлі "Жаңа әңгіме" болса,
-    бірінші user хабарламасынан автоматты title жасайды.
-    """
-
     session = get_session(
         user_id,
-        session_id
+        session_id,
     )
 
     if session is None:
         return "Жаңа әңгіме"
 
-    current_title = session["title"]
+    current_title = (
+        session["title"]
+    )
 
-    # Қолмен немесе бұрын автоматты өзгертілген
-    # title-ды қайта өзгертпейміз.
-    if current_title != "Жаңа әңгіме":
+    if (
+        current_title
+        != "Жаңа әңгіме"
+    ):
         return current_title
 
     clean_message = " ".join(
-        message.strip().split()
+        message
+        .strip()
+        .split()
     )
 
     if not clean_message:
@@ -424,17 +487,24 @@ def generate_session_title(
 
     max_length = 45
 
-    if len(clean_message) > max_length:
+    if (
+        len(clean_message)
+        > max_length
+    ):
         clean_message = (
-            clean_message[:max_length]
-            .rstrip(" ,.!?:;-")
+            clean_message[
+                :max_length
+            ]
+            .rstrip(
+                " ,.!?:;-"
+            )
             + "..."
         )
 
     rename_session(
         user_id=user_id,
         session_id=session_id,
-        title=clean_message
+        title=clean_message,
     )
 
     return clean_message

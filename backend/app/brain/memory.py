@@ -1,7 +1,10 @@
 import json
 from typing import Optional
 
-from app.database import get_connection
+from app.database import (
+    get_connection,
+    adapt_query,
+)
 
 
 class UserProfile:
@@ -34,7 +37,10 @@ class UserProfile:
     # INIT
     # =====================================================
 
-    def __init__(self, user_id: str):
+    def __init__(
+        self,
+        user_id: str
+    ):
         self.user_id = user_id
 
         self.language: Optional[str] = None
@@ -54,23 +60,27 @@ class UserProfile:
     # UPDATE
     # =====================================================
 
-    def update(self, **kwargs):
+    def update(
+        self,
+        **kwargs
+    ):
         """
-        Профильді жаңартып, SQLite-ке сақтайды.
+        Профильді жаңартып,
+        database-ке сақтайды.
 
-        kwargs ішінде берілген field None болса да,
-        ол мән профильге жазылады.
-
-        Бұл Settings / Memory UI арқылы
-        сақталған мәндерді тазалауға мүмкіндік береді.
+        None мәндерін де қабылдайды.
+        Бұл memory field-терді
+        толық тазалауға мүмкіндік береді.
         """
 
         for key, value in kwargs.items():
 
-            if not hasattr(self, key):
+            if not hasattr(
+                self,
+                key
+            ):
                 continue
 
-            # user_id-ді update арқылы өзгертуге болмайды
             if key == "user_id":
                 continue
 
@@ -92,22 +102,24 @@ class UserProfile:
     ) -> bool:
         """
         Бір memory field-ті толық тазартады.
-
-        Мысалы:
-            goals -> []
-            career -> None
-            main_goal -> None
         """
 
-        if field_name not in self.MEMORY_FIELDS:
+        if (
+            field_name
+            not in self.MEMORY_FIELDS
+        ):
             return False
 
-        if field_name in self.LIST_MEMORY_FIELDS:
+        if (
+            field_name
+            in self.LIST_MEMORY_FIELDS
+        ):
             setattr(
                 self,
                 field_name,
                 []
             )
+
         else:
             setattr(
                 self,
@@ -123,12 +135,14 @@ class UserProfile:
     # CLEAR ALL MEMORY
     # =====================================================
 
-    def clear_memory(self):
+    def clear_memory(
+        self
+    ):
         """
-        AI сақтаған барлық long-term memory-ді тазартады.
+        AI сақтаған барлық
+        long-term memory-ді тазартады.
 
-        language сақталады, себебі ол интерфейс/жауап тілі
-        ретінде қолданылуы мүмкін.
+        language сақталады.
         """
 
         self.age = None
@@ -149,50 +163,83 @@ class UserProfile:
     # SAVE
     # =====================================================
 
-    def save(self):
+    def save(
+        self
+    ):
         """
-        UserProfile-ді SQLite базасына сақтайды.
+        UserProfile-ді database-ке сақтайды.
+
+        SQLite және PostgreSQL
+        екеуіне де compatible.
         """
 
-        connection = get_connection()
+        connection = (
+            get_connection()
+        )
 
         try:
-            cursor = connection.cursor()
+            cursor = (
+                connection.cursor()
+            )
 
             cursor.execute(
-                """
-                INSERT INTO users (
-                    user_id,
-                    language,
-                    age,
-                    marital_status,
-                    children,
-                    career,
-                    financial_status,
-                    main_goal,
-                    goals,
-                    habits,
-                    important_events,
-                    updated_at
-                )
-                VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                    CURRENT_TIMESTAMP
-                )
+                adapt_query(
+                    """
+                    INSERT INTO users (
+                        user_id,
+                        language,
+                        age,
+                        marital_status,
+                        children,
+                        career,
+                        financial_status,
+                        main_goal,
+                        goals,
+                        habits,
+                        important_events,
+                        updated_at
+                    )
+                    VALUES (
+                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                        CURRENT_TIMESTAMP
+                    )
 
-                ON CONFLICT(user_id) DO UPDATE SET
-                    language = excluded.language,
-                    age = excluded.age,
-                    marital_status = excluded.marital_status,
-                    children = excluded.children,
-                    career = excluded.career,
-                    financial_status = excluded.financial_status,
-                    main_goal = excluded.main_goal,
-                    goals = excluded.goals,
-                    habits = excluded.habits,
-                    important_events = excluded.important_events,
-                    updated_at = CURRENT_TIMESTAMP
-                """,
+                    ON CONFLICT(user_id)
+                    DO UPDATE SET
+                        language =
+                            excluded.language,
+
+                        age =
+                            excluded.age,
+
+                        marital_status =
+                            excluded.marital_status,
+
+                        children =
+                            excluded.children,
+
+                        career =
+                            excluded.career,
+
+                        financial_status =
+                            excluded.financial_status,
+
+                        main_goal =
+                            excluded.main_goal,
+
+                        goals =
+                            excluded.goals,
+
+                        habits =
+                            excluded.habits,
+
+                        important_events =
+                            excluded.important_events,
+
+                        updated_at =
+                            CURRENT_TIMESTAMP
+                    """
+                ),
                 (
                     self.user_id,
                     self.language,
@@ -202,22 +249,30 @@ class UserProfile:
                     self.career,
                     self.financial_status,
                     self.main_goal,
+
                     json.dumps(
                         self.goals,
                         ensure_ascii=False
                     ),
+
                     json.dumps(
                         self.habits,
                         ensure_ascii=False
                     ),
+
                     json.dumps(
                         self.important_events,
                         ensure_ascii=False
-                    )
-                )
+                    ),
+                ),
             )
 
             connection.commit()
+
+        except Exception:
+
+            connection.rollback()
+            raise
 
         finally:
             connection.close()
@@ -226,9 +281,12 @@ class UserProfile:
     # MEMORY CONTEXT
     # =====================================================
 
-    def get_context(self) -> str:
+    def get_context(
+        self
+    ) -> str:
         """
-        AI prompt-қа берілетін long-term memory context.
+        AI prompt-қа берілетін
+        long-term memory context.
         """
 
         context = []
@@ -245,7 +303,10 @@ class UserProfile:
 
         if self.marital_status:
             context.append(
-                f"Отбасылық жағдайы: {self.marital_status}"
+                (
+                    "Отбасылық жағдайы: "
+                    f"{self.marital_status}"
+                )
             )
 
         if self.children is not None:
@@ -255,29 +316,42 @@ class UserProfile:
 
         if self.career:
             context.append(
-                f"Мансап/жұмыс: {self.career}"
+                (
+                    "Мансап/жұмыс: "
+                    f"{self.career}"
+                )
             )
 
         if self.financial_status:
             context.append(
-                f"Қаржылық жағдайы: {self.financial_status}"
+                (
+                    "Қаржылық жағдайы: "
+                    f"{self.financial_status}"
+                )
             )
 
         if self.main_goal:
             context.append(
-                f"Негізгі мақсаты: {self.main_goal}"
+                (
+                    "Негізгі мақсаты: "
+                    f"{self.main_goal}"
+                )
             )
 
         if self.goals:
             context.append(
                 "Мақсаттары: "
-                + ", ".join(self.goals)
+                + ", ".join(
+                    self.goals
+                )
             )
 
         if self.habits:
             context.append(
                 "Әдеттері: "
-                + ", ".join(self.habits)
+                + ", ".join(
+                    self.habits
+                )
             )
 
         if self.important_events:
@@ -294,7 +368,9 @@ class UserProfile:
                 "сақталған ақпарат жоқ."
             )
 
-        return "\n".join(context)
+        return "\n".join(
+            context
+        )
 
 
 # =====================================================
@@ -305,60 +381,93 @@ def get_user_profile(
     user_id: str
 ) -> UserProfile:
     """
-    SQLite базасынан пайдаланушы профилін алады.
+    Database-тен пайдаланушы профилін алады.
 
-    Егер профиль жоқ болса —
+    Профиль жоқ болса —
     жаңа профиль жасайды.
+
+    SQLite және PostgreSQL compatible.
     """
 
     profile = UserProfile(
         user_id
     )
 
-    connection = get_connection()
+    connection = (
+        get_connection()
+    )
 
     try:
-        cursor = connection.cursor()
-
-        cursor.execute(
-            """
-            SELECT *
-            FROM users
-            WHERE user_id = ?
-            """,
-            (user_id,)
+        cursor = (
+            connection.cursor()
         )
 
-        row = cursor.fetchone()
+        cursor.execute(
+            adapt_query(
+                """
+                SELECT *
+                FROM users
+                WHERE user_id = ?
+                """
+            ),
+            (
+                user_id,
+            ),
+        )
+
+        row = (
+            cursor.fetchone()
+        )
 
         if row is None:
             profile.save()
             return profile
 
-        profile.language = row["language"]
-        profile.age = row["age"]
+        profile.language = (
+            row["language"]
+        )
+
+        profile.age = (
+            row["age"]
+        )
+
         profile.marital_status = (
             row["marital_status"]
         )
-        profile.children = row["children"]
 
-        profile.career = row["career"]
+        profile.children = (
+            row["children"]
+        )
+
+        profile.career = (
+            row["career"]
+        )
+
         profile.financial_status = (
             row["financial_status"]
         )
-        profile.main_goal = row["main_goal"]
 
-        profile.goals = _load_json_list(
-            row["goals"]
+        profile.main_goal = (
+            row["main_goal"]
         )
 
-        profile.habits = _load_json_list(
-            row["habits"]
+        profile.goals = (
+            _load_json_list(
+                row["goals"]
+            )
+        )
+
+        profile.habits = (
+            _load_json_list(
+                row["habits"]
+            )
         )
 
         profile.important_events = (
             _load_json_list(
-                row["important_events"]
+                row[
+                    "important_events"
+                ]
             )
         )
 
@@ -376,18 +485,34 @@ def _load_json_list(
     value
 ) -> list[str]:
     """
-    SQLite TEXT -> Python list[str]
+    Database TEXT/JSON string
+    -> Python list[str]
     """
 
     if not value:
         return []
+
+    # Егер болашақ PostgreSQL schema-да
+    # JSON/JSONB қолдансақ, psycopg Python list
+    # қайтаруы мүмкін.
+    if isinstance(
+        value,
+        list
+    ):
+        return [
+            str(item)
+            for item in value
+        ]
 
     try:
         result = json.loads(
             value
         )
 
-        if isinstance(result, list):
+        if isinstance(
+            result,
+            list
+        ):
             return [
                 str(item)
                 for item in result

@@ -1,4 +1,7 @@
-from app.database import get_connection
+from app.database import (
+    get_connection,
+    adapt_query,
+)
 
 
 MAX_HISTORY = 20
@@ -12,63 +15,52 @@ def get_conversation(
     user_id: str,
     session_id: int | None = None
 ) -> list[dict[str, str]]:
-    """
-    SQLite базасынан пайдаланушының соңғы хабарламаларын алады.
-
-    session_id берілсе:
-    - тек сол conversation session хабарламалары алынады.
-
-    session_id берілмесе:
-    - бұрынғы legacy логика сақталады.
-    """
-
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
         if session_id is not None:
-
             cursor.execute(
-                """
-                SELECT role, message
-                FROM conversations
-                WHERE user_id = ?
-                  AND session_id = ?
-                ORDER BY id DESC
-                LIMIT ?
-                """,
+                adapt_query(
+                    '''
+                    SELECT role, message
+                    FROM conversations
+                    WHERE user_id = ?
+                      AND session_id = ?
+                    ORDER BY id DESC
+                    LIMIT ?
+                    '''
+                ),
                 (
                     user_id,
                     session_id,
-                    MAX_HISTORY
-                )
+                    MAX_HISTORY,
+                ),
             )
-
         else:
-
             cursor.execute(
-                """
-                SELECT role, message
-                FROM conversations
-                WHERE user_id = ?
-                ORDER BY id DESC
-                LIMIT ?
-                """,
+                adapt_query(
+                    '''
+                    SELECT role, message
+                    FROM conversations
+                    WHERE user_id = ?
+                    ORDER BY id DESC
+                    LIMIT ?
+                    '''
+                ),
                 (
                     user_id,
-                    MAX_HISTORY
-                )
+                    MAX_HISTORY,
+                ),
             )
 
-        rows = cursor.fetchall()
-
-        rows = list(reversed(rows))
+        rows = list(reversed(cursor.fetchall()))
 
         return [
             {
                 "role": row["role"],
-                "content": row["message"]
+                "content": row["message"],
             }
             for row in rows
         ]
@@ -87,37 +79,36 @@ def add_message(
     content: str,
     session_id: int | None = None
 ) -> None:
-    """
-    Жаңа хабарламаны SQLite conversation history-ге сақтайды.
-
-    Егер session_id берілсе,
-    хабарлама нақты conversation session-ге байланысады.
-    """
-
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
         cursor.execute(
-            """
-            INSERT INTO conversations (
-                user_id,
-                session_id,
-                role,
-                message
-            )
-            VALUES (?, ?, ?, ?)
-            """,
+            adapt_query(
+                '''
+                INSERT INTO conversations (
+                    user_id,
+                    session_id,
+                    role,
+                    message
+                )
+                VALUES (?, ?, ?, ?)
+                '''
+            ),
             (
                 user_id,
                 session_id,
                 role,
-                content
-            )
+                content,
+            ),
         )
 
         connection.commit()
+
+    except Exception:
+        connection.rollback()
+        raise
 
     finally:
         connection.close()
@@ -132,60 +123,52 @@ def get_recent_messages(
     limit: int = 10,
     session_id: int | None = None
 ) -> list[dict[str, str]]:
-    """
-    Пайдаланушының соңғы бірнеше хабарламасын алады.
-
-    session_id берілсе,
-    тек сол session history алынады.
-    """
-
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
         if session_id is not None:
-
             cursor.execute(
-                """
-                SELECT role, message
-                FROM conversations
-                WHERE user_id = ?
-                  AND session_id = ?
-                ORDER BY id DESC
-                LIMIT ?
-                """,
+                adapt_query(
+                    '''
+                    SELECT role, message
+                    FROM conversations
+                    WHERE user_id = ?
+                      AND session_id = ?
+                    ORDER BY id DESC
+                    LIMIT ?
+                    '''
+                ),
                 (
                     user_id,
                     session_id,
-                    limit
-                )
+                    limit,
+                ),
             )
-
         else:
-
             cursor.execute(
-                """
-                SELECT role, message
-                FROM conversations
-                WHERE user_id = ?
-                ORDER BY id DESC
-                LIMIT ?
-                """,
+                adapt_query(
+                    '''
+                    SELECT role, message
+                    FROM conversations
+                    WHERE user_id = ?
+                    ORDER BY id DESC
+                    LIMIT ?
+                    '''
+                ),
                 (
                     user_id,
-                    limit
-                )
+                    limit,
+                ),
             )
 
-        rows = cursor.fetchall()
-
-        rows = list(reversed(rows))
+        rows = list(reversed(cursor.fetchall()))
 
         return [
             {
                 "role": row["role"],
-                "content": row["message"]
+                "content": row["message"],
             }
             for row in rows
         ]
@@ -203,14 +186,10 @@ def format_conversation(
     limit: int = 10,
     session_id: int | None = None
 ) -> str:
-    """
-    Conversation history-ді AI prompt үшін мәтінге айналдырады.
-    """
-
     messages = get_recent_messages(
         user_id=user_id,
         limit=limit,
-        session_id=session_id
+        session_id=session_id,
     )
 
     if not messages:
@@ -219,7 +198,6 @@ def format_conversation(
     history = []
 
     for message in messages:
-
         role = message["role"]
         content = message["content"]
 
@@ -227,7 +205,6 @@ def format_conversation(
             history.append(
                 f"Пайдаланушы: {content}"
             )
-
         elif role == "assistant":
             history.append(
                 f"ERKEK AI: {content}"
@@ -244,45 +221,36 @@ def get_latest_message_id(
     user_id: str,
     session_id: int | None = None
 ) -> int:
-    """
-    Ең соңғы conversation message ID қайтарады.
-
-    session_id болса:
-    - сол session бойынша.
-
-    Болмаса:
-    - user бойынша.
-    """
-
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
         if session_id is not None:
-
             cursor.execute(
-                """
-                SELECT MAX(id) AS latest_id
-                FROM conversations
-                WHERE user_id = ?
-                  AND session_id = ?
-                """,
+                adapt_query(
+                    '''
+                    SELECT MAX(id) AS latest_id
+                    FROM conversations
+                    WHERE user_id = ?
+                      AND session_id = ?
+                    '''
+                ),
                 (
                     user_id,
-                    session_id
-                )
+                    session_id,
+                ),
             )
-
         else:
-
             cursor.execute(
-                """
-                SELECT MAX(id) AS latest_id
-                FROM conversations
-                WHERE user_id = ?
-                """,
-                (user_id,)
+                adapt_query(
+                    '''
+                    SELECT MAX(id) AS latest_id
+                    FROM conversations
+                    WHERE user_id = ?
+                    '''
+                ),
+                (user_id,),
             )
 
         row = cursor.fetchone()
@@ -311,63 +279,58 @@ def get_messages_after(
     limit: int = 20,
     session_id: int | None = None
 ) -> list[dict]:
-    """
-    Белгілі message ID-ден кейінгі жаңа хабарламаларды қайтарады.
-
-    Incremental summary үшін қолданылады.
-    """
-
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
         if session_id is not None:
-
             cursor.execute(
-                """
-                SELECT
-                    id,
-                    session_id,
-                    role,
-                    message,
-                    created_at
-                FROM conversations
-                WHERE user_id = ?
-                  AND session_id = ?
-                  AND id > ?
-                ORDER BY id ASC
-                LIMIT ?
-                """,
+                adapt_query(
+                    '''
+                    SELECT
+                        id,
+                        session_id,
+                        role,
+                        message,
+                        created_at
+                    FROM conversations
+                    WHERE user_id = ?
+                      AND session_id = ?
+                      AND id > ?
+                    ORDER BY id ASC
+                    LIMIT ?
+                    '''
+                ),
                 (
                     user_id,
                     session_id,
                     last_message_id,
-                    limit
-                )
+                    limit,
+                ),
             )
-
         else:
-
             cursor.execute(
-                """
-                SELECT
-                    id,
-                    session_id,
-                    role,
-                    message,
-                    created_at
-                FROM conversations
-                WHERE user_id = ?
-                  AND id > ?
-                ORDER BY id ASC
-                LIMIT ?
-                """,
+                adapt_query(
+                    '''
+                    SELECT
+                        id,
+                        session_id,
+                        role,
+                        message,
+                        created_at
+                    FROM conversations
+                    WHERE user_id = ?
+                      AND id > ?
+                    ORDER BY id ASC
+                    LIMIT ?
+                    '''
+                ),
                 (
                     user_id,
                     last_message_id,
-                    limit
-                )
+                    limit,
+                ),
             )
 
         rows = cursor.fetchall()
@@ -378,7 +341,7 @@ def get_messages_after(
                 "session_id": row["session_id"],
                 "role": row["role"],
                 "content": row["message"],
-                "created_at": row["created_at"]
+                "created_at": row["created_at"],
             }
             for row in rows
         ]
@@ -397,63 +360,58 @@ def get_messages_before_or_equal(
     limit: int = 100,
     session_id: int | None = None
 ) -> list[dict]:
-    """
-    Белгілі бір ID-ге дейінгі хабарламаларды алады.
-
-    Cleanup/archive кезінде қолданылады.
-    """
-
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
         if session_id is not None:
-
             cursor.execute(
-                """
-                SELECT
-                    id,
-                    session_id,
-                    role,
-                    message,
-                    created_at
-                FROM conversations
-                WHERE user_id = ?
-                  AND session_id = ?
-                  AND id <= ?
-                ORDER BY id ASC
-                LIMIT ?
-                """,
+                adapt_query(
+                    '''
+                    SELECT
+                        id,
+                        session_id,
+                        role,
+                        message,
+                        created_at
+                    FROM conversations
+                    WHERE user_id = ?
+                      AND session_id = ?
+                      AND id <= ?
+                    ORDER BY id ASC
+                    LIMIT ?
+                    '''
+                ),
                 (
                     user_id,
                     session_id,
                     message_id,
-                    limit
-                )
+                    limit,
+                ),
             )
-
         else:
-
             cursor.execute(
-                """
-                SELECT
-                    id,
-                    session_id,
-                    role,
-                    message,
-                    created_at
-                FROM conversations
-                WHERE user_id = ?
-                  AND id <= ?
-                ORDER BY id ASC
-                LIMIT ?
-                """,
+                adapt_query(
+                    '''
+                    SELECT
+                        id,
+                        session_id,
+                        role,
+                        message,
+                        created_at
+                    FROM conversations
+                    WHERE user_id = ?
+                      AND id <= ?
+                    ORDER BY id ASC
+                    LIMIT ?
+                    '''
+                ),
                 (
                     user_id,
                     message_id,
-                    limit
-                )
+                    limit,
+                ),
             )
 
         rows = cursor.fetchall()
@@ -464,7 +422,7 @@ def get_messages_before_or_equal(
                 "session_id": row["session_id"],
                 "role": row["role"],
                 "content": row["message"],
-                "created_at": row["created_at"]
+                "created_at": row["created_at"],
             }
             for row in rows
         ]
@@ -481,42 +439,36 @@ def get_message_count(
     user_id: str,
     session_id: int | None = None
 ) -> int:
-    """
-    Conversation message санын қайтарады.
-
-    session_id берілсе,
-    тек сол session ішіндегі message саны есептеледі.
-    """
-
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
         if session_id is not None:
-
             cursor.execute(
-                """
-                SELECT COUNT(*) AS total
-                FROM conversations
-                WHERE user_id = ?
-                  AND session_id = ?
-                """,
+                adapt_query(
+                    '''
+                    SELECT COUNT(*) AS total
+                    FROM conversations
+                    WHERE user_id = ?
+                      AND session_id = ?
+                    '''
+                ),
                 (
                     user_id,
-                    session_id
-                )
+                    session_id,
+                ),
             )
-
         else:
-
             cursor.execute(
-                """
-                SELECT COUNT(*) AS total
-                FROM conversations
-                WHERE user_id = ?
-                """,
-                (user_id,)
+                adapt_query(
+                    '''
+                    SELECT COUNT(*) AS total
+                    FROM conversations
+                    WHERE user_id = ?
+                    '''
+                ),
+                (user_id,),
             )
 
         row = cursor.fetchone()
@@ -528,7 +480,9 @@ def get_message_count(
 
     finally:
         connection.close()
-        # =====================================================
+
+
+# =====================================================
 # REGENERATE HELPERS
 # =====================================================
 
@@ -536,36 +490,29 @@ def get_regenerate_target(
     user_id: str,
     session_id: int
 ) -> dict | None:
-    """
-    Regenerate үшін соңғы assistant жауабын
-    және оның алдындағы user хабарламасын табады.
-
-    Тек session-ның ең соңғы екі хабарламасы:
-    user -> assistant
-    болған жағдайда ғана regenerate жасауға рұқсат.
-    """
-
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
         cursor.execute(
-            """
-            SELECT
-                id,
-                role,
-                message
-            FROM conversations
-            WHERE user_id = ?
-              AND session_id = ?
-            ORDER BY id DESC
-            LIMIT 2
-            """,
+            adapt_query(
+                '''
+                SELECT
+                    id,
+                    role,
+                    message
+                FROM conversations
+                WHERE user_id = ?
+                  AND session_id = ?
+                ORDER BY id DESC
+                LIMIT 2
+                '''
+            ),
             (
                 user_id,
-                session_id
-            )
+                session_id,
+            ),
         )
 
         rows = cursor.fetchall()
@@ -586,7 +533,7 @@ def get_regenerate_target(
             "assistant_message_id": latest["id"],
             "assistant_message": latest["message"],
             "user_message_id": previous["id"],
-            "user_message": previous["message"]
+            "user_message": previous["message"],
         }
 
     finally:
@@ -599,37 +546,31 @@ def format_conversation_before_message(
     message_id: int,
     limit: int = 4
 ) -> str:
-    """
-    Белгілі бір message ID-ден бұрынғы
-    conversation history-ді prompt үшін format жасайды.
-
-    Regenerate кезінде соңғы user сұрағын және
-    ескі assistant жауабын history-ге қоспау үшін қажет.
-    """
-
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
         cursor.execute(
-            """
-            SELECT
-                role,
-                message
-            FROM conversations
-            WHERE user_id = ?
-              AND session_id = ?
-              AND id < ?
-            ORDER BY id DESC
-            LIMIT ?
-            """,
+            adapt_query(
+                '''
+                SELECT
+                    role,
+                    message
+                FROM conversations
+                WHERE user_id = ?
+                  AND session_id = ?
+                  AND id < ?
+                ORDER BY id DESC
+                LIMIT ?
+                '''
+            ),
             (
                 user_id,
                 session_id,
                 message_id,
-                limit
-            )
+                limit,
+            ),
         )
 
         rows = list(
@@ -644,12 +585,10 @@ def format_conversation_before_message(
         history = []
 
         for row in rows:
-
             if row["role"] == "user":
                 history.append(
                     f"Пайдаланушы: {row['message']}"
                 )
-
             elif row["role"] == "assistant":
                 history.append(
                     f"ERKEK AI: {row['message']}"
@@ -670,39 +609,41 @@ def replace_assistant_message(
     message_id: int,
     content: str
 ) -> bool:
-    """
-    Белгілі assistant хабарламасының мәтінін
-    жаңа жауаппен ауыстырады.
-
-    Жаңа conversation row жасалмайды.
-    Сондықтан user сұрағы duplicate болмайды.
-    """
-
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
         cursor.execute(
-            """
-            UPDATE conversations
-            SET message = ?
-            WHERE id = ?
-              AND user_id = ?
-              AND session_id = ?
-              AND role = 'assistant'
-            """,
+            adapt_query(
+                '''
+                UPDATE conversations
+                SET message = ?
+                WHERE id = ?
+                  AND user_id = ?
+                  AND session_id = ?
+                  AND role = 'assistant'
+                '''
+            ),
             (
                 content,
                 message_id,
                 user_id,
-                session_id
-            )
+                session_id,
+            ),
+        )
+
+        updated = (
+            cursor.rowcount > 0
         )
 
         connection.commit()
 
-        return cursor.rowcount > 0
+        return updated
+
+    except Exception:
+        connection.rollback()
+        raise
 
     finally:
         connection.close()

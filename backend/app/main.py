@@ -1,18 +1,26 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.config import (
+    APP_NAME,
+    APP_VERSION,
+    APP_ENV,
+    CORS_ORIGINS,
+)
+
 from app.routes.chat import router as chat_router
 from app.routes.auth import router as auth_router
 from app.routes.sessions import router as sessions_router
 from app.routes.profile import router as profile_router
+
 
 # =====================================================
 # APP
 # =====================================================
 
 app = FastAPI(
-    title="ERKEK AI",
-    version="0.1.0"
+    title=APP_NAME,
+    version=APP_VERSION,
 )
 
 
@@ -22,13 +30,23 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+
+    allow_origins=CORS_ORIGINS,
+
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+
+    allow_methods=[
+        "GET",
+        "POST",
+        "PATCH",
+        "DELETE",
+        "OPTIONS",
+    ],
+
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+    ],
 )
 
 
@@ -36,10 +54,35 @@ app.add_middleware(
 # ROUTES
 # =====================================================
 
-app.include_router(auth_router)
-app.include_router(chat_router)
-app.include_router(sessions_router)
-app.include_router(profile_router)
+app.include_router(
+    auth_router
+)
+
+app.include_router(
+    chat_router
+)
+
+app.include_router(
+    sessions_router
+)
+
+app.include_router(
+    profile_router
+)
+
+
+# =====================================================
+# HEALTH CHECK
+# =====================================================
+
+@app.get("/health")
+def health_check():
+    return {
+        "status": "ok",
+        "app": APP_NAME,
+        "version": APP_VERSION,
+        "environment": APP_ENV,
+    }
 
 
 # =====================================================
@@ -49,7 +92,8 @@ app.include_router(profile_router)
 @app.get("/")
 def home():
     return {
-        "name": "ERKEK AI",
+        "name": APP_NAME,
         "status": "online",
-        "version": "0.1.0"
+        "version": APP_VERSION,
+        "environment": APP_ENV,
     }
