@@ -1,11 +1,36 @@
+import time
 import openai
+import httpx
 
 from collections.abc import Generator
-
 from openai import OpenAI
 
 from app.core.config import OPENAI_API_KEY
 from app.core.logger import logger
+
+
+# =====================================================
+# SETTINGS
+# =====================================================
+
+MODEL = "gpt-5-mini"
+
+NON_STREAM_TIMEOUT = httpx.Timeout(
+    60.0,
+    connect=10.0,
+    read=60.0,
+    write=20.0,
+)
+
+STREAM_TIMEOUT = httpx.Timeout(
+    90.0,
+    connect=10.0,
+    read=90.0,
+    write=20.0,
+)
+
+STREAM_MAX_ATTEMPTS = 2
+STREAM_RETRY_DELAY = 1.5
 
 
 # =====================================================
@@ -14,7 +39,7 @@ from app.core.logger import logger
 
 client = OpenAI(
     api_key=OPENAI_API_KEY,
-    timeout=45.0,
+    timeout=NON_STREAM_TIMEOUT,
     max_retries=2,
 )
 
@@ -48,9 +73,6 @@ FALLBACK_RESPONSES = {
 def get_fallback_response(
     language: str
 ) -> str:
-    """
-    Тілге сәйкес fallback жауап қайтарады.
-    """
 
     return FALLBACK_RESPONSES.get(
         language,
@@ -67,23 +89,19 @@ def ask_ai(
     user_message: str,
     language: str = "kk",
 ) -> str:
-    """
-    OpenAI API-ға кәдімгі non-streaming сұраныс жібереді.
-
-    Қате болған жағдайда backend құламайды,
-    пайдаланушыға fallback жауап береді.
-    """
 
     fallback_response = (
-        get_fallback_response(
-            language
-        )
+        get_fallback_response(language)
     )
 
     try:
         response = (
-            client.responses.create(
-                model="gpt-5-mini",
+            client.with_options(
+                timeout=NON_STREAM_TIMEOUT,
+                max_retries=2,
+            )
+            .responses.create(
+                model=MODEL,
 
                 input=[
                     {
@@ -108,22 +126,12 @@ def ask_ai(
 
         return response.output_text
 
-    # =================================================
-    # TIMEOUT
-    # =================================================
-
     except openai.APITimeoutError as error:
 
         logger.warning(
             "OpenAI timeout: %s",
             str(error),
         )
-
-        return fallback_response
-
-    # =================================================
-    # CONNECTION ERROR
-    # =================================================
 
     except openai.APIConnectionError as error:
 
@@ -132,24 +140,12 @@ def ask_ai(
             str(error),
         )
 
-        return fallback_response
-
-    # =================================================
-    # RATE LIMIT
-    # =================================================
-
     except openai.RateLimitError as error:
 
         logger.warning(
             "OpenAI rate limit: %s",
             str(error),
         )
-
-        return fallback_response
-
-    # =================================================
-    # API STATUS ERROR
-    # =================================================
 
     except openai.APIStatusError as error:
 
@@ -166,12 +162,6 @@ def ask_ai(
             ),
         )
 
-        return fallback_response
-
-    # =================================================
-    # GENERIC OPENAI ERROR
-    # =================================================
-
     except openai.APIError as error:
 
         logger.error(
@@ -179,19 +169,13 @@ def ask_ai(
             str(error),
         )
 
-        return fallback_response
-
-    # =================================================
-    # UNEXPECTED ERROR
-    # =================================================
-
     except Exception:
 
         logger.exception(
             "Unexpected OpenAI error"
         )
 
-        return fallback_response
+    return fallback_response
 
 
 # =====================================================
@@ -203,159 +187,176 @@ def stream_ai(
     user_message: str,
     language: str = "kk",
 ) -> Generator[str, None, None]:
-    """
-    OpenAI жауабын бөліктермен қайтарады.
-
-    Әр yield — frontend-ке жіберуге болатын
-    жаңа мәтін бөлігі.
-
-    Қате шықса fallback response бір рет yield болады.
-    """
 
     fallback_response = (
-        get_fallback_response(
-            language
-        )
+        get_fallback_response(language)
     )
 
-    has_output = False
+    for attempt in range(
+        1,
+        STREAM_MAX_ATTEMPTS + 1
+    ):
 
-    try:
-        stream = client.responses.create(
-            model="gpt-5-mini",
+        has_output = False
 
-            input=[
-                {
-                    "role": "system",
-                    "content": system_prompt,
-                },
-                {
-                    "role": "user",
-                    "content": user_message,
-                },
-            ],
+        try:
+            stream = (
+                client.with_options(
+                    timeout=STREAM_TIMEOUT,
 
-            stream=True,
-        )
+                    # Retry-ды өзіміз басқарамыз.
+                    max_retries=0,
+                )
+                .responses.create(
+                    model=MODEL,
 
-        for event in stream:
+                    input=[
+                        {
+                            "role": "system",
+                            "content": system_prompt,
+                        },
+                        {
+                            "role": "user",
+                            "content": user_message,
+                        },
+                    ],
 
-            event_type = getattr(
-                event,
-                "type",
-                "",
+                    stream=True,
+                )
             )
 
-            # Responses API text delta event
-            if (
-                event_type ==
-                "response.output_text.delta"
-            ):
-                delta = getattr(
+            for event in stream:
+
+                event_type = getattr(
                     event,
-                    "delta",
+                    "type",
                     "",
                 )
 
-                if delta:
-                    has_output = True
-                    yield delta
+                if (
+                    event_type
+                    == "response.output_text.delta"
+                ):
+                    delta = getattr(
+                        event,
+                        "delta",
+                        "",
+                    )
 
-        if not has_output:
+                    if delta:
+
+                        has_output = True
+
+                        yield delta
+
+            if has_output:
+                return
 
             logger.warning(
-                "OpenAI stream returned empty output"
+                (
+                    "OpenAI stream returned "
+                    "empty output | attempt=%s"
+                ),
+                attempt,
             )
 
-            yield fallback_response
+        except openai.APITimeoutError as error:
 
-    # =================================================
-    # TIMEOUT
-    # =================================================
+            logger.warning(
+                (
+                    "OpenAI streaming timeout | "
+                    "attempt=%s | error=%s"
+                ),
+                attempt,
+                str(error),
+            )
 
-    except openai.APITimeoutError as error:
+        except openai.APIConnectionError as error:
 
-        logger.warning(
-            "OpenAI streaming timeout: %s",
-            str(error),
-        )
+            logger.error(
+                (
+                    "OpenAI streaming connection error | "
+                    "attempt=%s | error=%s"
+                ),
+                attempt,
+                str(error),
+            )
 
-        if not has_output:
-            yield fallback_response
+        except openai.RateLimitError as error:
 
-    # =================================================
-    # CONNECTION ERROR
-    # =================================================
+            logger.warning(
+                (
+                    "OpenAI streaming rate limit | "
+                    "attempt=%s | error=%s"
+                ),
+                attempt,
+                str(error),
+            )
 
-    except openai.APIConnectionError as error:
+        except openai.APIStatusError as error:
 
-        logger.error(
-            "OpenAI streaming connection error: %s",
-            str(error),
-        )
+            logger.error(
+                (
+                    "OpenAI streaming API status error | "
+                    "attempt=%s | status=%s | "
+                    "request_id=%s"
+                ),
+                attempt,
+                error.status_code,
+                getattr(
+                    error,
+                    "request_id",
+                    None,
+                ),
+            )
 
-        if not has_output:
-            yield fallback_response
+            # 4xx сияқты permanent error болса
+            # қайта retry жасаудың қажеті жоқ.
+            if (
+                error.status_code
+                and error.status_code < 500
+                and error.status_code != 429
+            ):
+                break
 
-    # =================================================
-    # RATE LIMIT
-    # =================================================
+        except openai.APIError as error:
 
-    except openai.RateLimitError as error:
+            logger.error(
+                (
+                    "OpenAI streaming API error | "
+                    "attempt=%s | error=%s"
+                ),
+                attempt,
+                str(error),
+            )
 
-        logger.warning(
-            "OpenAI streaming rate limit: %s",
-            str(error),
-        )
+        except Exception:
 
-        if not has_output:
-            yield fallback_response
+            logger.exception(
+                (
+                    "Unexpected OpenAI "
+                    "streaming error | attempt=%s"
+                ),
+                attempt,
+            )
 
-    # =================================================
-    # API STATUS ERROR
-    # =================================================
+        # Егер мәтіннің бір бөлігі келіп қойған болса,
+        # қайта бастауға болмайды.
+        if has_output:
+            return
 
-    except openai.APIStatusError as error:
+        if attempt < STREAM_MAX_ATTEMPTS:
 
-        logger.error(
-            (
-                "OpenAI streaming API status error | "
-                "status=%s | request_id=%s"
-            ),
-            error.status_code,
-            getattr(
-                error,
-                "request_id",
-                None,
-            ),
-        )
+            logger.info(
+                (
+                    "Retrying OpenAI stream | "
+                    "next_attempt=%s"
+                ),
+                attempt + 1,
+            )
 
-        if not has_output:
-            yield fallback_response
+            time.sleep(
+                STREAM_RETRY_DELAY
+            )
 
-    # =================================================
-    # GENERIC OPENAI ERROR
-    # =================================================
-
-    except openai.APIError as error:
-
-        logger.error(
-            "OpenAI streaming API error: %s",
-            str(error),
-        )
-
-        if not has_output:
-            yield fallback_response
-
-    # =================================================
-    # UNEXPECTED ERROR
-    # =================================================
-
-    except Exception:
-
-        logger.exception(
-            "Unexpected OpenAI streaming error"
-        )
-
-        if not has_output:
-            yield fallback_response
+    yield fallback_response
