@@ -220,3 +220,54 @@ def test_chat_memory_update(monkeypatch):
     assert data["session_id"] == session_id
 
     assert "тұрақты жұмысы бар" in data["memory"]
+
+# =====================================================
+# MESSAGE LENGTH LIMIT
+# =====================================================
+
+def test_chat_rejects_too_long_message():
+
+    from app.routes.chat import MAX_MESSAGE_LENGTH
+
+    token = get_token()
+
+    session_id = create_test_session(
+        token
+    )
+
+    for path in ["/chat", "/chat/stream"]:
+
+        response = client.post(
+            path,
+            headers={
+                "Authorization": f"Bearer {token}"
+            },
+            json={
+                "session_id": session_id,
+                "message": "а" * (MAX_MESSAGE_LENGTH + 1)
+            }
+        )
+
+        assert response.status_code == 422
+
+
+def test_chat_rejects_empty_message():
+
+    token = get_token()
+
+    session_id = create_test_session(
+        token
+    )
+
+    response = client.post(
+        "/chat",
+        headers={
+            "Authorization": f"Bearer {token}"
+        },
+        json={
+            "session_id": session_id,
+            "message": ""
+        }
+    )
+
+    assert response.status_code == 422

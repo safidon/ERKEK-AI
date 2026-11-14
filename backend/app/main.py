@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -7,6 +9,8 @@ from app.core.config import (
     APP_ENV,
     CORS_ORIGINS,
 )
+
+from app.database import init_database
 
 from app.routes.chat import router as chat_router
 from app.routes.auth import router as auth_router
@@ -18,9 +22,18 @@ from app.routes.profile import router as profile_router
 # APP
 # =====================================================
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Application іске қосылғанда database кестелері
+    # жоқ болса автоматты түрде жасалады.
+    init_database()
+    yield
+
+
 app = FastAPI(
     title=APP_NAME,
     version=APP_VERSION,
+    lifespan=lifespan,
 )
 
 

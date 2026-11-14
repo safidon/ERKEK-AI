@@ -5,7 +5,7 @@ from fastapi import (
     status,
 )
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.auth.dependencies import get_current_user
 
@@ -65,9 +65,15 @@ router = APIRouter()
 # REQUEST SCHEMAS
 # =====================================================
 
+MAX_MESSAGE_LENGTH = 4000
+
+
 class ChatRequest(BaseModel):
     session_id: int
-    message: str
+    message: str = Field(
+        min_length=1,
+        max_length=MAX_MESSAGE_LENGTH,
+    )
 
 
 class RegenerateRequest(BaseModel):

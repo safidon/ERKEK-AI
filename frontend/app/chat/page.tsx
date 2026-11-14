@@ -35,6 +35,9 @@ const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   "http://127.0.0.1:8000";
 
+// Backend-тегі MAX_MESSAGE_LENGTH-пен сәйкес болуы керек.
+const MAX_MESSAGE_LENGTH = 4000;
+
 
 // =====================================================
 // COPY TEXT
@@ -755,30 +758,6 @@ export default function ChatPage() {
     ) || null;
 
 
-  // =====================================================
-  // AUTH
-  // =====================================================
-
-  useEffect(
-    () => {
-      const token =
-        localStorage.getItem(
-          "access_token"
-        );
-
-      if (!token) {
-        router.replace(
-          "/login"
-        );
-
-        return;
-      }
-
-      loadSessions();
-
-    },
-    [router]
-  );
 
 
   // =====================================================
@@ -960,11 +939,8 @@ export default function ChatPage() {
       return;
     }
 
-    setSessionsLoading(
-      true
-    );
-
-    setError("");
+    // sessionsLoading бастапқы мәні true, error бос —
+    // effect ішінде синхронды setState қажет емес.
 
     try {
       const response =
@@ -1049,6 +1025,36 @@ export default function ChatPage() {
       );
     }
   }
+
+
+  // =====================================================
+  // AUTH
+  // =====================================================
+
+  useEffect(
+    () => {
+      const token =
+        localStorage.getItem(
+          "access_token"
+        );
+
+      if (!token) {
+        router.replace(
+          "/login"
+        );
+
+        return;
+      }
+
+      // Деректерді жүктеу: setState тек await fetch-тен кейін шақырылады.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      loadSessions();
+
+    },
+    // Тек mount кезінде бір рет жүктеледі.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [router]
+  );
 
 
   // =====================================================
@@ -1674,6 +1680,11 @@ export default function ChatPage() {
         assistantText +=
           chunk;
 
+        // Updater кейін орындалуы мүмкін, сондықтан
+        // ағымдағы мәтіннің көшірмесін береміз.
+        const textSnapshot =
+          assistantText;
+
         setMessages(
           (
             current
@@ -1694,7 +1705,7 @@ export default function ChatPage() {
                 next[index] = {
                   ...next[index],
                   content:
-                    assistantText,
+                    textSnapshot,
                 };
 
                 break;
@@ -1713,6 +1724,11 @@ export default function ChatPage() {
         assistantText +=
           finalChunk;
 
+        // Updater кейін орындалуы мүмкін, сондықтан
+        // ағымдағы мәтіннің көшірмесін береміз.
+        const textSnapshot =
+          assistantText;
+
         setMessages(
           (
             current
@@ -1733,7 +1749,7 @@ export default function ChatPage() {
                 next[index] = {
                   ...next[index],
                   content:
-                    assistantText,
+                    textSnapshot,
                 };
 
                 break;
@@ -2105,7 +2121,9 @@ export default function ChatPage() {
   // SIDEBAR CONTENT
   // =====================================================
 
-  function SidebarContent() {
+  // Компонент емес, render-функция: әр render-де
+  // sidebar қайта mount болмауы үшін.
+  function renderSidebarContent() {
     return (
       <>
         <div className="border-b border-neutral-900 p-4">
@@ -2402,7 +2420,7 @@ export default function ChatPage() {
       {/* DESKTOP SIDEBAR */}
 
       <aside className="hidden w-72 shrink-0 flex-col border-r border-neutral-900 bg-neutral-950 lg:flex">
-        <SidebarContent />
+        {renderSidebarContent()}
       </aside>
 
 
@@ -2455,7 +2473,7 @@ export default function ChatPage() {
           }
         `}
       >
-        <SidebarContent />
+        {renderSidebarContent()}
       </aside>
 
 
@@ -2891,6 +2909,9 @@ export default function ChatPage() {
                   activeSessionId
                     ? "Не ойландырып жүр?"
                     : "Алдымен жаңа чат аш."
+                }
+                maxLength={
+                  MAX_MESSAGE_LENGTH
                 }
                 rows={1}
                 aria-label="Хабарлама"

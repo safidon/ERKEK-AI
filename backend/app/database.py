@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from pathlib import Path
 from typing import Literal
@@ -32,19 +33,31 @@ BASE_DIR = (
     .parent
 )
 
-DATABASE_DIR = (
-    BASE_DIR /
-    "database"
+# SQLITE_PATH env арқылы басқа файлды көрсетуге болады
+# (мысалы, тесттер уақытша database қолданады).
+
+SQLITE_PATH = os.getenv(
+    "SQLITE_PATH",
+    "",
 )
+
+if SQLITE_PATH:
+    DATABASE_PATH = Path(
+        SQLITE_PATH
+    )
+
+else:
+    DATABASE_PATH = (
+        BASE_DIR /
+        "database" /
+        "erkek_ai.db"
+    )
+
+DATABASE_DIR = DATABASE_PATH.parent
 
 DATABASE_DIR.mkdir(
     parents=True,
     exist_ok=True,
-)
-
-DATABASE_PATH = (
-    DATABASE_DIR /
-    "erkek_ai.db"
 )
 
 

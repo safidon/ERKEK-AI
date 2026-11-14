@@ -112,24 +112,6 @@ export default function SettingsPage() {
   ] = useState("");
 
   // =====================================================
-  // AUTH CHECK + LOAD PROFILE
-  // =====================================================
-
-  useEffect(() => {
-    const token =
-      localStorage.getItem(
-        "access_token"
-      );
-
-    if (!token) {
-      router.replace("/login");
-      return;
-    }
-
-    void loadProfile();
-  }, [router]);
-
-  // =====================================================
   // TOKEN
   // =====================================================
 
@@ -234,8 +216,8 @@ export default function SettingsPage() {
       return;
     }
 
-    setLoading(true);
-    setError("");
+    // loading бастапқы мәні true, error бос —
+    // effect ішінде синхронды setState қажет емес.
 
     try {
       const response =
@@ -281,6 +263,28 @@ export default function SettingsPage() {
       setLoading(false);
     }
   }
+
+  // =====================================================
+  // AUTH CHECK + LOAD PROFILE
+  // =====================================================
+
+  useEffect(() => {
+    const token =
+      localStorage.getItem(
+        "access_token"
+      );
+
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
+
+    // Деректерді жүктеу: setState тек await fetch-тен кейін шақырылады.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadProfile();
+    // Тек mount кезінде бір рет жүктеледі.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]);
 
   // =====================================================
   // SAVE PROFILE

@@ -5,7 +5,7 @@
 ![Python](https://img.shields.io/badge/Python-3.14-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688)
 ![Next.js](https://img.shields.io/badge/Next.js-Frontend-black)
-![Tests](https://img.shields.io/badge/tests-24%20passed-brightgreen)
+![Tests](https://img.shields.io/badge/tests-34%20passed-brightgreen)
 ![Status](https://img.shields.io/badge/status-alpha-orange)
 
 **ERKEK AI** — ер адамдарға өмірлік жағдайларды салқын ақылмен
