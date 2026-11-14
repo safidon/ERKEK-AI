@@ -50,7 +50,10 @@ from app.brain.response_style import (
     build_response_style_prompt,
 )
 
-from app.prompts.system_prompt import SYSTEM_PROMPT
+from app.prompts.personas import (
+    build_system_prompt,
+    get_user_persona,
+)
 
 from app.services.openai_service import (
     ask_ai,
@@ -393,7 +396,9 @@ def chat(
     # =====================================================
 
     full_prompt = build_full_prompt(
-        system_prompt=SYSTEM_PROMPT,
+        system_prompt=build_system_prompt(
+            get_user_persona(current_user)
+        ),
         brain_prompt=brain_prompt,
         response_style_prompt=response_style_prompt,
         memory_context=memory_context,
@@ -817,7 +822,9 @@ def stream_chat(
     # =====================================================
 
     full_prompt = build_full_prompt(
-        system_prompt=SYSTEM_PROMPT,
+        system_prompt=build_system_prompt(
+            get_user_persona(current_user)
+        ),
         brain_prompt=brain_prompt,
         response_style_prompt=response_style_prompt,
         memory_context=memory_context,
@@ -1290,7 +1297,9 @@ def regenerate_chat_answer(
     # =====================================================
 
     full_prompt = build_full_prompt(
-        system_prompt=SYSTEM_PROMPT,
+        system_prompt=build_system_prompt(
+            get_user_persona(current_user)
+        ),
         brain_prompt=brain_prompt,
         response_style_prompt=response_style_prompt,
         memory_context=memory_context,

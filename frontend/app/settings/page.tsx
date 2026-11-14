@@ -20,6 +20,12 @@ type UserProfile = {
   important_events: string[];
 };
 
+type PersonaOption = {
+  id: string;
+  title: string;
+  description: string;
+};
+
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   "http://127.0.0.1:8000";
@@ -47,6 +53,23 @@ export default function SettingsPage() {
 
   const [success, setSuccess] =
     useState("");
+
+  // =====================================================
+  // PERSONA (ERKEK AI мінезі)
+  // =====================================================
+
+  const [persona, setPersona] =
+    useState("brother");
+
+  const [
+    personaOptions,
+    setPersonaOptions,
+  ] = useState<PersonaOption[]>([]);
+
+  const [
+    personaSaving,
+    setPersonaSaving,
+  ] = useState(false);
 
   // =====================================================
   // BASIC PROFILE
@@ -250,6 +273,30 @@ export default function SettingsPage() {
         data as UserProfile
       );
 
+      const personaResponse =
+        await fetch(
+          `${API_URL}/profile/persona`,
+          {
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
+
+      if (personaResponse.ok) {
+        const personaData =
+          await personaResponse.json();
+
+        setPersona(
+          personaData.persona
+        );
+
+        setPersonaOptions(
+          personaData.options
+        );
+      }
+
     } catch (error) {
       if (error instanceof Error) {
         setError(error.message);
@@ -285,6 +332,82 @@ export default function SettingsPage() {
     // Тек mount кезінде бір рет жүктеледі.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
+
+  // =====================================================
+  // SAVE PERSONA
+  // =====================================================
+
+  async function savePersona(
+    nextPersona: string
+  ) {
+    const token = getToken();
+
+    if (!token) {
+      handleUnauthorized();
+      return;
+    }
+
+    if (
+      nextPersona === persona ||
+      personaSaving
+    ) {
+      return;
+    }
+
+    const previousPersona = persona;
+
+    setPersona(nextPersona);
+    setPersonaSaving(true);
+    setError("");
+
+    try {
+      const response =
+        await fetch(
+          `${API_URL}/profile/persona`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type":
+                "application/json",
+              Authorization:
+                `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              persona: nextPersona,
+            }),
+          }
+        );
+
+      if (response.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          "Мінезді сақтау кезінде қате шықты."
+        );
+      }
+
+      showSuccess(
+        "ERKEK AI мінезі сақталды."
+      );
+
+    } catch (error) {
+      setPersona(previousPersona);
+
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError(
+          "Белгісіз қате шықты."
+        );
+      }
+
+    } finally {
+      setPersonaSaving(false);
+    }
+  }
 
   // =====================================================
   // SAVE PROFILE
@@ -872,6 +995,70 @@ export default function SettingsPage() {
         )}
 
         <div className="space-y-6">
+
+          {/* PERSONA */}
+
+          {personaOptions.length > 0 && (
+            <section className="rounded-2xl border border-neutral-900 bg-neutral-950 p-5 sm:p-6">
+
+              <div className="mb-6">
+
+                <h2 className="text-lg font-semibold">
+                  ERKEK AI мінезі
+                </h2>
+
+                <p className="mt-1 text-sm text-neutral-500">
+                  ERKEK AI саған қалай сөйлейтінін таңда.
+                  Бірден сақталады.
+                </p>
+
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+
+                {personaOptions.map(
+                  (option) => {
+                    const selected =
+                      option.id === persona;
+
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() =>
+                          void savePersona(
+                            option.id
+                          )
+                        }
+                        disabled={
+                          personaSaving
+                        }
+                        aria-pressed={
+                          selected
+                        }
+                        className={
+                          "rounded-xl border p-4 text-left transition disabled:cursor-wait " +
+                          (selected
+                            ? "border-white bg-white/[0.06]"
+                            : "border-neutral-800 hover:border-neutral-600")
+                        }
+                      >
+                        <div className="font-medium">
+                          {option.title}
+                        </div>
+
+                        <div className="mt-1 text-sm text-neutral-500">
+                          {option.description}
+                        </div>
+                      </button>
+                    );
+                  }
+                )}
+
+              </div>
+
+            </section>
+          )}
 
           {/* BASIC INFO */}
 

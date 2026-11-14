@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import (
     APIRouter,
@@ -9,6 +9,11 @@ from fastapi import (
 from pydantic import BaseModel, Field
 
 from app.auth.dependencies import get_current_user
+from app.auth.service import set_user_persona
+from app.prompts.personas import (
+    get_user_persona,
+    list_personas,
+)
 from app.brain.memory import (
     UserProfile,
     get_user_profile,
@@ -276,3 +281,66 @@ def clear_all_profile_memory(
     return build_profile_response(
         profile
     )
+
+
+# =====================================================
+# PERSONA (ERKEK AI мінезі)
+# =====================================================
+
+class PersonaOption(BaseModel):
+    id: str
+    title: str
+    description: str
+
+
+class PersonaResponse(BaseModel):
+    persona: str
+    options: list[PersonaOption]
+
+
+class PersonaUpdateRequest(BaseModel):
+    persona: Literal[
+        "brother",
+        "hardcore",
+        "strategist",
+    ]
+
+
+@router.get(
+    "/profile/persona",
+    response_model=PersonaResponse,
+)
+def get_persona(
+    current_user=Depends(
+        get_current_user
+    )
+):
+
+    return {
+        "persona": get_user_persona(
+            current_user
+        ),
+        "options": list_personas(),
+    }
+
+
+@router.patch(
+    "/profile/persona",
+    response_model=PersonaResponse,
+)
+def update_persona(
+    data: PersonaUpdateRequest,
+    current_user=Depends(
+        get_current_user
+    )
+):
+
+    set_user_persona(
+        current_user["user_id"],
+        data.persona,
+    )
+
+    return {
+        "persona": data.persona,
+        "options": list_personas(),
+    }

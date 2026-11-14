@@ -290,3 +290,40 @@ def get_user_by_id(
 
     finally:
         connection.close()
+
+
+# =====================================================
+# SET USER PERSONA
+# =====================================================
+
+def set_user_persona(
+    user_id: str,
+    persona: str,
+) -> None:
+    """
+    Пайдаланушының ERKEK AI мінезін сақтайды.
+    """
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute(
+            adapt_query(
+                """
+                UPDATE users
+                SET persona = ?
+                WHERE user_id = ?
+                """
+            ),
+            (
+                persona,
+                user_id,
+            ),
+        )
+
+        connection.commit()
+
+    finally:
+        connection.close()

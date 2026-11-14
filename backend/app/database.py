@@ -415,6 +415,10 @@ def init_sqlite_database():
 
             "is_active":
                 "INTEGER DEFAULT 1",
+
+            # ERKEK AI мінезі (brother / hardcore / strategist)
+            "persona":
+                "TEXT",
         }
 
         for (
@@ -692,6 +696,14 @@ def init_postgresql_database():
                     NOT NULL
                     DEFAULT CURRENT_TIMESTAMP
             )
+            """
+        )
+
+        # ERKEK AI мінезі (brother / hardcore / strategist)
+        cursor.execute(
+            """
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS persona TEXT
             """
         )
 
