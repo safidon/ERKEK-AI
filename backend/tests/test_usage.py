@@ -34,6 +34,7 @@ def new_user() -> tuple[str, int]:
     client.post(
         "/auth/register",
         json={
+            "accept_terms": True,
             "email": email,
             "username": f"usage_{suffix}",
             "password": PASSWORD,

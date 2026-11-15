@@ -373,9 +373,16 @@ export default function LoginPage() {
 
             {/* DISCLAIMER */}
 
-            <p className="mt-5 text-center text-xs leading-5 text-neutral-700">
-              Кіру арқылы ERKEK AI сервисін
-              пайдалануды жалғастырасың.
+            <p className="mt-5 text-center text-xs leading-5 text-neutral-600">
+              Кіру арқылы ERKEK AI-дың{" "}
+              <a href="/terms" className="text-neutral-400 underline-offset-4 hover:text-gold-300 hover:underline">
+                пайдалану шарттары
+              </a>{" "}
+              мен{" "}
+              <a href="/privacy" className="text-neutral-400 underline-offset-4 hover:text-gold-300 hover:underline">
+                құпиялылық саясатына
+              </a>{" "}
+              сәйкес жұмысты жалғастырасың.
             </p>
 
           </div>

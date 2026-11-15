@@ -24,6 +24,7 @@ def account():
     response = client.post(
         "/auth/register",
         json={
+            "accept_terms": True,
             "email": email,
             "username": f"sess_{suffix}",
             "password": PASSWORD,

@@ -5,7 +5,8 @@ const API_URL =
 export async function registerUser(
   email: string,
   username: string,
-  password: string
+  password: string,
+  acceptTerms: boolean
 ) {
   const response = await fetch(
     `${API_URL}/auth/register`,
@@ -18,6 +19,7 @@ export async function registerUser(
         email,
         username,
         password,
+        accept_terms: acceptTerms,
       }),
     }
   );

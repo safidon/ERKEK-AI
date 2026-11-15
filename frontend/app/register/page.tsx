@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import {
@@ -34,6 +35,9 @@ export default function RegisterPage() {
   const [error, setError] =
     useState("");
 
+  const [acceptTerms, setAcceptTerms] =
+    useState(false);
+
   const [loading, setLoading] =
     useState(false);
 
@@ -48,13 +52,22 @@ export default function RegisterPage() {
     event.preventDefault();
 
     setError("");
+
+    if (!acceptTerms) {
+      setError(
+        "Тіркелу үшін шарттар мен құпиялылық саясатына келісу керек."
+      );
+      return;
+    }
+
     setLoading(true);
 
     try {
       await registerUser(
         email,
         username,
-        password
+        password,
+        acceptTerms
       );
 
       router.push("/login");
@@ -344,6 +357,46 @@ export default function RegisterPage() {
                   </p>
 
                 </div>
+
+
+                {/* CONSENT */}
+
+                <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-white/[0.08] bg-black/40 p-4 text-sm leading-6 text-neutral-400 transition hover:border-gold-500/30">
+
+                  <input
+                    type="checkbox"
+                    checked={acceptTerms}
+                    onChange={(event) =>
+                      setAcceptTerms(
+                        event.target.checked
+                      )
+                    }
+                    className="mt-1 h-4 w-4 shrink-0 accent-[var(--color-gold-500)]"
+                  />
+
+                  <span>
+                    18 жастан асқанмын.{" "}
+                    <Link
+                      href="/terms"
+                      target="_blank"
+                      className="text-gold-400 underline-offset-4 hover:underline"
+                    >
+                      Пайдалану шарттарымен
+                    </Link>{" "}
+                    және{" "}
+                    <Link
+                      href="/privacy"
+                      target="_blank"
+                      className="text-gold-400 underline-offset-4 hover:underline"
+                    >
+                      Құпиялылық саясатымен
+                    </Link>{" "}
+                    таныстым. Дербес деректерімді өңдеуге, оның ішінде
+                    жауап дайындау үшін OpenAI (АҚШ) қызметіне беруге
+                    келісемін.
+                  </span>
+
+                </label>
 
 
                 {/* ERROR */}

@@ -22,6 +22,7 @@ def ensure_user():
     response = client.post(
         "/auth/register",
         json={
+            "accept_terms": True,
             "email": TEST_EMAIL,
             "username": TEST_USERNAME,
             "password": TEST_PASSWORD

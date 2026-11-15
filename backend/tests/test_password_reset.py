@@ -38,6 +38,7 @@ def user():
     response = client.post(
         "/auth/register",
         json={
+            "accept_terms": True,
             "email": email,
             "username": f"reset_{suffix}",
             "password": OLD_PASSWORD,

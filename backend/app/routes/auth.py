@@ -3,6 +3,8 @@ from pydantic import BaseModel, EmailStr, Field
 
 from app.core.logger import logger
 
+from app.auth.consents import record_consents
+
 from app.auth.jwt import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     create_access_token,
@@ -47,6 +49,10 @@ class RegisterRequest(BaseModel):
         min_length=8,
         max_length=128
     )
+
+    # Пайдалану шарттары, құпиялылық саясаты, деректерді шетелге
+    # (OpenAI) беру және 18 жастан асқаны туралы келісім.
+    accept_terms: bool = False
 
 
 class RegisterResponse(BaseModel):
@@ -109,12 +115,25 @@ def register(data: RegisterRequest):
         data.username
     )
 
+    if not data.accept_terms:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Тіркелу үшін пайдалану шарттары мен "
+                "құпиялылық саясатына келісу керек."
+            )
+        )
+
     try:
 
         user = create_user(
             email=str(data.email),
             username=data.username,
             password=data.password
+        )
+
+        record_consents(
+            user["user_id"]
         )
 
         logger.info(

@@ -33,6 +33,7 @@ def register_test_user():
     response = client.post(
         "/auth/register",
         json={
+            "accept_terms": True,
             "email": TEST_EMAIL,
             "username": TEST_USERNAME,
             "password": TEST_PASSWORD
@@ -96,6 +97,7 @@ def test_register():
     response = client.post(
         "/auth/register",
         json={
+            "accept_terms": True,
             "email": "register_test@example.com",
             "username": "register_test_user",
             "password": TEST_PASSWORD
@@ -211,3 +213,46 @@ def test_chat_with_token(monkeypatch):
 
     assert data["session_id"] == session_id
     assert data["answer"]
+
+# =====================================================
+# CONSENT
+# =====================================================
+
+def test_register_requires_consent():
+    response = client.post(
+        "/auth/register",
+        json={
+            "email": "no_consent@example.com",
+            "username": "no_consent_user",
+            "password": TEST_PASSWORD
+        }
+    )
+
+    assert response.status_code == 400
+    assert "келісу" in response.json()["detail"]
+
+
+def test_register_records_consents():
+    from app.auth.consents import LEGAL_VERSION, get_consents
+
+    response = client.post(
+        "/auth/register",
+        json={
+            "accept_terms": True,
+            "email": "with_consent@example.com",
+            "username": "with_consent_user",
+            "password": TEST_PASSWORD
+        }
+    )
+
+    assert response.status_code == 201
+
+    consents = get_consents(response.json()["user_id"])
+
+    assert {item["document"] for item in consents} == {
+        "terms",
+        "privacy",
+        "cross_border_transfer",
+        "age_18_plus",
+    }
+    assert all(item["version"] == LEGAL_VERSION for item in consents)

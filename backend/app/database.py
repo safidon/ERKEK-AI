@@ -1097,6 +1097,20 @@ def init_password_reset_schema():
             """
         )
 
+        # Пайдалану шарттары мен құпиялылық саясатына келісім
+        # (қай нұсқаға, қашан келісті — дәлел ретінде сақталады).
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_consents (
+                user_id TEXT NOT NULL,
+                document TEXT NOT NULL,
+                version TEXT NOT NULL,
+                accepted_at TEXT NOT NULL,
+                PRIMARY KEY (user_id, document, version)
+            )
+            """
+        )
+
         # Күндік қолдану (OpenAI шығынын бақылау).
         # scope = user_id немесе "__site__" (бүкіл сайт).
         cursor.execute(

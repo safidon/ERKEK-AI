@@ -411,7 +411,21 @@ export default function Home() {
             © 2026 ERKEK AI
           </div>
 
-          <div className="flex gap-6">
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
+
+            <a
+              href="/terms"
+              className="transition hover:text-gold-300"
+            >
+              Шарттар
+            </a>
+
+            <a
+              href="/privacy"
+              className="transition hover:text-gold-300"
+            >
+              Құпиялылық
+            </a>
 
             <button
               onClick={() =>

@@ -118,6 +118,7 @@ def main():
         client.post(
             "/auth/register",
             json={
+                "accept_terms": True,
                 "email": email,
                 "username": f"eval_{suffix}",
                 "password": password,
