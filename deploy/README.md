@@ -144,3 +144,11 @@ frontend lint + build, Docker image-дер build.
 - `JWT_SECRET_KEY` 32 таңбадан қысқа немесе CORS-та localhost болса,
   backend production-да іске қосылмайды.
 - `deploy/.env` файлын ешқашан git-ке салмаңыз.
+
+## 9. OpenAI шығыны
+
+- `DAILY_MESSAGES_PER_USER` — бір пайдаланушыға күніне хабарлама (әдепкі 50).
+- `DAILY_SITE_TOKEN_BUDGET` — бүкіл сайтқа күніне токен (әдепкі 2 000 000,
+  шамамен 450 хабарлама). Бітсе, барлығына «ертең келіңіз» деген хабар шығады.
+- Соңғы қорғаныс: [OpenAI баптауларында](https://platform.openai.com/settings/organization/limits)
+  ай сайынғы шектеу (budget) және ескерту email-ін қойыңыз.

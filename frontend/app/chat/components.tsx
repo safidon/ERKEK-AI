@@ -351,3 +351,81 @@ export function PersonaSwitcher({
     </div>
   );
 }
+
+
+// =====================================================
+// DAILY USAGE HINT
+// =====================================================
+
+type UsageInfo = {
+  used: number;
+  limit: number;
+  remaining: number;
+  resets_at: string;
+};
+
+// Осыдан аз қалғанда ғана ескертеміз.
+const USAGE_WARN_AT = 10;
+
+
+export function UsageHint({ busy }: { busy: boolean }) {
+  const [usage, setUsage] =
+    useState<UsageInfo | null>(null);
+
+  // Жауап аяқталған сайын (busy → false) қайта сұраймыз.
+  useEffect(() => {
+    if (busy) {
+      return;
+    }
+
+    const token = getValidToken();
+
+    if (!token) {
+      return;
+    }
+
+    let cancelled = false;
+
+    fetch(`${API_URL}/usage/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (!cancelled && data) {
+          setUsage(data);
+        }
+      })
+      .catch(() => {
+        // Міндетті емес ақпарат — қате болса көрсетпейміз.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [busy]);
+
+
+  if (!usage || usage.remaining > USAGE_WARN_AT) {
+    return null;
+  }
+
+  if (usage.remaining <= 0) {
+    const resetTime = new Date(usage.resets_at).toLocaleTimeString(
+      "kk-KZ",
+      { hour: "2-digit", minute: "2-digit" }
+    );
+
+    return (
+      <div className="mb-2 rounded-xl border border-gold-500/25 bg-gold-500/[0.07] px-4 py-2.5 text-center text-xs leading-5 text-gold-200 sm:text-sm">
+        Бүгінгі {usage.limit} хабарлама лимиті бітті.
+        Ертең {resetTime}-та қайта жалғастырамыз.
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-2 text-center text-xs text-gold-500/80">
+      Бүгін {usage.remaining} хабарлама қалды
+    </div>
+  );
+}

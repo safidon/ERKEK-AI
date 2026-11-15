@@ -14,6 +14,7 @@ from app.brain.language import detect_language
 from app.brain.analyzer import detect_categories
 from app.brain.planner import build_prompt
 from app.brain.formatter import format_answer
+from app.services.usage import enforce_chat_quota
 from app.brain.risk import detect_risk
 from app.brain.risk_response import build_risk_response
 from app.brain.prompt_builder import build_full_prompt
@@ -87,7 +88,7 @@ class RegenerateRequest(BaseModel):
 # CHAT
 # =====================================================
 
-@router.post("/chat")
+@router.post("/chat", dependencies=[Depends(enforce_chat_quota)])
 def chat(
     data: ChatRequest,
     current_user=Depends(get_current_user),
@@ -521,7 +522,7 @@ def chat(
 # STREAM CHAT
 # =====================================================
 
-@router.post("/chat/stream")
+@router.post("/chat/stream", dependencies=[Depends(enforce_chat_quota)])
 def stream_chat(
     data: ChatRequest,
     current_user=Depends(get_current_user),
@@ -1022,7 +1023,7 @@ def stream_chat(
 # REGENERATE LAST ANSWER
 # =====================================================
 
-@router.post("/chat/regenerate")
+@router.post("/chat/regenerate", dependencies=[Depends(enforce_chat_quota)])
 def regenerate_chat_answer(
     data: RegenerateRequest,
     current_user=Depends(get_current_user),

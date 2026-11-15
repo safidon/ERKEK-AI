@@ -8,6 +8,7 @@ from openai import OpenAI
 
 from app.core.config import OPENAI_API_KEY
 from app.core.logger import logger
+from app.services.usage import record_usage_from
 
 
 # =====================================================
@@ -133,6 +134,8 @@ def ask_ai(
                 ],
             )
         )
+
+        record_usage_from(response)
 
         elapsed = (
             time.monotonic()
@@ -303,6 +306,13 @@ def stream_ai(
                     "type",
                     "",
                 )
+
+                # Соңғы оқиғада токен саны келеді — шығынды тіркейміз.
+                if event_type == "response.completed":
+                    record_usage_from(
+                        getattr(event, "response", None)
+                    )
+                    continue
 
                 if (
                     event_type

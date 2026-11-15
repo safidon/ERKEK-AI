@@ -1097,6 +1097,21 @@ def init_password_reset_schema():
             """
         )
 
+        # Күндік қолдану (OpenAI шығынын бақылау).
+        # scope = user_id немесе "__site__" (бүкіл сайт).
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS usage_daily (
+                day TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                messages INTEGER NOT NULL DEFAULT 0,
+                input_tokens BIGINT NOT NULL DEFAULT 0,
+                output_tokens BIGINT NOT NULL DEFAULT 0,
+                PRIMARY KEY (day, scope)
+            )
+            """
+        )
+
         connection.commit()
 
     except Exception:

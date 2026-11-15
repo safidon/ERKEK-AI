@@ -27,6 +27,7 @@ from app.routes.chat import router as chat_router
 from app.routes.auth import router as auth_router
 from app.routes.sessions import router as sessions_router
 from app.routes.profile import router as profile_router
+from app.routes.usage import router as usage_router
 
 
 # =====================================================
@@ -111,6 +112,10 @@ app.include_router(
 
 app.include_router(
     profile_router
+)
+
+app.include_router(
+    usage_router
 )
 
 

@@ -23,6 +23,7 @@ import {
   ChatWelcome,
   LogoMark,
   PersonaSwitcher,
+  UsageHint,
 } from "./components";
 
 import ReactMarkdown from "react-markdown";
@@ -2845,6 +2846,19 @@ export default function ChatPage() {
                 </button>
 
               </div>
+            )}
+
+
+            {/* DAILY LIMIT */}
+
+            {/* Қате көрсетіліп тұрса, лимит ескертуін қайталамаймыз. */}
+            {!error && (
+              <UsageHint
+                busy={
+                  loading ||
+                  regenerating
+                }
+              />
             )}
 
 
