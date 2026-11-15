@@ -240,9 +240,9 @@ RESPONSE DEPTH: SHORT.
             "normal": """
 RESPONSE DEPTH: NORMAL.
 
-- Usually 140–350 words.
+- Usually 100–250 words.
 - Explain the core reasoning clearly.
-- Give 2–5 practical actions when useful.
+- Give 2–4 practical actions when useful.
 - Avoid repetition and unnecessary philosophy.
 - Do not create a long-term plan unless the situation requires it.
 """,
@@ -313,9 +313,9 @@ RESPONSE DEPTH: SHORT.
             "normal": """
 RESPONSE DEPTH: NORMAL.
 
-- Әдетте 140–350 сөз.
+- Әдетте 100–250 сөз.
 - Негізгі логиканы анық түсіндір.
-- Қажет болса 2–5 нақты әрекет бер.
+- Қажет болса 2–4 нақты әрекет бер.
 - Қайталау мен артық философиядан аулақ бол.
 - Қажет болмаса ұзақ мерзімді жоспар құрма.
 """,
