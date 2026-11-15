@@ -59,6 +59,10 @@ nano deploy/.env
 - `OPENAI_API_KEY`
 - `JWT_SECRET_KEY` — `openssl rand -hex 32` командасының нәтижесі
 - `POSTGRES_PASSWORD` — `openssl rand -hex 24` командасының нәтижесі
+- `SMTP_*` — хат жіберу сервисінің деректері (құпиясөзді қалпына келтіру
+  хаттары үшін). Мысалы, [Resend](https://resend.com), [Brevo](https://www.brevo.com)
+  немесе Mailgun. `SMTP_FROM` доменіңіздегі мекенжай болғаны дұрыс,
+  әйтпесе хаттар «Спам»-ға түсуі мүмкін.
 
 Іске қосу:
 

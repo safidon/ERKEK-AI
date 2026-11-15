@@ -251,12 +251,26 @@ export default function LoginPage() {
 
                 <div>
 
-                  <label
-                    htmlFor="password"
-                    className="text-sm text-neutral-400"
-                  >
-                    Құпиясөз
-                  </label>
+                  <div className="flex items-center justify-between gap-3">
+
+                    <label
+                      htmlFor="password"
+                      className="text-sm text-neutral-400"
+                    >
+                      Құпиясөз
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        router.push("/forgot-password")
+                      }
+                      className="text-xs font-medium text-gold-400 transition hover:text-gold-300"
+                    >
+                      Құпиясөзді ұмыттың ба?
+                    </button>
+
+                  </div>
 
                   <input
                     id="password"

@@ -35,7 +35,12 @@ def _env_int(name: str, default: int) -> int:
 DEFAULT_RULES: tuple[RateRule, ...] = (
     RateRule(
         "auth",
-        ("/auth/login", "/auth/register"),
+        (
+            "/auth/login",
+            "/auth/register",
+            "/auth/forgot-password",
+            "/auth/reset-password",
+        ),
         _env_int("RATE_LIMIT_AUTH_PER_MINUTE", 10),
         60,
     ),

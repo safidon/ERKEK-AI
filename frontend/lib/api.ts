@@ -61,3 +61,67 @@ export async function loginUser(
 
   return data;
 }
+
+// =====================================================
+// PASSWORD RESET
+// =====================================================
+
+function errorMessage(data: unknown, fallback: string) {
+  const detail = (data as { detail?: unknown })?.detail;
+
+  // FastAPI validation қатесі тізім түрінде келеді.
+  if (typeof detail === "string") {
+    return detail;
+  }
+
+  return fallback;
+}
+
+export async function requestPasswordReset(email: string) {
+  const response = await fetch(
+    `${API_URL}/auth/forgot-password`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email }),
+    }
+  );
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      errorMessage(data, "Сұранысты жіберу кезінде қате шықты.")
+    );
+  }
+
+  return data as { detail: string };
+}
+
+export async function resetPassword(
+  token: string,
+  password: string
+) {
+  const response = await fetch(
+    `${API_URL}/auth/reset-password`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ token, password }),
+    }
+  );
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      errorMessage(data, "Құпиясөзді ауыстыру кезінде қате шықты.")
+    );
+  }
+
+  return data as { detail: string };
+}

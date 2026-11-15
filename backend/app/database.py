@@ -1027,6 +1027,50 @@ def init_postgresql_database():
 # INITIALIZE DATABASE
 # =====================================================
 
+def init_password_reset_schema():
+    """
+    Құпиясөзді қалпына келтіру token-дері.
+
+    Token-нің өзі емес, тек SHA-256 hash-і сақталады.
+    Уақыт ISO (UTC) мәтін ретінде сақталады, сондықтан
+    SQLite пен PostgreSQL-да бірдей жұмыс істейді.
+    """
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                token_hash TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                used_at TEXT,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+            idx_password_reset_tokens_user_id
+            ON password_reset_tokens(user_id)
+            """
+        )
+
+        connection.commit()
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    finally:
+        connection.close()
+
+
 def init_database():
     """
     Database type бойынша
@@ -1035,9 +1079,10 @@ def init_database():
 
     if is_postgresql():
         init_postgresql_database()
-        return
+    else:
+        init_sqlite_database()
 
-    init_sqlite_database()
+    init_password_reset_schema()
 
 
 # =====================================================

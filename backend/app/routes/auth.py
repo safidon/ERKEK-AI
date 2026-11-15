@@ -1,9 +1,14 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
 
 from app.core.logger import logger
 
 from app.auth.jwt import create_access_token
+
+from app.auth.password_reset import (
+    request_password_reset,
+    reset_password,
+)
 
 from app.auth.service import (
     create_user,
@@ -181,3 +186,94 @@ def login(data: LoginRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Кіру кезінде сервер қатесі пайда болды."
         )
+
+# =====================================================
+# FORGOT PASSWORD
+# =====================================================
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(
+        min_length=20,
+        max_length=200
+    )
+
+    password: str = Field(
+        min_length=8,
+        max_length=128
+    )
+
+
+FORGOT_PASSWORD_MESSAGE = (
+    "Егер бұл email тіркелген болса, "
+    "құпиясөзді қалпына келтіру сілтемесі жіберілді."
+)
+
+
+@router.post(
+    "/forgot-password",
+    status_code=status.HTTP_200_OK
+)
+def forgot_password(
+    data: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+):
+    # Email тіркелген-тіркелмегеніне қарамастан жауап бірдей:
+    # бөгде адам кімнің аккаунты бар екенін біле алмайды.
+    # Хат фонда жіберіледі, сондықтан жауап уақыты да бірдей.
+    background_tasks.add_task(
+        _safe_request_password_reset,
+        str(data.email),
+    )
+
+    return {
+        "detail": FORGOT_PASSWORD_MESSAGE
+    }
+
+
+def _safe_request_password_reset(email: str) -> None:
+    try:
+        request_password_reset(email)
+    except Exception:
+        logger.exception("Password reset request failed")
+
+
+# =====================================================
+# RESET PASSWORD
+# =====================================================
+
+@router.post(
+    "/reset-password",
+    status_code=status.HTTP_200_OK
+)
+def reset_password_endpoint(data: ResetPasswordRequest):
+
+    try:
+        changed = reset_password(
+            token=data.token,
+            new_password=data.password
+        )
+
+    except Exception:
+        logger.exception("Password reset unexpected error")
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Құпиясөзді ауыстыру кезінде сервер қатесі пайда болды."
+        )
+
+    if not changed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Сілтеме жарамсыз немесе мерзімі өтіп кеткен. "
+                "Қалпына келтіруді қайта сұра."
+            )
+        )
+
+    return {
+        "detail": "Құпиясөз ауыстырылды. Енді жаңа құпиясөзбен кір."
+    }

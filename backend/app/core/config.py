@@ -111,6 +111,35 @@ if not JWT_SECRET_KEY:
 
 
 # =====================================================
+# EMAIL (SMTP)
+# =====================================================
+# Құпиясөзді қалпына келтіру хаттары үшін.
+# SMTP_HOST бос болса, dev режимінде хаттың сілтемесі
+# логқа жазылады (хат жіберілмейді).
+
+SMTP_HOST = os.getenv("SMTP_HOST", "").strip()
+
+try:
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+except ValueError:
+    SMTP_PORT = 587
+
+SMTP_USER = os.getenv("SMTP_USER", "").strip()
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_FROM = os.getenv("SMTP_FROM", SMTP_USER).strip()
+
+# "starttls" (587 порт), "ssl" (465 порт) немесе "none"
+SMTP_SECURITY = os.getenv("SMTP_SECURITY", "starttls").strip().lower()
+
+try:
+    PASSWORD_RESET_EXPIRE_MINUTES = int(
+        os.getenv("PASSWORD_RESET_EXPIRE_MINUTES", "30")
+    )
+except ValueError:
+    PASSWORD_RESET_EXPIRE_MINUTES = 30
+
+
+# =====================================================
 # RATE LIMITING
 # =====================================================
 
