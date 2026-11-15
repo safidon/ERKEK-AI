@@ -15,7 +15,7 @@ COPY app ./app
 
 # Root емес пайдаланушы
 RUN useradd --create-home --uid 10001 erkek \
-    && mkdir -p /app/app/database /app/logs \
+    && mkdir -p /app/database /app/logs \
     && chown -R erkek:erkek /app
 USER erkek
 

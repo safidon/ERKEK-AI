@@ -1,389 +1,195 @@
-# 🧠 ERKEK AI
+<div align="center">
 
-> AI-powered digital mentor for men.
+# ◆ ERKEK AI
 
-![Python](https://img.shields.io/badge/Python-3.14-blue)
-![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688)
-![Next.js](https://img.shields.io/badge/Next.js-Frontend-black)
-![Tests](https://img.shields.io/badge/tests-50%20passed-brightgreen)
-![Status](https://img.shields.io/badge/status-alpha-orange)
+**Ер адамдарға арналған AI-негізіндегі цифрлық ментор**
 
-**ERKEK AI** — ер адамдарға өмірлік жағдайларды салқын ақылмен
-талдауға, жауапкершілікті қабылдауға және нақты әрекет жасауға
-көмектесетін AI-негізіндегі цифрлық ментор.
+[![CI](https://github.com/safidon/ERKEK-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/safidon/ERKEK-AI/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-backend-009688?logo=fastapi&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
+![Status](https://img.shields.io/badge/status-alpha-C9A45C)
 
-ERKEK AI адамның орнына шешім қабылдамайды.  
-Жүйенің мақсаты — жағдайды түсінуге, бақылауға болатын нәрселерді
-анықтауға және келесі дұрыс қадамды жасауға көмектесу.
+<img src="docs/screenshot-home.jpg" alt="ERKEK AI басты беті" width="720">
 
----
-
-## 🚧 Project Status
-
-**Active Development — Alpha**
-
-Қазіргі уақытта негізгі backend архитектурасы жұмыс істейді,
-ал Next.js негізіндегі web-интерфейс әзірленуде.
+</div>
 
 ---
 
-## ✨ Features
+## 🧠 ERKEK AI деген не?
 
-- 🧠 Context-aware AI responses
-- 💾 Long-term User Memory
-- 🔄 Memory Conflict Resolution
-- 💬 Conversation History
-- 📝 Incremental Conversation Summary
-- 📦 Conversation Archive
-- 🧩 Multi-category Message Analysis
-- 🎭 Emotion Detection
-- ⚠️ Risk Detection & Safety Layer
-- 🎯 Dynamic Response Style
-- 🧱 Dynamic Prompt Builder
-- 🌐 Kazakh & Russian language support
-- 🔐 User Registration & Login
-- 🔑 JWT Authentication
-- 🛡️ Protected Chat API
-- 📋 Application Logging
-- 🔁 OpenAI API Error Handling & Fallback
-- 🧪 Automated Tests
+**ERKEK AI** — ер адамдарға өмірлік жағдайларды салқын ақылмен талдауға,
+жауапкершілікті қабылдауға және нақты әрекет жасауға көмектесетін
+цифрлық ментор.
 
----
+ERKEK AI адамның орнына шешім қабылдамайды. Мақсаты — жағдайды түсінуге,
+бақылауға болатын нәрселерді анықтауға және келесі дұрыс қадамды жасауға
+көмектесу.
 
-## 🧠 ERKEK AI Brain Pipeline
+## ✨ Мүмкіндіктер
 
-```text
-User Message
-     │
-     ▼
-Language Detection
-     │
-     ▼
-Memory Extraction
-     │
-     ▼
-Memory Conflict Resolution
-     │
-     ▼
-Category Analysis
-     │
-     ├── Primary Category
-     └── Secondary Categories
-     │
-     ▼
-Emotion Detection
-     │
-     ▼
-Risk Analysis
-     │
-     ├── Safety Response
-     │
-     └── Normal AI Pipeline
-     │
-     ▼
-Response Style Detection
-     │
-     ▼
-Prompt Builder
-     │
-     ├── System Prompt
-     ├── Long-term Memory
-     ├── Conversation Summary
-     ├── Recent History
-     └── Current Message
-     │
-     ▼
-OpenAI
-     │
-     ▼
-ERKEK AI Response
-     │
-     ▼
-Conversation Storage
-     │
-     ▼
-Incremental Summary Update
-```
+| | |
+|---|---|
+| 💬 **Чат** | Жауап stream түрінде бірден шығады, markdown, көшіру, қайта генерациялау |
+| 🗂️ **Бөлек әңгімелер** | Әр тақырыпқа жеке чат, sidebar, архив |
+| 🎭 **Кейіпкерлер** | Үш стиль: **Аға / Брат**, **Қатал / Жёсткий**, **Стратег** |
+| 💾 **Ұзақ мерзімді жады** | Пайдаланушы туралы маңызды деректер сақталады, қайшылықтар өңделеді |
+| 📝 **Summary** | Ұзақ әңгіменің қысқаша мазмұны біртіндеп жаңартылып отырады |
+| 🧩 **Талдау** | Тақырып (бірнеше категория), эмоция, тіл, жауап стилі |
+| ⚠️ **Қауіпсіздік** | Қауіпті жағдайларды анықтау, Қазақстанның шұғыл көмек нөмірлері |
+| 🌐 **Тілдер** | Қазақша және орысша |
+| 🔐 **Аккаунт** | Тіркелу, кіру, JWT, мерзімі біткенде автоматты шығу |
+| 🛡️ **Production** | Rate limiting, security headers, Docker, HTTPS, backup, CI/CD |
 
----
+## 🛠 Технологиялар
 
-## 🧩 Multi-category Analysis
+- **Backend:** Python 3.14, FastAPI, Pydantic, OpenAI API, SQLite (dev) / PostgreSQL (prod), JWT, Pytest
+- **Frontend:** Next.js 16, React 19, TypeScript, Tailwind CSS 4
+- **Инфрақұрылым:** Docker Compose, Caddy (автоматты HTTPS), GitHub Actions
 
-ERKEK AI бір хабарламадағы бірнеше мәселені қатар анықтай алады.
+## 🚀 Жергілікті іске қосу
 
-Мысалы:
+Керек: **Python 3.14**, **Node.js 22+**, OpenAI API кілті.
 
-```text
-Пайдаланушы:
-
-"Ажырастым, екі балам бар,
-қарызым бар және жұмысым тұрақсыз."
-
-Primary Category:
-Finance
-
-Secondary Categories:
-Fatherhood
-Relationship
-Career
-```
-
-Қазіргі негізгі категориялар:
-
-- Relationship
-- Fatherhood
-- Finance
-- Business
-- Career
-- Discipline
-- Loneliness
-- Health
-- Self Development
-- General
-
----
-
-## 💾 Memory System
-
-ERKEK AI пайдаланушымен әр әңгімені нөлден бастамау үшін
-ұзақ мерзімді контекст сақтай алады.
-
-Memory жүйесінде сақталуы мүмкін:
-
-- Language
-- Age
-- Marital status
-- Children
-- Career
-- Financial status
-- Main goal
-- Additional goals
-- Habits
-- Important events
-
-Жаңа ақпарат бұрынғы ақпаратпен қайшы келсе,
-**Memory Conflict Resolution** механизмі оны өңдейді.
-
----
-
-## 💬 Conversation Intelligence
-
-ERKEK AI контексті бірнеше деңгей арқылы басқарады:
-
-```text
-Long-term Memory
-        +
-Conversation Summary
-        +
-Recent Messages
-        +
-Current Message
-```
-
-Incremental Summary жүйесі бүкіл әңгімені әр сұраныста қайта
-өңдемей, тек жаңа хабарламалар негізінде summary-ді жаңартады.
-
----
-
-## ⚠️ Safety Layer
-
-Risk Analyzer пайдаланушы хабарламасының қауіп деңгейін анықтайды:
-
-```text
-Low
-Medium
-High
-Critical
-```
-
-Жоғары қауіп анықталған жағдайда стандартты AI pipeline орнына
-арнайы safety response механизмі іске қосылады.
-
----
-
-## 🔐 Authentication
-
-Authentication жүйесі:
-
-- User Registration
-- User Login
-- Secure Password Hashing
-- JWT Access Tokens
-- Protected API Routes
-- Unauthorized Request Handling
-
-Chat API authenticated user арқылы қорғалады.
-
----
-
-## 🛠 Tech Stack
-
-### Backend
-
-- Python
-- FastAPI
-- Pydantic
-- SQLite
-- OpenAI API
-- JWT Authentication
-- Pytest
-
-### Frontend
-
-- Next.js
-- React
-- TypeScript
-- Tailwind CSS
-
----
-
-## 📁 Project Structure
-
-```text
-ERKEK-AI/
-│
-├── backend/
-│   ├── app/
-│   │   ├── auth/
-│   │   ├── brain/
-│   │   ├── core/
-│   │   ├── database/
-│   │   ├── prompts/
-│   │   ├── routes/
-│   │   └── services/
-│   │
-│   └── tests/
-│
-└── frontend/
-    ├── app/
-    ├── components/
-    └── lib/
-```
-
----
-
-## 🧪 Automated Tests
-
-ERKEK AI backend негізгі компоненттері automated tests арқылы
-тексеріледі.
-
-**Current status: 50 tests passed ✅**
-
-Тесттер қамтиды:
-
-- Category Analysis
-- Multi-category Analysis
-- Memory Extraction
-- Memory Conflict Resolution
-- Risk Detection
-- Rate Limiting & Security Headers
-- Prompt Builder
-- Chat API
-- Authentication
-- JWT Protected Chat
-
-Тесттерді іске қосу:
+### 1. Backend
 
 ```bash
-python -m pytest -v
+cd backend
+python -m venv .venv
+# Windows:      .venv\Scripts\activate
+# macOS/Linux:  source .venv/bin/activate
+pip install -r requirements.txt
+
+cp .env.example .env
+# .env ішінде OPENAI_API_KEY және JWT_SECRET_KEY толтырыңыз
+# JWT_SECRET_KEY жасау:  python -c "import secrets; print(secrets.token_hex(32))"
+
+uvicorn app.main:app --reload
 ```
 
----
+Backend: <http://127.0.0.1:8000> · API құжаттамасы: <http://127.0.0.1:8000/docs>
 
-## 🗺️ Roadmap
+`DATABASE_URL` бос болса, SQLite қолданылады (`backend/database/erkek_ai.db`).
 
-### Backend Core
-
-- [x] Brain Architecture
-- [x] Long-term Memory
-- [x] Memory Conflict Resolution
-- [x] Conversation History
-- [x] Incremental Summary
-- [x] Conversation Archive
-- [x] Multi-category Analyzer
-- [x] Emotion Detection
-- [x] Risk / Safety Layer
-- [x] Response Style Engine
-- [x] Dynamic Prompt Builder
-- [x] Logging
-- [x] Authentication
-- [x] JWT Protected Chat
-- [x] Automated Tests
-
-### Frontend
-
-- [x] Next.js initialization
-- [x] Register UI
-- [x] Login UI
-- [x] Frontend ↔ Backend integration
-- [x] JWT Session Handling
-- [x] Chat Interface
-- [x] Conversation Sidebar
-- [x] Protected Routes
-- [x] Logout
-- [x] Responsive Mobile UI
-
-### Production
-
-- [x] Production Database (PostgreSQL)
-- [x] Rate Limiting
-- [x] Security Hardening
-- [x] Docker
-- [x] CI/CD (GitHub Actions)
-- [ ] VPS Deployment — конфигурация дайын, сервер керек ([deploy/README.md](deploy/README.md))
-- [ ] Domain Integration — DNS баптау керек
-- [ ] HTTPS — Caddy автоматты түрде алады (deploy кезінде)
-- [x] Monitoring & Backups (health checks, күнделікті pg_dump)
-
----
-
-## 🚀 Deployment
-
-Production-ға орнату (Docker, PostgreSQL, HTTPS, backup, CI/CD):
-[deploy/README.md](deploy/README.md)
+### 2. Frontend
 
 ```bash
-cp deploy/.env.example deploy/.env   # толтырыңыз
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend: <http://localhost:3000>
+
+Backend басқа адресте болса, `frontend/.env.local` ішінде
+`NEXT_PUBLIC_API_URL=...` көрсетіңіз.
+
+## 🧪 Тесттер
+
+```bash
+cd backend
+python -m pytest -q
+```
+
+50 тест: категория және эмоция талдауы, жады, қауіп анықтау, prompt builder,
+чат API, аутентификация, сессиялар, кейіпкерлер, rate limiting.
+
+GitHub Actions әр push-та тесттерді **SQLite және PostgreSQL** бойынша
+жүргізеді, frontend-ті build жасайды және Docker image-дерді құрастырады.
+
+## 🌍 Production-ға орнату
+
+Бір серверде бәрі Docker арқылы жұмыс істейді:
+
+```text
+Интернет ──► Caddy (HTTPS) ──┬── /api/* ──► backend (FastAPI) ──► PostgreSQL
+                             └── /*     ──► frontend (Next.js)
+backup ──► күн сайын pg_dump
+```
+
+```bash
+cp deploy/.env.example deploy/.env    # домен, кілттер, құпиясөздер
 docker compose --env-file deploy/.env up -d --build
 ```
 
----
+Толық нұсқаулық (VPS, домен, мониторинг, backup, автоматты deploy):
+**[deploy/README.md](deploy/README.md)**
 
-## 🔒 Security
-
-Sensitive information must never be committed to the repository.
-
-This includes:
+## 🧩 Brain pipeline
 
 ```text
-.env
-OPENAI_API_KEY
-JWT_SECRET_KEY
-Production credentials
-User database files
+Хабарлама
+  → Тілді анықтау
+  → Жадыны жаңарту (+ қайшылықтарды шешу)
+  → Категория талдауы (негізгі + қосымша)
+  → Эмоция
+  → Қауіп талдауы ──► жоғары қауіп: safety жауап + шұғыл көмек нөмірлері
+  → Жауап стилі + таңдалған кейіпкер
+  → Prompt: system prompt + жады + summary + соңғы хабарламалар
+  → OpenAI (stream)
+  → Сақтау + summary жаңарту
 ```
 
+## 📁 Жоба құрылымы
+
+```text
+ERKEK-AI/
+├── backend/
+│   ├── app/
+│   │   ├── auth/        # JWT, құпиясөз hash
+│   │   ├── brain/       # талдау, жады, summary, қауіп
+│   │   ├── core/        # config, logger, rate limit, security headers
+│   │   ├── prompts/     # system prompt, кейіпкерлер
+│   │   ├── routes/      # auth, chat, sessions, profile
+│   │   ├── services/    # OpenAI
+│   │   └── database.py  # SQLite / PostgreSQL
+│   ├── tests/
+│   └── Dockerfile
+├── frontend/
+│   ├── app/             # /, /login, /register, /chat, /settings
+│   ├── lib/             # API, JWT session
+│   └── Dockerfile
+├── deploy/              # Caddyfile, backup, .env.example, нұсқаулық
+├── .github/workflows/   # CI, Deploy
+└── docker-compose.yml
+```
+
+## 🗺️ Roadmap
+
+**Backend** — ✅ дайын: brain архитектурасы, жады, summary, архив,
+талдау, қауіпсіздік қабаты, кейіпкерлер, аутентификация, тесттер.
+
+**Frontend** — ✅ дайын: тіркелу/кіру, чат, sidebar, баптаулар,
+JWT session, қорғалған беттер, logout, мобильді нұсқа.
+
+**Production**
+
+- [x] PostgreSQL
+- [x] Rate limiting
+- [x] Security hardening
+- [x] Docker
+- [x] CI/CD (GitHub Actions)
+- [x] Мониторинг (health checks) және күнделікті backup
+- [ ] VPS-ке орнату — конфигурация дайын, сервер керек
+- [ ] Домен және HTTPS — DNS баптау керек, сертификатты Caddy өзі алады
+
+## 🔒 Қауіпсіздік
+
+Репозиторийге ешқашан салынбайды: `.env`, `deploy/.env`, `OPENAI_API_KEY`,
+`JWT_SECRET_KEY`, production құпиясөздері, database файлдары.
+
+## ⚠️ Ескерту
+
+ERKEK AI кәсіби медициналық, психологиялық, заңдық немесе қаржылық
+көмекті алмастырмайды. Қауіпті жағдайда **112** нөміріне қоңырау шалыңыз
+немесе маманға жүгініңіз.
+
 ---
 
-## ⚠️ Disclaimer
+<div align="center">
 
-ERKEK AI кәсіби медициналық, психологиялық, заңдық немесе
-қаржылық қызметті алмастырмайды.
+**ERKEK AI v0.1.0-alpha** · © 2026 ERKEK AI · All rights reserved.
 
-Жоғары тәуекелді жағдайларда тиісті кәсіби мамандарға жүгіну қажет.
-
----
-
-## 📌 Version
-
-**ERKEK AI v0.1.0-alpha**
-
-Currently under active development.
-
----
-
-## 📄 License
-
-Copyright © 2026 ERKEK AI.
-
-All rights reserved.
+</div>

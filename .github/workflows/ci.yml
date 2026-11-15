@@ -73,7 +73,8 @@ jobs:
 
       - run: npm ci
       - run: npm run lint
-      - run: npx tsc --noEmit
+      # `next build` TypeScript тексеруін өзі жасайды (Next жасайтын
+      # LayoutProps сияқты типтер build кезінде ғана пайда болады).
       - run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: "1"
