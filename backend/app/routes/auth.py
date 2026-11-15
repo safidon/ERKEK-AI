@@ -1,9 +1,12 @@
-from fastapi import APIRouter, BackgroundTasks, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
 
 from app.core.logger import logger
 
+from app.auth.account import delete_account
 from app.auth.consents import record_consents
+from app.auth.dependencies import get_current_user
+from app.auth.security import verify_password
 
 from app.auth.jwt import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -397,4 +400,58 @@ def logout(data: RefreshRequest):
 
     return {
         "detail": "Шықтың."
+    }
+
+
+# =====================================================
+# DELETE ACCOUNT
+# =====================================================
+
+class DeleteAccountRequest(BaseModel):
+    password: str = Field(
+        min_length=1,
+        max_length=128
+    )
+
+
+@router.post(
+    "/delete-account",
+    status_code=status.HTTP_200_OK
+)
+def delete_account_endpoint(
+    data: DeleteAccountRequest,
+    current_user=Depends(get_current_user),
+):
+    """
+    Аккаунтты және барлық деректерді біржола өшіреді.
+    Қауіпсіздік үшін құпиясөз қайта сұралады.
+    """
+
+    if not verify_password(
+        data.password,
+        current_user["password_hash"]
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Құпиясөз қате."
+        )
+
+    try:
+        delete_account(
+            current_user["user_id"]
+        )
+
+    except Exception:
+        logger.exception(
+            "Account deletion failed | user_id=%s",
+            current_user["user_id"]
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Аккаунтты жою кезінде сервер қатесі пайда болды."
+        )
+
+    return {
+        "detail": "Аккаунтың және барлық деректерің жойылды."
     }

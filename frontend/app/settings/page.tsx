@@ -11,6 +11,8 @@ import {
   useSessionKeeper,
 } from "@/lib/auth";
 
+import { DeleteAccountSection } from "./delete-account";
+
 type UserProfile = {
   user_id: string;
 
@@ -1605,6 +1607,14 @@ export default function SettingsPage() {
             </button>
 
           </section>
+
+          {/* DELETE ACCOUNT */}
+
+          <DeleteAccountSection
+            onUnauthorized={
+              handleUnauthorized
+            }
+          />
 
           {/* SAVE */}
 

@@ -106,8 +106,12 @@ export default function TermsPage() {
       <Section number={8} title="Аккаунтты бұғаттау және жою">
         <p>
           Осы шарттар бұзылса, аккаунт ескертусіз уақытша немесе толық
-          бұғатталуы мүмкін. Аккаунтыңды жоюды өзің де кез келген уақытта
-          сұрай аласың: {OPERATOR.email} мекенжайына жаз.
+          бұғатталуы мүмкін. Аккаунтыңды кез келген уақытта{" "}
+          <Link href="/settings" className="text-gold-400 underline-offset-4 hover:underline">
+            Баптаулар
+          </Link>{" "}
+          бетінде өзің жоя аласың немесе {OPERATOR.email} мекенжайына
+          жазып сұрай аласың.
         </p>
       </Section>
 

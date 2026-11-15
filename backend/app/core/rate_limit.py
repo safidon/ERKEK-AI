@@ -40,6 +40,7 @@ DEFAULT_RULES: tuple[RateRule, ...] = (
             "/auth/register",
             "/auth/forgot-password",
             "/auth/reset-password",
+            "/auth/delete-account",
         ),
         _env_int("RATE_LIMIT_AUTH_PER_MINUTE", 10),
         60,
