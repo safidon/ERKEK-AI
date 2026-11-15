@@ -15,7 +15,7 @@ from app.services.usage import record_usage_from
 # SETTINGS
 # =====================================================
 
-MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini")
+MODEL = os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
 
 # Reasoning модельдер жауап бермес бұрын "ойланады".
 # low — жылдам бірінші жауап пен сапа арасындағы баланс

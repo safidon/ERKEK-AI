@@ -7,7 +7,7 @@ Markdown файлға жазады. Уақытша database қолданылад
 деректерге тимейді. OpenAI кілті backend/.env-тен алынады.
 
 Іске қосу (backend папкасынан):
-    python scripts/eval_kazakh.py --model gpt-5-mini --label baseline
+    python scripts/eval_kazakh.py --model gpt-5.4-mini --label check
     python scripts/eval_kazakh.py --model gpt-5.4-mini --only 1,4,7
 """
 
