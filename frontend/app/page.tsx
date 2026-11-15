@@ -2,6 +2,10 @@
 
 import { useRouter } from "next/navigation";
 
+import {
+  getValidToken,
+} from "@/lib/auth";
+
 
 export default function Home() {
   const router = useRouter();
@@ -12,9 +16,7 @@ export default function Home() {
   // =====================================================
 
   function handleStart() {
-    const token = localStorage.getItem(
-      "access_token"
-    );
+    const token = getValidToken();
 
     if (token) {
       router.push("/chat");
@@ -29,17 +31,15 @@ export default function Home() {
   // =====================================================
 
   return (
-    <main className="min-h-screen overflow-hidden bg-black text-white">
+    <main className="relative min-h-screen overflow-hidden bg-black text-white">
 
-      {/* ================================================= */}
       {/* BACKGROUND */}
-      {/* ================================================= */}
 
-      <div className="pointer-events-none fixed inset-0">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[1100px]">
 
-        <div className="absolute left-1/2 top-[-250px] h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-white/[0.035] blur-3xl" />
+        <div className="bg-ornament absolute inset-0" />
 
-        <div className="absolute bottom-[-300px] right-[-200px] h-[600px] w-[600px] rounded-full bg-white/[0.025] blur-3xl" />
+        <div className="absolute left-1/2 top-[-320px] h-[640px] w-[900px] -translate-x-1/2 rounded-full bg-gold-500/[0.09] blur-3xl" />
 
       </div>
 
@@ -48,11 +48,9 @@ export default function Home() {
       {/* HEADER */}
       {/* ================================================= */}
 
-      <header className="relative z-20 border-b border-white/[0.06]">
+      <header className="sticky top-0 z-30 border-b border-gold-500/10 bg-black/70 backdrop-blur-xl">
 
-        <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-8">
-
-          {/* LOGO */}
+        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
 
           <button
             onClick={() =>
@@ -60,27 +58,21 @@ export default function Home() {
             }
             className="flex items-center gap-3"
           >
-
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white text-sm font-black text-black">
-              E
-            </div>
+            <Logo />
 
             <div className="text-left">
 
-              <div className="text-sm font-semibold tracking-wide">
+              <div className="text-sm font-bold tracking-[0.14em]">
                 ERKEK AI
               </div>
 
-              <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
+              <div className="text-[10px] uppercase tracking-[0.24em] text-gold-500/70">
                 Digital mentor
               </div>
 
             </div>
-
           </button>
 
-
-          {/* NAV */}
 
           <div className="flex items-center gap-2">
 
@@ -88,35 +80,14 @@ export default function Home() {
               onClick={() =>
                 router.push("/login")
               }
-              className="
-                hidden
-                rounded-xl
-                px-4
-                py-2
-                text-sm
-                text-neutral-400
-                transition
-                hover:bg-white/[0.05]
-                hover:text-white
-                sm:block
-              "
+              className="hidden rounded-full px-4 py-2 text-sm text-neutral-400 transition hover:text-gold-300 sm:block"
             >
               Кіру
             </button>
 
             <button
               onClick={handleStart}
-              className="
-                rounded-xl
-                bg-white
-                px-4
-                py-2
-                text-sm
-                font-medium
-                text-black
-                transition
-                hover:bg-neutral-200
-              "
+              className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black transition"
             >
               Бастау
             </button>
@@ -134,35 +105,29 @@ export default function Home() {
 
       <section className="relative z-10">
 
-        <div className="mx-auto flex min-h-[760px] w-full max-w-7xl flex-col items-center justify-center px-5 py-24 text-center sm:px-6 lg:px-8">
+        <div className="mx-auto flex w-full max-w-6xl flex-col items-center px-4 pb-24 pt-20 text-center sm:px-6 sm:pt-28">
 
-          {/* BADGE */}
+          <div className="mb-8 inline-flex items-center gap-2.5 rounded-full border border-gold-500/25 bg-gold-500/[0.06] px-4 py-2 text-xs font-medium text-gold-300">
 
-          <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-xs text-neutral-400">
-
-            <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
+            <span className="text-[9px] text-gold-500">◆</span>
 
             AI негізіндегі жеке digital mentor
 
           </div>
 
 
-          {/* TITLE */}
-
-          <h1 className="max-w-5xl text-5xl font-semibold tracking-[-0.05em] sm:text-6xl lg:text-8xl">
+          <h1 className="max-w-4xl text-5xl font-semibold leading-[1.02] sm:text-7xl lg:text-[96px]">
 
             Өмірдегі ойларыңды
 
-            <span className="block bg-gradient-to-b from-white to-neutral-600 bg-clip-text text-transparent">
+            <span className="text-gold-gradient block pb-2 italic">
               бірге талдайық.
             </span>
 
           </h1>
 
 
-          {/* DESCRIPTION */}
-
-          <p className="mt-8 max-w-2xl text-base leading-8 text-neutral-500 sm:text-lg">
+          <p className="mt-8 max-w-2xl text-base leading-8 text-neutral-400 sm:text-lg">
 
             ERKEK AI — жұмыс, қаржы, отбасы,
             мақсаттар және күнделікті шешімдер туралы
@@ -171,52 +136,21 @@ export default function Home() {
           </p>
 
 
-          {/* BUTTONS */}
-
           <div className="mt-10 flex w-full max-w-md flex-col gap-3 sm:flex-row sm:justify-center">
 
             <button
               onClick={handleStart}
-              className="
-                flex
-                h-13
-                flex-1
-                items-center
-                justify-center
-                rounded-2xl
-                bg-white
-                px-6
-                py-4
-                font-medium
-                text-black
-                transition
-                hover:bg-neutral-200
-              "
+              className="flex flex-1 items-center justify-center gap-2 rounded-full bg-white px-7 py-4 font-semibold text-black transition"
             >
               ERKEK AI-мен сөйлесу
+              <span aria-hidden>→</span>
             </button>
 
             <button
               onClick={() =>
                 router.push("/login")
               }
-              className="
-                flex
-                h-13
-                items-center
-                justify-center
-                rounded-2xl
-                border
-                border-white/10
-                bg-white/[0.02]
-                px-6
-                py-4
-                font-medium
-                text-neutral-300
-                transition
-                hover:bg-white/[0.06]
-                hover:text-white
-              "
+              className="flex items-center justify-center rounded-full border border-gold-500/25 px-7 py-4 font-medium text-neutral-200 transition hover:border-gold-500/50 hover:text-gold-200"
             >
               Кіру
             </button>
@@ -226,38 +160,34 @@ export default function Home() {
 
           {/* CHAT PREVIEW */}
 
-          <div className="relative mt-20 w-full max-w-4xl">
+          <div className="relative mt-20 w-full max-w-3xl">
 
-            <div className="absolute -inset-10 bg-white/[0.025] blur-3xl" />
+            <div className="absolute -inset-8 rounded-[40px] bg-gold-500/[0.06] blur-3xl" />
 
-            <div className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-neutral-950/80 shadow-2xl">
+            <div className="relative overflow-hidden rounded-[28px] border border-gold-500/15 bg-neutral-950/90 text-left shadow-2xl">
 
-              {/* FAKE WINDOW HEADER */}
+              <div className="flex h-14 items-center gap-3 border-b border-gold-500/10 px-5">
 
-              <div className="flex h-14 items-center border-b border-white/[0.06] px-5">
+                <Logo small />
 
-                <div className="flex gap-2">
-
-                  <div className="h-2.5 w-2.5 rounded-full bg-neutral-700" />
-                  <div className="h-2.5 w-2.5 rounded-full bg-neutral-700" />
-                  <div className="h-2.5 w-2.5 rounded-full bg-neutral-700" />
-
-                </div>
-
-                <div className="mx-auto pr-12 text-xs text-neutral-600">
-                  ERKEK AI
+                <div>
+                  <div className="text-xs font-semibold tracking-[0.12em]">
+                    ERKEK AI
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[10px] text-neutral-500">
+                    <span className="h-1.5 w-1.5 rounded-full bg-gold-400" />
+                    онлайн
+                  </div>
                 </div>
 
               </div>
 
 
-              {/* FAKE CHAT */}
-
-              <div className="space-y-8 p-5 text-left sm:p-8">
+              <div className="space-y-6 p-5 sm:p-8">
 
                 <div className="flex justify-end">
 
-                  <div className="max-w-[85%] rounded-2xl bg-white px-4 py-3 text-sm leading-6 text-black sm:max-w-[65%]">
+                  <div className="max-w-[85%] rounded-2xl rounded-br-md border border-neutral-800 bg-neutral-900 px-4 py-3 text-sm leading-6 text-neutral-100 sm:max-w-[65%]">
                     Жұмысымды ауыстырғым келеді,
                     бірақ неден бастарымды білмей жүрмін.
                   </div>
@@ -265,34 +195,29 @@ export default function Home() {
                 </div>
 
 
-                <div className="max-w-2xl">
+                <div className="flex max-w-2xl gap-3">
 
-                  <div className="mb-2 text-xs font-medium text-neutral-600">
-                    ERKEK AI
-                  </div>
+                  <div className="mt-0.5 w-0.5 shrink-0 rounded-full bg-gradient-to-b from-gold-400 to-transparent" />
 
                   <div className="text-sm leading-7 text-neutral-300 sm:text-base">
                     Алдымен асықпай жағдайыңды бөліп қарайық.
                     Қазір сен үшін ең маңыздысы —
-                    жаңа бағыт таңдау ма, табысты көбейту ме,
+                    <span className="text-gold-300"> жаңа бағыт таңдау ма</span>,
+                    табысты көбейту ме,
                     әлде тұрақты жұмыс табу ма?
                   </div>
 
                 </div>
 
 
-                <div className="rounded-2xl border border-white/[0.06] bg-black p-2">
+                <div className="flex items-center justify-between rounded-full border border-neutral-800 bg-black py-1.5 pl-5 pr-1.5">
 
-                  <div className="flex items-center justify-between">
+                  <div className="text-sm text-neutral-600">
+                    Не ойландырып жүр?
+                  </div>
 
-                    <div className="px-3 text-sm text-neutral-700">
-                      Не ойландырып жүр?
-                    </div>
-
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-black">
-                      ↑
-                    </div>
-
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-black">
+                    ↑
                   </div>
 
                 </div>
@@ -312,31 +237,18 @@ export default function Home() {
       {/* FEATURES */}
       {/* ================================================= */}
 
-      <section className="relative z-10 border-t border-white/[0.06]">
+      <section className="relative z-10">
 
-        <div className="mx-auto w-full max-w-7xl px-5 py-24 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-6xl px-4 py-24 sm:px-6">
 
-          <div className="mb-14 max-w-2xl">
-
-            <div className="mb-4 text-xs uppercase tracking-[0.25em] text-neutral-600">
-              Мүмкіндіктер
-            </div>
-
-            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-              Жай chatbot емес.
-            </h2>
-
-            <p className="mt-4 leading-7 text-neutral-500">
-              ERKEK AI әңгіменің контекстін сақтап,
-              әр тақырыпты бөлек жүргізуге арналған.
-            </p>
-
-          </div>
+          <SectionHeading
+            eyebrow="Мүмкіндіктер"
+            title="Жай chatbot емес."
+            text="ERKEK AI әңгіменің контекстін сақтап, әр тақырыпты бөлек жүргізуге арналған."
+          />
 
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-
-            {/* FEATURE 1 */}
+          <div className="mt-14 grid gap-px overflow-hidden rounded-[28px] border border-gold-500/15 bg-gold-500/15 md:grid-cols-2 lg:grid-cols-3">
 
             <FeatureCard
               number="01"
@@ -344,15 +256,11 @@ export default function Home() {
               description="Саған қатысты маңызды контекстті есте сақтап, кейінгі жауаптарды соған бейімдейді."
             />
 
-            {/* FEATURE 2 */}
-
             <FeatureCard
               number="02"
               title="Бөлек әңгімелер"
               description="Жұмыс, қаржы немесе отбасы туралы чаттар бір-бірімен араласпайды."
             />
-
-            {/* FEATURE 3 */}
 
             <FeatureCard
               number="03"
@@ -360,23 +268,17 @@ export default function Home() {
               description="Бұрынғы әңгіменің маңызды бөліктерін summary арқылы сақтап отырады."
             />
 
-            {/* FEATURE 4 */}
-
             <FeatureCard
               number="04"
               title="Қазақша сөйлеседі"
               description="Қазақша және орысша хабарламаларды түсініп, тілге сай жауап береді."
             />
 
-            {/* FEATURE 5 */}
-
             <FeatureCard
               number="05"
               title="Жауап стилі"
               description="Сұраққа қарай қысқа, аналитикалық немесе қолдау стиліндегі жауап таңдайды."
             />
-
-            {/* FEATURE 6 */}
 
             <FeatureCard
               number="06"
@@ -395,25 +297,25 @@ export default function Home() {
       {/* HOW IT WORKS */}
       {/* ================================================= */}
 
-      <section className="relative z-10 border-t border-white/[0.06]">
+      <section className="relative z-10">
 
-        <div className="mx-auto w-full max-w-7xl px-5 py-24 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-6xl px-4 py-24 sm:px-6">
 
-          <div className="grid gap-16 lg:grid-cols-2 lg:items-center">
+          <div className="grid gap-14 lg:grid-cols-2 lg:items-center">
 
             <div>
 
-              <div className="mb-4 text-xs uppercase tracking-[0.25em] text-neutral-600">
+              <div className="mb-4 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.28em] text-gold-500">
+                <span className="h-px w-8 bg-gold-500/60" />
                 Қалай жұмыс істейді
               </div>
 
-              <h2 className="max-w-xl text-3xl font-semibold tracking-tight sm:text-5xl">
-                Бір әңгімеден
-                келесі әңгімеге дейін
-                контекст жоғалмайды.
+              <h2 className="max-w-xl text-4xl font-semibold leading-tight sm:text-5xl">
+                Бір әңгімеден келесі әңгімеге дейін
+                <span className="text-gold-gradient italic"> контекст жоғалмайды.</span>
               </h2>
 
-              <p className="mt-6 max-w-xl leading-8 text-neutral-500">
+              <p className="mt-6 max-w-xl leading-8 text-neutral-400">
                 Әр чаттың жеке history және summary жүйесі бар.
                 Ал ұзақ мерзімді маңызды ақпарат user memory-де
                 сақталады.
@@ -422,7 +324,7 @@ export default function Home() {
             </div>
 
 
-            <div className="space-y-3">
+            <ol className="relative space-y-4 border-l border-gold-500/20 pl-8">
 
               <ProcessItem
                 number="1"
@@ -442,7 +344,7 @@ export default function Home() {
                 description="Кейін қайта кіргенде бұрынғы чат тарихы сақталады."
               />
 
-            </div>
+            </ol>
 
           </div>
 
@@ -455,38 +357,32 @@ export default function Home() {
       {/* CTA */}
       {/* ================================================= */}
 
-      <section className="relative z-10 border-t border-white/[0.06]">
+      <section className="relative z-10">
 
-        <div className="mx-auto w-full max-w-7xl px-5 py-24 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-6xl px-4 py-24 sm:px-6">
 
-          <div className="relative overflow-hidden rounded-[32px] border border-white/[0.08] bg-neutral-950 px-6 py-16 text-center sm:px-12 sm:py-20">
+          <div className="relative overflow-hidden rounded-[32px] border border-gold-500/20 bg-neutral-950 px-6 py-16 text-center sm:px-12 sm:py-20">
 
-            <div className="absolute left-1/2 top-[-200px] h-[400px] w-[600px] -translate-x-1/2 rounded-full bg-white/[0.04] blur-3xl" />
+            <div className="bg-ornament absolute inset-0" />
+
+            <div className="absolute left-1/2 top-[-220px] h-[420px] w-[640px] -translate-x-1/2 rounded-full bg-gold-500/[0.1] blur-3xl" />
 
             <div className="relative">
 
-              <h2 className="mx-auto max-w-3xl text-3xl font-semibold tracking-tight sm:text-5xl">
+              <div className="mb-6 text-gold-500">◆</div>
+
+              <h2 className="mx-auto max-w-3xl text-4xl font-semibold leading-tight sm:text-5xl">
                 Кейде мәселені шешу үшін
                 алдымен оны дұрыс талқылау керек.
               </h2>
 
-              <p className="mx-auto mt-5 max-w-xl leading-7 text-neutral-500">
+              <p className="mx-auto mt-5 max-w-xl leading-7 text-neutral-400">
                 ERKEK AI-мен жаңа әңгіме баста.
               </p>
 
               <button
                 onClick={handleStart}
-                className="
-                  mt-8
-                  rounded-2xl
-                  bg-white
-                  px-7
-                  py-4
-                  font-medium
-                  text-black
-                  transition
-                  hover:bg-neutral-200
-                "
+                className="mt-9 rounded-full bg-white px-8 py-4 font-semibold text-black transition"
               >
                 Қазір бастау
               </button>
@@ -504,21 +400,24 @@ export default function Home() {
       {/* FOOTER */}
       {/* ================================================= */}
 
-      <footer className="relative z-10 border-t border-white/[0.06]">
+      <footer className="relative z-10">
 
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-5 py-8 text-sm text-neutral-600 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+        <div className="gold-rule mx-auto max-w-6xl opacity-40" />
 
-          <div>
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-8 text-sm text-neutral-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] text-gold-500">◆</span>
             © 2026 ERKEK AI
           </div>
 
-          <div className="flex gap-5">
+          <div className="flex gap-6">
 
             <button
               onClick={() =>
                 router.push("/login")
               }
-              className="transition hover:text-neutral-300"
+              className="transition hover:text-gold-300"
             >
               Кіру
             </button>
@@ -527,7 +426,7 @@ export default function Home() {
               onClick={() =>
                 router.push("/register")
               }
-              className="transition hover:text-neutral-300"
+              className="transition hover:text-gold-300"
             >
               Тіркелу
             </button>
@@ -539,6 +438,57 @@ export default function Home() {
       </footer>
 
     </main>
+  );
+}
+
+
+// =====================================================
+// LOGO
+// =====================================================
+
+function Logo({ small = false }: { small?: boolean }) {
+  return (
+    <div
+      className={`flex shrink-0 items-center justify-center rounded-xl bg-white font-display font-bold text-black ${
+        small ? "h-8 w-8 text-base" : "h-9 w-9 text-lg"
+      }`}
+    >
+      E
+    </div>
+  );
+}
+
+
+// =====================================================
+// SECTION HEADING
+// =====================================================
+
+function SectionHeading({
+  eyebrow,
+  title,
+  text,
+}: {
+  eyebrow: string;
+  title: string;
+  text: string;
+}) {
+  return (
+    <div className="max-w-2xl">
+
+      <div className="mb-4 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.28em] text-gold-500">
+        <span className="h-px w-8 bg-gold-500/60" />
+        {eyebrow}
+      </div>
+
+      <h2 className="text-4xl font-semibold sm:text-5xl">
+        {title}
+      </h2>
+
+      <p className="mt-4 leading-7 text-neutral-400">
+        {text}
+      </p>
+
+    </div>
   );
 }
 
@@ -557,32 +507,19 @@ function FeatureCard({
   description: string;
 }) {
   return (
-    <div
-      className="
-        group
-        min-h-60
-        rounded-3xl
-        border
-        border-white/[0.07]
-        bg-white/[0.02]
-        p-6
-        transition
-        hover:border-white/[0.13]
-        hover:bg-white/[0.035]
-      "
-    >
+    <div className="group relative min-h-56 bg-neutral-950 p-7 transition hover:bg-neutral-900">
 
-      <div className="text-xs font-medium text-neutral-700">
+      <div className="font-display text-3xl font-semibold text-gold-500/50 transition group-hover:text-gold-400">
         {number}
       </div>
 
-      <div className="mt-16">
+      <div className="mt-10">
 
-        <h3 className="text-xl font-medium">
+        <h3 className="text-lg font-semibold">
           {title}
         </h3>
 
-        <p className="mt-3 text-sm leading-7 text-neutral-500">
+        <p className="mt-3 text-sm leading-7 text-neutral-400">
           {description}
         </p>
 
@@ -607,24 +544,20 @@ function ProcessItem({
   description: string;
 }) {
   return (
-    <div className="flex gap-5 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
+    <li className="relative rounded-2xl border border-neutral-800 bg-neutral-950 p-5 transition hover:border-gold-500/30">
 
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-sm font-semibold text-black">
+      <div className="absolute -left-[49px] top-5 flex h-8 w-8 items-center justify-center rounded-full border border-gold-500/40 bg-black font-display text-sm font-bold text-gold-400">
         {number}
       </div>
 
-      <div>
-
-        <div className="font-medium">
-          {title}
-        </div>
-
-        <div className="mt-1 text-sm leading-6 text-neutral-500">
-          {description}
-        </div>
-
+      <div className="font-semibold">
+        {title}
       </div>
 
-    </div>
+      <div className="mt-1 text-sm leading-6 text-neutral-400">
+        {description}
+      </div>
+
+    </li>
   );
 }

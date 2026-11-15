@@ -1,13 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
+import {
+  saveToken,
+  getValidToken,
+} from "@/lib/auth";
 
 import { loginUser } from "@/lib/api";
 
 
 export default function LoginPage() {
   const router = useRouter();
+
+  // Кірген пайдаланушыны бірден чатқа жібереміз
+  useEffect(() => {
+    if (getValidToken()) {
+      router.replace("/chat");
+    }
+  }, [router]);
 
   const [email, setEmail] =
     useState("");
@@ -40,10 +52,7 @@ export default function LoginPage() {
         password
       );
 
-      localStorage.setItem(
-        "access_token",
-        result.access_token
-      );
+      saveToken(result.access_token);
 
       router.push("/chat");
 
@@ -71,9 +80,11 @@ export default function LoginPage() {
 
       <div className="pointer-events-none absolute inset-0">
 
-        <div className="absolute left-1/2 top-[-260px] h-[520px] w-[760px] -translate-x-1/2 rounded-full bg-white/[0.04] blur-3xl" />
+        <div className="bg-ornament absolute inset-0" />
 
-        <div className="absolute bottom-[-250px] left-[-180px] h-[500px] w-[500px] rounded-full bg-white/[0.025] blur-3xl" />
+        <div className="absolute left-1/2 top-[-260px] h-[520px] w-[760px] -translate-x-1/2 rounded-full bg-gold-500/[0.08] blur-3xl" />
+
+        <div className="absolute bottom-[-250px] left-[-180px] h-[500px] w-[500px] rounded-full bg-gold-500/[0.04] blur-3xl" />
 
       </div>
 
@@ -102,7 +113,7 @@ export default function LoginPage() {
         "
       >
 
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-sm font-black text-black">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white font-display text-lg font-bold text-black">
           E
         </div>
 
@@ -112,7 +123,7 @@ export default function LoginPage() {
             ERKEK AI
           </div>
 
-          <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-600">
+          <div className="text-[10px] uppercase tracking-[0.24em] text-gold-500/70">
             Digital mentor
           </div>
 
@@ -134,18 +145,18 @@ export default function LoginPage() {
 
             <div className="max-w-xl">
 
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-xs text-neutral-500">
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-gold-500/25 bg-gold-500/[0.06] px-4 py-2 text-xs font-medium text-gold-300">
 
-                <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
+                <span className="text-[9px] text-gold-500">◆</span>
 
                 Қайта келгеніңе қуаныштымыз
 
               </div>
 
-              <h1 className="text-5xl font-semibold leading-tight tracking-[-0.04em]">
+              <h1 className="text-6xl font-semibold leading-[1.05]">
 
                 Әңгімеңді
-                <span className="block text-neutral-500">
+                <span className="text-gold-gradient block pb-1 italic">
                   жалғастыр.
                 </span>
 
@@ -168,15 +179,15 @@ export default function LoginPage() {
 
           <div className="mx-auto w-full max-w-md">
 
-            <div className="rounded-[28px] border border-white/[0.08] bg-neutral-950/80 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
+            <div className="rounded-[28px] border border-gold-500/15 bg-neutral-950/85 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
 
               <div className="mb-8">
 
-                <div className="mb-3 text-xs uppercase tracking-[0.22em] text-neutral-600">
+                <div className="mb-3 text-xs font-semibold uppercase tracking-[0.26em] text-gold-500">
                   Аккаунт
                 </div>
 
-                <h2 className="text-3xl font-semibold tracking-tight">
+                <h2 className="text-4xl font-semibold">
                   Кіру
                 </h2>
 
@@ -331,7 +342,7 @@ export default function LoginPage() {
                   onClick={() =>
                     router.push("/register")
                   }
-                  className="mt-2 text-sm font-medium text-neutral-300 transition hover:text-white"
+                  className="mt-2 text-sm font-semibold text-gold-400 transition hover:text-gold-300"
                 >
                   Жаңа аккаунт ашу →
                 </button>

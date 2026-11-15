@@ -3,6 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import {
+  getValidToken,
+  clearSession,
+  useSessionExpiry,
+} from "@/lib/auth";
+
 type UserProfile = {
   user_id: string;
 
@@ -139,9 +145,7 @@ export default function SettingsPage() {
   // =====================================================
 
   function getToken() {
-    return localStorage.getItem(
-      "access_token"
-    );
+    return getValidToken();
   }
 
   // =====================================================
@@ -149,12 +153,13 @@ export default function SettingsPage() {
   // =====================================================
 
   function handleUnauthorized() {
-    localStorage.removeItem(
-      "access_token"
-    );
+    clearSession();
 
     router.replace("/login");
   }
+
+  // Token мерзімі біткенде автоматты түрде шығару
+  useSessionExpiry(() => router.replace("/login"));
 
   // =====================================================
   // APPLY PROFILE TO UI
@@ -317,9 +322,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const token =
-      localStorage.getItem(
-        "access_token"
-      );
+      getValidToken();
 
     if (!token) {
       router.replace("/login");
@@ -1039,7 +1042,7 @@ export default function SettingsPage() {
                         className={
                           "rounded-xl border p-4 text-left transition disabled:cursor-wait " +
                           (selected
-                            ? "border-white bg-white/[0.06]"
+                            ? "border-gold-500 bg-gold-500/[0.08]"
                             : "border-neutral-800 hover:border-neutral-600")
                         }
                       >

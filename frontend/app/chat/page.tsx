@@ -10,6 +10,12 @@ import {
 
 import { useRouter } from "next/navigation";
 
+import {
+  getValidToken,
+  clearSession,
+  useSessionExpiry,
+} from "@/lib/auth";
+
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -380,12 +386,12 @@ function MarkdownMessage({
               rel="noopener noreferrer"
               className="
                 break-all
-                text-blue-400
+                text-gold-400
                 underline
                 decoration-blue-400/40
                 underline-offset-4
                 transition
-                hover:text-blue-300
+                hover:text-gold-300
               "
             >
               {children}
@@ -905,9 +911,7 @@ export default function ChatPage() {
   // =====================================================
 
   function getToken() {
-    return localStorage.getItem(
-      "access_token"
-    );
+    return getValidToken();
   }
 
 
@@ -916,14 +920,15 @@ export default function ChatPage() {
   // =====================================================
 
   function handleUnauthorized() {
-    localStorage.removeItem(
-      "access_token"
-    );
+    clearSession();
 
     router.replace(
       "/login"
     );
   }
+
+  // Token мерзімі біткенде автоматты түрде шығару
+  useSessionExpiry(() => router.replace("/login"));
 
 
   // =====================================================
@@ -1034,9 +1039,7 @@ export default function ChatPage() {
   useEffect(
     () => {
       const token =
-        localStorage.getItem(
-          "access_token"
-        );
+        getValidToken();
 
       if (!token) {
         router.replace(
@@ -2061,9 +2064,7 @@ export default function ChatPage() {
   // =====================================================
 
   function handleLogout() {
-    localStorage.removeItem(
-      "access_token"
-    );
+    clearSession();
 
     router.replace(
       "/login"

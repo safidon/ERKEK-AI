@@ -1,26 +1,135 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* =====================================================
+   ERKEK AI — "Қара + алтын" theme
+   Warm charcoal background, ivory text, gold accent.
+   The neutral / black / white scales are remapped here,
+   so every existing utility class picks up the theme.
+   ===================================================== */
+
+@theme {
+  --color-black: #0c0b09;
+  --color-white: #f5efe3;
+
+  --color-neutral-50: #f8f4ec;
+  --color-neutral-100: #efe8da;
+  --color-neutral-200: #e2d9c7;
+  --color-neutral-300: #cdc3b0;
+  --color-neutral-400: #ada391;
+  --color-neutral-500: #8a8070;
+  --color-neutral-600: #5e564a;
+  --color-neutral-700: #3d372e;
+  --color-neutral-800: #2a2620;
+  --color-neutral-900: #1c1915;
+  --color-neutral-950: #14120f;
+
+  --color-gold-200: #f0dfb4;
+  --color-gold-300: #e6cc8f;
+  --color-gold-400: #d4b26a;
+  --color-gold-500: #c9a45c;
+  --color-gold-600: #a8853f;
+  --color-gold-700: #7d6230;
+  --color-gold-900: #3a2d16;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--color-black);
+  --color-foreground: var(--color-white);
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-cormorant), Georgia, serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--color-black);
+    color: var(--color-white);
+    font-family: var(--font-sans);
+  }
+
+  h1,
+  h2 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-gold-500) 35%, transparent);
+    color: var(--color-white);
+  }
+
+  * {
+    scrollbar-color: var(--color-neutral-800) transparent;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* =====================================================
+   Primary buttons and logo marks.
+   Pages use "bg-white text-black" for the solid accent
+   element; in this theme that element is gold.
+   (Unlayered, so it wins over the hover:bg-* utilities.)
+   ===================================================== */
+
+.bg-white.text-black {
+  background-image: linear-gradient(
+    135deg,
+    var(--color-gold-300),
+    var(--color-gold-500) 55%,
+    var(--color-gold-600)
+  );
+  color: #1a1408;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.25),
+    0 8px 24px -10px rgb(201 164 92 / 0.55);
+}
+
+.bg-white.text-black:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+/* Form fields: gold focus ring */
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: color-mix(in srgb, var(--color-gold-500) 55%, transparent) !important;
+  box-shadow: 0 0 0 3px rgb(201 164 92 / 0.12);
+}
+
+/* =====================================================
+   Decorative helpers
+   ===================================================== */
+
+.text-gold-gradient {
+  background-image: linear-gradient(
+    180deg,
+    var(--color-gold-200),
+    var(--color-gold-500) 60%,
+    var(--color-gold-700)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Subtle diamond lattice, a nod to Kazakh ornament */
+.bg-ornament {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%23c9a45c' stroke-opacity='0.07' stroke-width='1'%3E%3Cpath d='M28 4 52 28 28 52 4 28Z'/%3E%3Cpath d='M28 16 40 28 28 40 16 28Z'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse at 50% 30%, black 20%, transparent 75%);
+}
+
+.gold-rule {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-gold-600),
+    transparent
+  );
 }
