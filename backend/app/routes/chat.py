@@ -863,6 +863,102 @@ def stream_chat(
         answer_parts: list[str] = []
         stream_completed = False
 
+
+        # Stream аяқталғаннан кейін жауапты сақтау.
+        # Бөлек функция: finally ішінде return қолданбау үшін
+        # (Python 3.14-те бұл exception-дарды жасырады).
+        def finish_stream():
+
+            # If the client disconnects or streaming fails unexpectedly,
+            # do not save an incomplete assistant response.
+
+            if not stream_completed:
+                return
+
+            raw_answer = "".join(
+                answer_parts
+            )
+
+            if not raw_answer.strip():
+
+                logger.warning(
+                    (
+                        "Streaming answer empty | "
+                        "user_id=%s | session_id=%s"
+                    ),
+                    user_id,
+                    data.session_id,
+                )
+
+                return
+
+            final_answer = format_answer(
+                raw_answer,
+            )
+
+            if not final_answer:
+                final_answer = raw_answer
+
+            answer_saved = False
+
+            try:
+                add_message(
+                    user_id=user_id,
+                    role="assistant",
+                    content=final_answer,
+                    session_id=data.session_id,
+                )
+
+                touch_session(
+                    user_id=user_id,
+                    session_id=data.session_id,
+                )
+
+                answer_saved = True
+
+            except Exception:
+
+                logger.exception(
+                    (
+                        "Streaming answer save failed | "
+                        "user_id=%s | session_id=%s"
+                    ),
+                    user_id,
+                    data.session_id,
+                )
+
+            # Жауап сақталмаса, summary жаңартылмайды.
+            # (finally ішінде return қолданбаймыз: ол exception-ды жасырады.)
+            if answer_saved:
+                try:
+                    update_conversation_summary(
+                        user_id=user_id,
+                        session_id=data.session_id,
+                    )
+
+                except Exception:
+
+                    logger.exception(
+                        (
+                            "Streaming summary update failed | "
+                            "user_id=%s | session_id=%s"
+                        ),
+                        user_id,
+                        data.session_id,
+                    )
+
+                logger.info(
+                    (
+                        "Streaming chat completed | "
+                        "user_id=%s | session_id=%s | "
+                        "response_style=%s | tone=%s"
+                    ),
+                    user_id,
+                    data.session_id,
+                    response_style,
+                    tone,
+                )
+
         try:
 
             for chunk in stream_ai(
@@ -906,91 +1002,7 @@ def stream_chat(
             )
 
         finally:
-
-            # If the client disconnects or streaming fails unexpectedly,
-            # do not save an incomplete assistant response.
-
-            if not stream_completed:
-                return
-
-            raw_answer = "".join(
-                answer_parts
-            )
-
-            if not raw_answer.strip():
-
-                logger.warning(
-                    (
-                        "Streaming answer empty | "
-                        "user_id=%s | session_id=%s"
-                    ),
-                    user_id,
-                    data.session_id,
-                )
-
-                return
-
-            final_answer = format_answer(
-                raw_answer,
-            )
-
-            if not final_answer:
-                final_answer = raw_answer
-
-            try:
-                add_message(
-                    user_id=user_id,
-                    role="assistant",
-                    content=final_answer,
-                    session_id=data.session_id,
-                )
-
-                touch_session(
-                    user_id=user_id,
-                    session_id=data.session_id,
-                )
-
-            except Exception:
-
-                logger.exception(
-                    (
-                        "Streaming answer save failed | "
-                        "user_id=%s | session_id=%s"
-                    ),
-                    user_id,
-                    data.session_id,
-                )
-
-                return
-
-            try:
-                update_conversation_summary(
-                    user_id=user_id,
-                    session_id=data.session_id,
-                )
-
-            except Exception:
-
-                logger.exception(
-                    (
-                        "Streaming summary update failed | "
-                        "user_id=%s | session_id=%s"
-                    ),
-                    user_id,
-                    data.session_id,
-                )
-
-            logger.info(
-                (
-                    "Streaming chat completed | "
-                    "user_id=%s | session_id=%s | "
-                    "response_style=%s | tone=%s"
-                ),
-                user_id,
-                data.session_id,
-                response_style,
-                tone,
-            )
+            finish_stream()
 
     # =====================================================
     # 21. STREAMING RESPONSE

@@ -1,0 +1,96 @@
+# ERKEK AI — production stack
+#   caddy    : HTTPS (Let's Encrypt автоматты), reverse proxy
+#   frontend : Next.js
+#   backend  : FastAPI
+#   db       : PostgreSQL
+#   backup   : күн сайынғы pg_dump
+#
+# Іске қосу:  docker compose --env-file deploy/.env up -d --build
+
+name: erkek-ai
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-erkek_ai}
+      POSTGRES_USER: ${POSTGRES_USER:-erkek}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      APP_NAME: ERKEK AI
+      FRONTEND_URL: https://${DOMAIN:?DOMAIN is not set}
+      BACKEND_URL: https://${DOMAIN}/api
+      CORS_ORIGINS: https://${DOMAIN}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-erkek}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-erkek_ai}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?OPENAI_API_KEY is not set}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY is not set}
+      RATE_LIMIT_AUTH_PER_MINUTE: ${RATE_LIMIT_AUTH_PER_MINUTE:-10}
+      RATE_LIMIT_CHAT_PER_MINUTE: ${RATE_LIMIT_CHAT_PER_MINUTE:-20}
+    volumes:
+      - backend_logs:/app/logs
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: https://${DOMAIN}/api
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - frontend
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  backup:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGDATABASE: ${POSTGRES_DB:-erkek_ai}
+      PGUSER: ${POSTGRES_USER:-erkek}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+    volumes:
+      - ./deploy/backup.sh:/backup.sh:ro
+      - ./backups:/backups
+    entrypoint: ["/bin/sh", "/backup.sh"]
+
+volumes:
+  postgres_data:
+  backend_logs:
+  caddy_data:
+  caddy_config:

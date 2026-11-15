@@ -1,11 +1,17 @@
 import sqlite3
 
+import pytest
+
 from fastapi.testclient import TestClient
 
 import app.database as database
 from app.main import app
 
 
+@pytest.mark.skipif(
+    database.is_postgresql(),
+    reason="SQLite файлын тексеретін тест",
+)
 def test_startup_creates_tables(tmp_path, monkeypatch):
     """
     Application іске қосылғанда бос database-те

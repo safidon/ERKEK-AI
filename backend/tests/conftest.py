@@ -17,7 +17,10 @@ _TEST_DB_DIR = tempfile.mkdtemp(
 os.environ["SQLITE_PATH"] = str(
     Path(_TEST_DB_DIR) / "test.db"
 )
-os.environ["DATABASE_URL"] = ""
+# CI-де PostgreSQL-мен тексеру үшін TEST_DATABASE_URL беріледі.
+os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", "")
+# Тесттер бір IP-ден көп сұраныс жібереді; лимит өз тестінде тексеріледі.
+os.environ["RATE_LIMIT_ENABLED"] = "false"
 os.environ.setdefault("OPENAI_API_KEY", "test-openai-key")
 os.environ.setdefault(
     "JWT_SECRET_KEY",

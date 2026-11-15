@@ -110,7 +110,35 @@ if not JWT_SECRET_KEY:
     )
 
 
+# =====================================================
+# RATE LIMITING
+# =====================================================
+
+RATE_LIMIT_ENABLED = os.getenv(
+    "RATE_LIMIT_ENABLED",
+    "true",
+).strip().lower() not in ("0", "false", "no", "off")
+
+
 if IS_PRODUCTION:
+    if len(JWT_SECRET_KEY) < 32:
+        raise RuntimeError(
+            "Production режимінде JWT_SECRET_KEY кемінде 32 таңба болуы керек."
+        )
+
+    if JWT_SECRET_KEY.startswith("your_"):
+        raise RuntimeError(
+            "Production режимінде JWT_SECRET_KEY мысал мәні болмауы керек."
+        )
+
+    if any(
+        "localhost" in origin or "127.0.0.1" in origin
+        for origin in CORS_ORIGINS
+    ):
+        raise RuntimeError(
+            "Production режимінде CORS_ORIGINS ішінде localhost болмауы керек."
+        )
+
     if not FRONTEND_URL.startswith("https://"):
         raise RuntimeError(
             "Production режимінде FRONTEND_URL HTTPS болуы керек."

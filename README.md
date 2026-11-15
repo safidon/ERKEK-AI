@@ -5,7 +5,7 @@
 ![Python](https://img.shields.io/badge/Python-3.14-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688)
 ![Next.js](https://img.shields.io/badge/Next.js-Frontend-black)
-![Tests](https://img.shields.io/badge/tests-45%20passed-brightgreen)
+![Tests](https://img.shields.io/badge/tests-50%20passed-brightgreen)
 ![Status](https://img.shields.io/badge/status-alpha-orange)
 
 **ERKEK AI** — ер адамдарға өмірлік жағдайларды салқын ақылмен
@@ -267,7 +267,7 @@ ERKEK-AI/
 ERKEK AI backend негізгі компоненттері automated tests арқылы
 тексеріледі.
 
-**Current status: 24 tests passed ✅**
+**Current status: 50 tests passed ✅**
 
 Тесттер қамтиды:
 
@@ -276,6 +276,7 @@ ERKEK AI backend негізгі компоненттері automated tests ар�
 - Memory Extraction
 - Memory Conflict Resolution
 - Risk Detection
+- Rate Limiting & Security Headers
 - Prompt Builder
 - Chat API
 - Authentication
@@ -314,25 +315,37 @@ python -m pytest -v
 - [x] Next.js initialization
 - [x] Register UI
 - [x] Login UI
-- [ ] Frontend ↔ Backend integration
-- [ ] JWT Session Handling
-- [ ] Chat Interface
-- [ ] Conversation Sidebar
-- [ ] Protected Routes
-- [ ] Logout
-- [ ] Responsive Mobile UI
+- [x] Frontend ↔ Backend integration
+- [x] JWT Session Handling
+- [x] Chat Interface
+- [x] Conversation Sidebar
+- [x] Protected Routes
+- [x] Logout
+- [x] Responsive Mobile UI
 
 ### Production
 
-- [ ] Production Database
-- [ ] Rate Limiting
-- [ ] Security Hardening
-- [ ] Docker
-- [ ] CI/CD
-- [ ] VPS Deployment
-- [ ] Domain Integration
-- [ ] HTTPS
-- [ ] Monitoring & Backups
+- [x] Production Database (PostgreSQL)
+- [x] Rate Limiting
+- [x] Security Hardening
+- [x] Docker
+- [x] CI/CD (GitHub Actions)
+- [ ] VPS Deployment — конфигурация дайын, сервер керек ([deploy/README.md](deploy/README.md))
+- [ ] Domain Integration — DNS баптау керек
+- [ ] HTTPS — Caddy автоматты түрде алады (deploy кезінде)
+- [x] Monitoring & Backups (health checks, күнделікті pg_dump)
+
+---
+
+## 🚀 Deployment
+
+Production-ға орнату (Docker, PostgreSQL, HTTPS, backup, CI/CD):
+[deploy/README.md](deploy/README.md)
+
+```bash
+cp deploy/.env.example deploy/.env   # толтырыңыз
+docker compose --env-file deploy/.env up -d --build
+```
 
 ---
 
