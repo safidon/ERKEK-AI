@@ -1,0 +1,252 @@
+"""
+ERKEK AI хаттарының шаблоны (қара + алтын).
+
+Почта бағдарламалары (Gmail, Outlook, iPhone Mail) заманауи CSS-ті
+нашар түсінеді, сондықтан:
+- макет кестелермен (table) жасалған;
+- барлық стиль inline жазылған;
+- қаріптер — кез келген құрылғыда бар Georgia / Arial;
+- суреттер жоқ (көп почта суретті әдепкі бойынша бұғаттайды) —
+  логотип мәтінмен және фон түсімен жасалған.
+
+Оператор деректері frontend/lib/legal.ts-пен бірдей болуы керек.
+"""
+
+import html
+
+from app.core.config import FRONTEND_URL
+
+
+# Түстер (сайттағы globals.css-пен бірдей)
+BG = "#0c0b09"
+CARD = "#14120f"
+CARD_BORDER = "#3a2d16"
+TEXT = "#f5efe3"
+MUTED = "#ada391"
+FAINT = "#5e564a"
+GOLD = "#c9a45c"
+GOLD_LIGHT = "#e6cc8f"
+BUTTON_TEXT = "#1a1408"
+
+OPERATOR_NAME = "ЖК Рысбаев"
+OPERATOR_CITY = "Ақтау қаласы"
+CONTACT_EMAIL = "info@erkekai.kz"
+
+SERIF = "Georgia, 'Times New Roman', serif"
+SANS = "Arial, Helvetica, sans-serif"
+
+
+def _site(path: str = "") -> str:
+    return f"{FRONTEND_URL.rstrip('/')}{path}"
+
+
+def esc(value: str) -> str:
+    return html.escape(value, quote=True)
+
+
+def paragraph(text: str, *, muted: bool = False, size: int = 16) -> str:
+    """Бір абзац. text — дайын HTML (esc() арқылы қорғалған болуы керек)."""
+
+    color = MUTED if muted else TEXT
+    return (
+        f'<p style="margin:0 0 16px 0;font-family:{SANS};font-size:{size}px;'
+        f'line-height:1.6;color:{color};">{text}</p>'
+    )
+
+
+def button(label: str, url: str) -> str:
+    """Барлық почтада жұмыс істейтін батырма (кестемен жасалған)."""
+
+    safe_url = esc(url)
+    return f"""\
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 24px 0;">
+  <tr>
+    <td align="center" bgcolor="{GOLD}" style="border-radius:999px;background:{GOLD};background-image:linear-gradient(135deg,{GOLD_LIGHT},{GOLD} 55%,#a8853f);">
+      <a href="{safe_url}" target="_blank" style="display:inline-block;padding:15px 34px;font-family:{SANS};font-size:16px;font-weight:bold;color:{BUTTON_TEXT};text-decoration:none;border-radius:999px;">{esc(label)}</a>
+    </td>
+  </tr>
+</table>"""
+
+
+def note(text: str, icon: str = "◆") -> str:
+    """Алтын жиекті ескерту блогы."""
+
+    return f"""\
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px 0;">
+  <tr>
+    <td style="padding:14px 16px;border:1px solid {CARD_BORDER};border-left:3px solid {GOLD};border-radius:12px;background:#1c1915;font-family:{SANS};font-size:14px;line-height:1.55;color:{GOLD_LIGHT};">
+      <span style="color:{GOLD};">{esc(icon)}</span>&nbsp; {text}
+    </td>
+  </tr>
+</table>"""
+
+
+def fallback_link(url: str) -> str:
+    """Батырма ашылмаса — сілтеменің өзі."""
+
+    safe_url = esc(url)
+    return (
+        paragraph(
+            "Батырма ашылмаса, мына сілтемені көшіріп, браузерге қой:",
+            muted=True,
+            size=13,
+        )
+        + f'<p style="margin:0 0 8px 0;font-family:{SANS};font-size:12px;'
+        f'line-height:1.5;word-break:break-all;">'
+        f'<a href="{safe_url}" target="_blank" style="color:{GOLD};'
+        f'text-decoration:underline;">{safe_url}</a></p>'
+    )
+
+
+def render_email(
+    *,
+    title: str,
+    preheader: str,
+    heading: str,
+    body_html: str,
+) -> str:
+    """
+    Толық хат.
+    preheader — почта тізімінде тақырыптан кейін көрінетін қысқа мәтін.
+    body_html — paragraph()/button()/note() арқылы жасалған мазмұн.
+    """
+
+    privacy = esc(_site("/privacy"))
+    terms = esc(_site("/terms"))
+    home = esc(_site("/"))
+
+    return f"""\
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<meta name="supported-color-schemes" content="dark light">
+<title>{esc(title)}</title>
+</head>
+<body style="margin:0;padding:0;background:{BG};" bgcolor="{BG}">
+
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:{BG};font-size:1px;line-height:1px;">{esc(preheader)}&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;</div>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="{BG}" style="background:{BG};">
+  <tr>
+    <td align="center" style="padding:36px 16px 40px 16px;">
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;">
+
+        <!-- LOGO -->
+        <tr>
+          <td align="center" style="padding:0 0 28px 0;">
+            <a href="{home}" target="_blank" style="text-decoration:none;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td width="44" height="44" align="center" valign="middle" bgcolor="{GOLD}" style="width:44px;height:44px;border-radius:12px;background:{GOLD};background-image:linear-gradient(135deg,{GOLD_LIGHT},{GOLD} 55%,#a8853f);font-family:{SERIF};font-size:24px;font-weight:bold;color:{BUTTON_TEXT};">E</td>
+                  <td style="padding-left:12px;text-align:left;">
+                    <div style="font-family:{SANS};font-size:15px;font-weight:bold;letter-spacing:3px;color:{TEXT};">ERKEK AI</div>
+                    <div style="font-family:{SANS};font-size:10px;letter-spacing:3px;color:{GOLD};">DIGITAL MENTOR</div>
+                  </td>
+                </tr>
+              </table>
+            </a>
+          </td>
+        </tr>
+
+        <!-- CARD -->
+        <tr>
+          <td bgcolor="{CARD}" style="background:{CARD};border:1px solid {CARD_BORDER};border-radius:24px;padding:38px 34px 30px 34px;">
+
+            <div style="height:2px;width:48px;background:{GOLD};margin:0 0 22px 0;font-size:0;line-height:0;">&nbsp;</div>
+
+            <h1 style="margin:0 0 20px 0;font-family:{SERIF};font-size:30px;line-height:1.2;font-weight:bold;color:{TEXT};">{esc(heading)}</h1>
+
+            {body_html}
+
+          </td>
+        </tr>
+
+        <!-- FOOTER -->
+        <tr>
+          <td align="center" style="padding:28px 12px 0 12px;font-family:{SANS};font-size:12px;line-height:1.7;color:{FAINT};">
+            <div style="color:{GOLD};font-size:10px;margin-bottom:10px;">◆</div>
+            ERKEK AI — ер адамдарға арналған цифрлық ментор<br>
+            <a href="{privacy}" target="_blank" style="color:{MUTED};text-decoration:underline;">Құпиялылық</a>
+            &nbsp;·&nbsp;
+            <a href="{terms}" target="_blank" style="color:{MUTED};text-decoration:underline;">Шарттар</a>
+            &nbsp;·&nbsp;
+            <a href="mailto:{CONTACT_EMAIL}" style="color:{MUTED};text-decoration:underline;">{CONTACT_EMAIL}</a><br>
+            {esc(OPERATOR_NAME)}, {esc(OPERATOR_CITY)}<br>
+            Бұл хат автоматты түрде жіберілді — оған жауап берудің қажеті жоқ.
+          </td>
+        </tr>
+
+      </table>
+
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>"""
+
+
+# =====================================================
+# ҚҰПИЯСӨЗДІ ҚАЛПЫНА КЕЛТІРУ
+# =====================================================
+
+def password_reset_email(
+    *,
+    username: str,
+    link: str,
+    minutes: int,
+) -> tuple[str, str, str]:
+    """(subject, text, html) қайтарады."""
+
+    subject = "Құпиясөзді қалпына келтіру — ERKEK AI"
+
+    greeting = f"Сәлем, {username}!" if username else "Сәлем!"
+
+    text = (
+        f"{greeting}\n\n"
+        "ERKEK AI аккаунтыңның құпиясөзін қалпына келтіру сұралды.\n"
+        "Жаңа құпиясөз қою үшін мына сілтемені аш:\n\n"
+        f"{link}\n\n"
+        f"Сілтеме {minutes} минут жарамды және бір рет қана қолданылады.\n\n"
+        "Бұл сұранысты сен жібермеген болсаң — хатты елеме, "
+        "құпиясөзің өзгермейді. Сілтемені ешкімге берме.\n\n"
+        "—\n"
+        "ERKEK AI\n"
+        f"{CONTACT_EMAIL}"
+    )
+
+    body = (
+        paragraph(esc(greeting))
+        + paragraph(
+            "ERKEK AI аккаунтыңның құпиясөзін қалпына келтіру сұралды. "
+            "Жаңа құпиясөз қою үшін төмендегі батырманы бас."
+        )
+        + button("Жаңа құпиясөз қою", link)
+        + note(
+            f"Сілтеме <strong>{minutes} минут</strong> жарамды "
+            "және бір рет қана қолданылады.",
+            icon="⏱",
+        )
+        + paragraph(
+            "Бұл сұранысты сен жібермеген болсаң — хатты елеме, "
+            "құпиясөзің өзгермейді. Сілтемені ешкімге берме.",
+            muted=True,
+            size=14,
+        )
+        + '<div style="height:1px;background:#2a2620;margin:8px 0 18px 0;'
+        'font-size:0;line-height:0;">&nbsp;</div>'
+        + fallback_link(link)
+    )
+
+    html_body = render_email(
+        title=subject,
+        preheader=f"Жаңа құпиясөз қоюға арналған сілтеме — {minutes} минут жарамды.",
+        heading="Жаңа құпиясөз қою",
+        body_html=body,
+    )
+
+    return subject, text, html_body

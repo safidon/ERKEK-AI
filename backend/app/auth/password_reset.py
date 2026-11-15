@@ -7,7 +7,6 @@
 """
 
 import hashlib
-import html
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -18,6 +17,7 @@ from app.core.config import FRONTEND_URL, PASSWORD_RESET_EXPIRE_MINUTES
 from app.core.logger import logger
 from app.database import adapt_query, get_connection
 from app.services.email_service import send_email
+from app.services.email_templates import password_reset_email
 
 
 def _now() -> datetime:
@@ -89,34 +89,15 @@ def request_password_reset(email: str) -> None:
     link = build_reset_link(token)
     minutes = PASSWORD_RESET_EXPIRE_MINUTES
 
-    text = (
-        "Сәлем!\n\n"
-        "ERKEK AI аккаунтыңның құпиясөзін қалпына келтіру сұралды.\n"
-        f"Жаңа құпиясөз қою үшін сілтемені аш ({minutes} минут жарамды):\n\n"
-        f"{link}\n\n"
-        "Бұл сұранысты сен жібермеген болсаң, хатты елеме — "
-        "құпиясөзің өзгермейді.\n\n"
-        "ERKEK AI"
+    subject, text, html_body = password_reset_email(
+        username=user["username"] or "",
+        link=link,
+        minutes=minutes,
     )
-
-    safe_link = html.escape(link, quote=True)
-
-    html_body = f"""\
-<div style="font-family:Arial,sans-serif;background:#0c0b09;color:#f5efe3;padding:32px">
-  <div style="max-width:480px;margin:0 auto;background:#14120f;border:1px solid #3a2d16;border-radius:16px;padding:28px">
-    <div style="font-size:20px;font-weight:bold;letter-spacing:2px;color:#d4b26a">◆ ERKEK AI</div>
-    <p style="margin-top:20px;line-height:1.6">Аккаунтыңның құпиясөзін қалпына келтіру сұралды.</p>
-    <p style="margin:24px 0">
-      <a href="{safe_link}" style="background:#c9a45c;color:#1a1408;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:999px;display:inline-block">Жаңа құпиясөз қою</a>
-    </p>
-    <p style="color:#ada391;font-size:13px;line-height:1.6">Сілтеме {minutes} минут жарамды және бір рет қана қолданылады.<br>
-    Бұл сұранысты сен жібермеген болсаң, хатты елеме — құпиясөзің өзгермейді.</p>
-  </div>
-</div>"""
 
     send_email(
         to=user["email"],
-        subject="ERKEK AI — құпиясөзді қалпына келтіру",
+        subject=subject,
         text=text,
         html=html_body,
     )
