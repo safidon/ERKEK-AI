@@ -26,7 +26,7 @@ export default function PrivacyPage() {
         <Bullets
           items={[
             <>Атауы: {OPERATOR.name}</>,
-            <>ЖСН/БСН: {OPERATOR.id}</>,
+            <>ЖСН (ИИН): {OPERATOR.id}</>,
             <>Мекенжайы: {OPERATOR.address}</>,
             <>Дербес деректер бойынша байланыс: {OPERATOR.email}</>,
           ]}
