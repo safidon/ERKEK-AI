@@ -1,3 +1,4 @@
+import os
 import time
 import openai
 import httpx
@@ -13,7 +14,12 @@ from app.core.logger import logger
 # SETTINGS
 # =====================================================
 
-MODEL = "gpt-5-mini"
+MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini")
+
+# Reasoning модельдер жауап бермес бұрын "ойланады".
+# low — жылдам бірінші жауап пен сапа арасындағы баланс
+# (minimal / low / medium / high).
+REASONING_EFFORT = os.getenv("OPENAI_REASONING_EFFORT", "low")
 
 NON_STREAM_TIMEOUT = httpx.Timeout(
     timeout=90.0,
@@ -112,6 +118,8 @@ def ask_ai(
             )
             .responses.create(
                 model=MODEL,
+
+                reasoning={"effort": REASONING_EFFORT},
 
                 input=[
                     {
@@ -270,6 +278,8 @@ def stream_ai(
                 )
                 .responses.create(
                     model=MODEL,
+
+                    reasoning={"effort": REASONING_EFFORT},
 
                     input=[
                         {

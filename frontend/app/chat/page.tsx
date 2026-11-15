@@ -16,6 +16,12 @@ import {
   useSessionExpiry,
 } from "@/lib/auth";
 
+import {
+  ChatWelcome,
+  LogoMark,
+  PersonaSwitcher,
+} from "./components";
+
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -1161,13 +1167,14 @@ export default function ChatPage() {
   // CREATE NEW SESSION
   // =====================================================
 
-  async function createNewChat() {
+  // Жаңа чат ашады және оның id-ін қайтарады (қате болса null).
+  async function createNewChat(): Promise<number | null> {
     const token =
       getToken();
 
     if (!token) {
       handleUnauthorized();
-      return;
+      return null;
     }
 
     setError("");
@@ -1202,7 +1209,7 @@ export default function ChatPage() {
         401
       ) {
         handleUnauthorized();
-        return;
+        return null;
       }
 
 
@@ -1245,6 +1252,8 @@ export default function ChatPage() {
         false
       );
 
+      return data.id as number;
+
     } catch (error) {
       if (
         error instanceof Error
@@ -1257,6 +1266,8 @@ export default function ChatPage() {
           "Белгісіз қате шықты."
         );
       }
+
+      return null;
     }
   }
 
@@ -1527,9 +1538,7 @@ export default function ChatPage() {
     if (
       !message ||
       loading ||
-      regenerating ||
-      activeSessionId ===
-        null
+      regenerating
     ) {
       return;
     }
@@ -1542,8 +1551,18 @@ export default function ChatPage() {
       return;
     }
 
-    const sessionId =
+    // Чат ашылмаса — бірінші хабарламамен бірге автоматты түрде ашамыз.
+    let sessionId =
       activeSessionId;
+
+    if (sessionId === null) {
+      sessionId =
+        await createNewChat();
+
+      if (sessionId === null) {
+        return;
+      }
+    }
 
     setError("");
     setIsUserNearBottom(
@@ -2177,13 +2196,17 @@ export default function ChatPage() {
               w-full
               rounded-xl
               border
-              border-neutral-800
+              border-gold-500/30
+              bg-gold-500/[0.06]
               px-4
               py-3
               text-left
               text-sm
+              font-medium
+              text-gold-300
               transition
-              hover:bg-neutral-900
+              hover:border-gold-500/50
+              hover:bg-gold-500/[0.1]
               disabled:cursor-not-allowed
               disabled:opacity-50
             "
@@ -2263,7 +2286,7 @@ export default function ChatPage() {
                     ${
                       activeSessionId ===
                       session.id
-                        ? "bg-neutral-900"
+                        ? "bg-neutral-900 shadow-[inset_2px_0_0_var(--color-gold-500)]"
                         : "hover:bg-neutral-900/60"
                     }
                   `}
@@ -2532,6 +2555,14 @@ export default function ChatPage() {
 
           </div>
 
+          <div className="ml-auto pl-3">
+            <PersonaSwitcher
+              onUnauthorized={
+                handleUnauthorized
+              }
+            />
+          </div>
+
         </header>
 
 
@@ -2567,41 +2598,11 @@ export default function ChatPage() {
             {activeSessionId ===
             null ? (
 
-              <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
-
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-lg font-black text-black">
-                  E
-                </div>
-
-                <h1 className="mt-5 text-2xl font-semibold sm:text-3xl">
-                  ERKEK AI
-                </h1>
-
-                <p className="mt-3 max-w-md text-sm leading-6 text-neutral-500 sm:text-base">
-                  Жаңа әңгіме ашып,
-                  ойыңдағы мәселені жаз.
-                </p>
-
-                <button
-                  onClick={
-                    createNewChat
-                  }
-                  className="
-                    mt-7
-                    rounded-xl
-                    bg-white
-                    px-5
-                    py-3
-                    font-medium
-                    text-black
-                    transition
-                    hover:bg-neutral-200
-                  "
-                >
-                  + Жаңа чат
-                </button>
-
-              </div>
+              <ChatWelcome
+                onPick={
+                  selectQuickPrompt
+                }
+              />
 
             ) : (
 
@@ -2612,70 +2613,11 @@ export default function ChatPage() {
                 {messages.length ===
                   0 &&
                   !loading && (
-                  <div className="flex min-h-[55vh] flex-col items-center justify-center px-4 text-center">
-
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-lg font-black text-black">
-                      E
-                    </div>
-
-                    <h2 className="mt-5 text-xl font-semibold sm:text-2xl">
-                      Не туралы сөйлесеміз?
-                    </h2>
-
-                    <p className="mt-2 max-w-md text-sm leading-6 text-neutral-500">
-                      Жұмыс, қаржы,
-                      отбасы, мақсаттар
-                      немесе ойыңда жүрген
-                      кез келген мәселені жаз.
-                    </p>
-
-
-                    <div className="mt-6 grid w-full max-w-xl gap-2 sm:grid-cols-2">
-
-                      {[
-                        "Жұмыс туралы кеңес керек",
-                        "Қаржы жоспарымды талдайық",
-                        "Мақсаттарымды реттегім келеді",
-                        "Бір мәселе мазалап жүр",
-                      ].map(
-                        (
-                          prompt
-                        ) => (
-                          <button
-                            key={
-                              prompt
-                            }
-                            onClick={() =>
-                              selectQuickPrompt(
-                                prompt
-                              )
-                            }
-                            className="
-                              rounded-2xl
-                              border
-                              border-white/[0.07]
-                              bg-white/[0.02]
-                              px-4
-                              py-3
-                              text-left
-                              text-sm
-                              text-neutral-400
-                              transition
-                              hover:border-white/[0.14]
-                              hover:bg-white/[0.04]
-                              hover:text-white
-                            "
-                          >
-                            {
-                              prompt
-                            }
-                          </button>
-                        )
-                      )}
-
-                    </div>
-
-                  </div>
+                  <ChatWelcome
+                    onPick={
+                      selectQuickPrompt
+                    }
+                  />
                 )}
 
 
@@ -2685,7 +2627,14 @@ export default function ChatPage() {
                   (
                     message,
                     index
-                  ) => (
+                  ) =>
+                    // Stream басталмаған бос жауапты көрсетпейміз:
+                    // оның орнында жүктелу индикаторы тұрады.
+                    message.role ===
+                      "assistant" &&
+                    !message.content &&
+                    (loading ||
+                      regenerating) ? null : (
                     <div
                       key={
                         message.id ??
@@ -2706,10 +2655,13 @@ export default function ChatPage() {
                             ? `
                                 max-w-[88%]
                                 rounded-2xl
-                                bg-white
+                                rounded-br-md
+                                border
+                                border-gold-500/20
+                                bg-neutral-900
                                 px-4
                                 py-3
-                                text-black
+                                text-neutral-100
                                 sm:max-w-[80%]
                               `
                             : `
@@ -2723,8 +2675,11 @@ export default function ChatPage() {
 
                         {message.role ===
                           "assistant" && (
-                          <div className="mb-2 text-xs font-medium text-neutral-500">
-                            ERKEK AI
+                          <div className="mb-3 flex items-center gap-2">
+                            <LogoMark size="sm" />
+                            <span className="text-xs font-semibold tracking-[0.12em] text-gold-400/90">
+                              ERKEK AI
+                            </span>
                           </div>
                         )}
 
@@ -2814,16 +2769,19 @@ export default function ChatPage() {
 
                     <div className="max-w-[85%]">
 
-                      <div className="mb-2 text-xs font-medium text-neutral-500">
-                        ERKEK AI
+                      <div className="mb-3 flex items-center gap-2">
+                        <LogoMark size="sm" />
+                        <span className="text-xs font-semibold tracking-[0.12em] text-gold-400/90">
+                          ERKEK AI
+                        </span>
                       </div>
 
-                      <div className="flex items-center gap-2 text-sm text-neutral-500">
+                      <div className="flex items-center gap-2 pl-9 text-sm text-neutral-500">
 
                         <div className="flex items-center gap-1.5">
-                          <span className="h-2 w-2 animate-bounce rounded-full bg-neutral-600 [animation-delay:-0.3s]" />
-                          <span className="h-2 w-2 animate-bounce rounded-full bg-neutral-600 [animation-delay:-0.15s]" />
-                          <span className="h-2 w-2 animate-bounce rounded-full bg-neutral-600" />
+                          <span className="h-2 w-2 animate-bounce rounded-full bg-gold-500/70 [animation-delay:-0.3s]" />
+                          <span className="h-2 w-2 animate-bounce rounded-full bg-gold-500/70 [animation-delay:-0.15s]" />
+                          <span className="h-2 w-2 animate-bounce rounded-full bg-gold-500/70" />
                         </div>
 
                         <span>
@@ -2888,7 +2846,7 @@ export default function ChatPage() {
 
             {/* MESSAGE INPUT */}
 
-            <div className="flex items-end gap-2 rounded-2xl border border-neutral-800 bg-neutral-950 p-2 transition focus-within:border-neutral-700 sm:gap-3">
+            <div className="flex items-end gap-2 rounded-2xl border border-neutral-800 bg-neutral-950 p-2 transition focus-within:border-gold-500/40 sm:gap-3">
 
               <textarea
                 ref={textareaRef}
@@ -2906,11 +2864,7 @@ export default function ChatPage() {
                 onKeyDown={
                   handleKeyDown
                 }
-                placeholder={
-                  activeSessionId
-                    ? "Не ойландырып жүр?"
-                    : "Алдымен жаңа чат аш."
-                }
+                placeholder="Не ойландырып жүр?"
                 maxLength={
                   MAX_MESSAGE_LENGTH
                 }
@@ -2922,9 +2876,7 @@ export default function ChatPage() {
                 }
                 disabled={
                   loading ||
-                  regenerating ||
-                  activeSessionId ===
-                    null
+                  regenerating
                 }
                 className="
                   max-h-40
@@ -2933,6 +2885,7 @@ export default function ChatPage() {
                   flex-1
                   resize-none
                   bg-transparent
+                  chat-input
                   px-2
                   py-3
                   text-sm
@@ -2989,9 +2942,7 @@ export default function ChatPage() {
                   aria-label="Хабарламаны жіберу"
                   disabled={
                     regenerating ||
-                    !input.trim() ||
-                    activeSessionId ===
-                      null
+                    !input.trim()
                   }
                   className="
                     h-11

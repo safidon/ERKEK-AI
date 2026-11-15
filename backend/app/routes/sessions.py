@@ -7,6 +7,7 @@ from fastapi import (
 
 from pydantic import BaseModel, Field
 
+from app.brain.formatter import strip_decorations
 from app.auth.dependencies import get_current_user
 
 from app.brain.conversation_sessions import (
@@ -118,6 +119,13 @@ def get_conversation_session(
         user_id=user_id,
         session_id=session_id
     )
+
+    # Ескі жауаптардағы "━━━ 🧠 ERKEK AI ━━━" безендіруін алып тастаймыз.
+    for message in messages:
+        if message.get("role") == "assistant":
+            message["content"] = strip_decorations(
+                message.get("content") or ""
+            )
 
     return {
         "id": session["id"],
