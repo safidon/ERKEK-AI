@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 
 import {
-  getValidToken,
+  hasStoredSession,
 } from "@/lib/auth";
 
 
@@ -16,7 +16,7 @@ export default function Home() {
   // =====================================================
 
   function handleStart() {
-    const token = getValidToken();
+    const token = hasStoredSession();
 
     if (token) {
       router.push("/chat");

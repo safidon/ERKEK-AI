@@ -1,7 +1,8 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.auth.jwt import decode_access_token
+from app.auth.jwt import decode_access_payload
+from app.auth.sessions import is_session_active
 from app.auth.service import get_user_by_id
 
 
@@ -18,9 +19,27 @@ def get_current_user(
 
     token = credentials.credentials
 
-    user_id = decode_access_token(
+    payload = decode_access_payload(
         token
     )
+
+    user_id = (
+        str(payload["sub"])
+        if payload
+        else None
+    )
+
+    # Сессия жабылған болса (logout, құпиясөз ауысты) —
+    # token мерзімі бітпесе де қабылданбайды.
+    if (
+        user_id
+        and payload.get("sid")
+        and not is_session_active(
+            str(payload["sid"]),
+            user_id,
+        )
+    ):
+        user_id = None
 
     if not user_id:
 

@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
-  saveToken,
-  getValidToken,
+  ensureFreshToken,
+  saveTokens,
 } from "@/lib/auth";
 
 import { loginUser } from "@/lib/api";
@@ -16,9 +16,11 @@ export default function LoginPage() {
 
   // Кірген пайдаланушыны бірден чатқа жібереміз
   useEffect(() => {
-    if (getValidToken()) {
-      router.replace("/chat");
-    }
+    void ensureFreshToken().then((token) => {
+      if (token) {
+        router.replace("/chat");
+      }
+    });
   }, [router]);
 
   const [email, setEmail] =
@@ -52,7 +54,10 @@ export default function LoginPage() {
         password
       );
 
-      saveToken(result.access_token);
+      saveTokens(
+        result.access_token,
+        result.refresh_token
+      );
 
       router.push("/chat");
 

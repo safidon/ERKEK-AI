@@ -1061,6 +1061,42 @@ def init_password_reset_schema():
             """
         )
 
+        # Кіру сессиялары (әр құрылғы/браузер — бір жол).
+        # Refresh token-нің тек hash-і сақталады; previous_hash —
+        # ауыстырылған (rotation) алдыңғы token, қайта қолданылуын
+        # анықтау үшін.
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS auth_sessions (
+                session_id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                refresh_hash TEXT NOT NULL UNIQUE,
+                previous_hash TEXT,
+                rotated_at TEXT,
+                created_at TEXT NOT NULL,
+                last_used_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                revoked_at TEXT
+            )
+            """
+        )
+
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+            idx_auth_sessions_user_id
+            ON auth_sessions(user_id)
+            """
+        )
+
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+            idx_auth_sessions_previous_hash
+            ON auth_sessions(previous_hash)
+            """
+        )
+
         connection.commit()
 
     except Exception:

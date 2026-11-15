@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
-  getValidToken,
+  ensureFreshToken,
 } from "@/lib/auth";
 
 import { registerUser } from "@/lib/api";
@@ -15,9 +15,11 @@ export default function RegisterPage() {
 
   // Кірген пайдаланушыны бірден чатқа жібереміз
   useEffect(() => {
-    if (getValidToken()) {
-      router.replace("/chat");
-    }
+    void ensureFreshToken().then((token) => {
+      if (token) {
+        router.replace("/chat");
+      }
+    });
   }, [router]);
 
   const [email, setEmail] =

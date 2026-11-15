@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
-  getValidToken,
   clearSession,
-  useSessionExpiry,
+  ensureFreshToken,
+  getValidToken,
+  refreshSession,
+  useSessionKeeper,
 } from "@/lib/auth";
 
 type UserProfile = {
@@ -152,14 +154,19 @@ export default function SettingsPage() {
   // UNAUTHORIZED
   // =====================================================
 
+  // Сервер 401 қайтарды: алдымен сессияны жаңартып көреміз,
+  // болмаса ғана кіру бетіне жібереміз.
   function handleUnauthorized() {
-    clearSession();
-
-    router.replace("/login");
+    void refreshSession().then((result) => {
+      if (result.status === "expired") {
+        clearSession();
+        router.replace("/login");
+      }
+    });
   }
 
   // Token мерзімі біткенде автоматты түрде шығару
-  useSessionExpiry(() => router.replace("/login"));
+  useSessionKeeper(() => router.replace("/login"));
 
   // =====================================================
   // APPLY PROFILE TO UI
@@ -321,17 +328,15 @@ export default function SettingsPage() {
   // =====================================================
 
   useEffect(() => {
-    const token =
-      getValidToken();
+    // Access token-нің мерзімі өтсе, алдымен refresh token арқылы жаңартамыз.
+    void ensureFreshToken().then((token) => {
+      if (!token) {
+        router.replace("/login");
+        return;
+      }
 
-    if (!token) {
-      router.replace("/login");
-      return;
-    }
-
-    // Деректерді жүктеу: setState тек await fetch-тен кейін шақырылады.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadProfile();
+      void loadProfile();
+    });
     // Тек mount кезінде бір рет жүктеледі.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);

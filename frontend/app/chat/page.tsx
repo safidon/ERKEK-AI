@@ -11,9 +11,12 @@ import {
 import { useRouter } from "next/navigation";
 
 import {
-  getValidToken,
   clearSession,
-  useSessionExpiry,
+  ensureFreshToken,
+  getValidToken,
+  logout,
+  refreshSession,
+  useSessionKeeper,
 } from "@/lib/auth";
 
 import {
@@ -925,16 +928,19 @@ export default function ChatPage() {
   // HANDLE 401
   // =====================================================
 
+  // Сервер 401 қайтарды: алдымен сессияны жаңартып көреміз,
+  // болмаса ғана кіру бетіне жібереміз.
   function handleUnauthorized() {
-    clearSession();
-
-    router.replace(
-      "/login"
-    );
+    void refreshSession().then((result) => {
+      if (result.status === "expired") {
+        clearSession();
+        router.replace("/login");
+      }
+    });
   }
 
   // Token мерзімі біткенде автоматты түрде шығару
-  useSessionExpiry(() => router.replace("/login"));
+  useSessionKeeper(() => router.replace("/login"));
 
 
   // =====================================================
@@ -1044,20 +1050,18 @@ export default function ChatPage() {
 
   useEffect(
     () => {
-      const token =
-        getValidToken();
+      // Access token-нің мерзімі өтсе, алдымен refresh token арқылы жаңартамыз.
+      void ensureFreshToken().then((token) => {
+        if (!token) {
+          router.replace(
+            "/login"
+          );
 
-      if (!token) {
-        router.replace(
-          "/login"
-        );
+          return;
+        }
 
-        return;
-      }
-
-      // Деректерді жүктеу: setState тек await fetch-тен кейін шақырылады.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      loadSessions();
+        loadSessions();
+      });
 
     },
     // Тек mount кезінде бір рет жүктеледі.
@@ -2083,7 +2087,7 @@ export default function ChatPage() {
   // =====================================================
 
   function handleLogout() {
-    clearSession();
+    void logout();
 
     router.replace(
       "/login"

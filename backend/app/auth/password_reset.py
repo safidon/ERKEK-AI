@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 
 from app.auth.security import hash_password
 from app.auth.service import get_user_by_email
+from app.auth.sessions import revoke_all_sessions
 from app.core.config import FRONTEND_URL, PASSWORD_RESET_EXPIRE_MINUTES
 from app.core.logger import logger
 from app.database import adapt_query, get_connection
@@ -187,6 +188,9 @@ def reset_password(token: str, new_password: str) -> bool:
 
     finally:
         connection.close()
+
+    # Барлық құрылғылардан шығарамыз: ескі сессиялар енді жарамсыз.
+    revoke_all_sessions(user_id)
 
     logger.info("Password reset completed | user_id=%s", user_id)
     return True

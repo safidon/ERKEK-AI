@@ -3,7 +3,16 @@ from pydantic import BaseModel, EmailStr, Field
 
 from app.core.logger import logger
 
-from app.auth.jwt import create_access_token
+from app.auth.jwt import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    create_access_token,
+)
+
+from app.auth.sessions import (
+    create_session,
+    revoke_session_by_refresh_token,
+    rotate_refresh_token,
+)
 
 from app.auth.password_reset import (
     request_password_reset,
@@ -59,6 +68,28 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str
+    refresh_token: str
+    # Access token қанша секунд жарамды
+    expires_in: int
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str = Field(
+        min_length=20,
+        max_length=200
+    )
+
+
+def _issue_tokens(user_id: str, session_id: str, refresh_token: str) -> dict:
+    return {
+        "access_token": create_access_token(
+            user_id=user_id,
+            session_id=session_id,
+        ),
+        "token_type": "bearer",
+        "refresh_token": refresh_token,
+        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    }
 
 
 # =====================================================
@@ -158,8 +189,8 @@ def login(data: LoginRequest):
                 }
             )
 
-        access_token = create_access_token(
-            user_id=user["user_id"]
+        session_id, refresh_token = create_session(
+            user["user_id"]
         )
 
         logger.info(
@@ -167,10 +198,11 @@ def login(data: LoginRequest):
             user["user_id"]
         )
 
-        return {
-            "access_token": access_token,
-            "token_type": "bearer"
-        }
+        return _issue_tokens(
+            user["user_id"],
+            session_id,
+            refresh_token,
+        )
 
     except HTTPException:
         raise
@@ -276,4 +308,74 @@ def reset_password_endpoint(data: ResetPasswordRequest):
 
     return {
         "detail": "Құпиясөз ауыстырылды. Енді жаңа құпиясөзбен кір."
+    }
+
+
+# =====================================================
+# REFRESH
+# =====================================================
+
+@router.post(
+    "/refresh",
+    response_model=TokenResponse,
+    status_code=status.HTTP_200_OK
+)
+def refresh(data: RefreshRequest):
+    """
+    Refresh token арқылы жаңа access token береді.
+    Refresh token-нің өзі де ауысады (ескісі енді жарамсыз).
+    """
+
+    try:
+        result = rotate_refresh_token(
+            data.refresh_token
+        )
+
+    except Exception:
+        logger.exception("Token refresh unexpected error")
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Сессияны жаңарту кезінде сервер қатесі пайда болды."
+        )
+
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Сессия аяқталды. Қайта кір.",
+            headers={
+                "WWW-Authenticate": "Bearer"
+            }
+        )
+
+    user_id, session_id, new_refresh_token = result
+
+    return _issue_tokens(
+        user_id,
+        session_id,
+        new_refresh_token,
+    )
+
+
+# =====================================================
+# LOGOUT
+# =====================================================
+
+@router.post(
+    "/logout",
+    status_code=status.HTTP_200_OK
+)
+def logout(data: RefreshRequest):
+    """Осы құрылғыдағы сессияны жабады."""
+
+    try:
+        revoke_session_by_refresh_token(
+            data.refresh_token
+        )
+
+    except Exception:
+        logger.exception("Logout unexpected error")
+
+    return {
+        "detail": "Шықтың."
     }
