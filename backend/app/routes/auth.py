@@ -2,6 +2,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 from pydantic import BaseModel, EmailStr, Field
 
 from app.core.i18n import language_from_request
+from app.services.welcome import send_welcome_email
 from app.core.logger import logger
 
 from app.auth.account import delete_account
@@ -111,7 +112,11 @@ def _issue_tokens(user_id: str, session_id: str, refresh_token: str) -> dict:
     response_model=RegisterResponse,
     status_code=status.HTTP_201_CREATED
 )
-def register(data: RegisterRequest):
+def register(
+    data: RegisterRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+):
 
     logger.info(
         "Register request | email=%s | username=%s",
@@ -144,6 +149,13 @@ def register(data: RegisterRequest):
             "User registered | user_id=%s | username=%s",
             user["user_id"],
             user["username"]
+        )
+
+        background_tasks.add_task(
+            send_welcome_email,
+            str(data.email),
+            user["username"],
+            language_from_request(request),
         )
 
         return user

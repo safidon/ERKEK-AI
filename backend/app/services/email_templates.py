@@ -296,3 +296,118 @@ def password_reset_email(
     )
 
     return subject, text, html_body
+
+
+# =====================================================
+# ҚОШ КЕЛДІҢІЗ ХАТЫ
+# =====================================================
+
+WELCOME_TEXTS = {
+    "kk": {
+        "subject": "ERKEK AI-ға қош келдің",
+        "preheader": "Аккаунтың дайын. Бірінші әңгімені баста.",
+        "heading": "Қош келдің, {name}",
+        "intro": (
+            "ERKEK AI — жұмыс, ақша, отбасы және мақсат туралы ақылдасатын "
+            "жеке ментор. Жалған мақтау емес — тура сөз және нақты келесі қадам."
+        ),
+        "tips_title": "Қалай бастауға болады:",
+        "tips": [
+            "Не мазалап жүргенін жай ғана жаз — ұзақ дайындықтың қажеті жоқ.",
+            "Әр тақырыпқа жеке чат аш: жұмыс бөлек, отбасы бөлек.",
+            "Баптаулардан ERKEK AI мінезін таңда: Аға, Қатал немесе Стратег.",
+        ],
+        "button": "Әңгімені бастау",
+        "telegram": "Telegram-да жазу ыңғайлы болса: {url}",
+        "help": (
+            "Ауыр сәтте жалғыз қалма: 112 — жедел көмек, 111 — тегін әрі "
+            "анонимді көмек желісі, екеуі де тәулік бойы."
+        ),
+    },
+    "ru": {
+        "subject": "Добро пожаловать в ERKEK AI",
+        "preheader": "Аккаунт готов. Начни первый разговор.",
+        "heading": "Добро пожаловать, {name}",
+        "intro": (
+            "ERKEK AI — личный наставник, с которым можно посоветоваться о работе, "
+            "деньгах, семье и целях. Без пустой лести — прямо и с конкретным следующим шагом."
+        ),
+        "tips_title": "С чего начать:",
+        "tips": [
+            "Просто напиши, что беспокоит, — долго готовиться не нужно.",
+            "Под каждую тему открывай отдельный чат: работа отдельно, семья отдельно.",
+            "В настройках выбери характер ERKEK AI: Брат, Жёсткий или Стратег.",
+        ],
+        "button": "Начать разговор",
+        "telegram": "Если удобнее писать в Telegram: {url}",
+        "help": (
+            "В тяжёлый момент не оставайся один: 112 — экстренная помощь, "
+            "111 — бесплатная анонимная линия поддержки, обе круглосуточно."
+        ),
+    },
+}
+
+
+def welcome_email(
+    *,
+    username: str,
+    language: str = "kk",
+    telegram_url: str | None = None,
+) -> tuple[str, str, str]:
+    """(subject, text, html) қайтарады."""
+
+    t = WELCOME_TEXTS.get(language, WELCOME_TEXTS["kk"])
+    name = username or "брат"
+    chat_url = _site("/chat")
+
+    lines = [
+        t["heading"].format(name=name) + "!",
+        "",
+        t["intro"],
+        "",
+        t["tips_title"],
+        *[f"— {tip}" for tip in t["tips"]],
+        "",
+        f"{t['button']}: {chat_url}",
+    ]
+    if telegram_url:
+        lines.append(t["telegram"].format(url=telegram_url))
+    lines += ["", t["help"], "", "—", "ERKEK AI", CONTACT_EMAIL]
+    text = "\n".join(lines)
+
+    tips_html = "".join(
+        f'<tr><td valign="top" style="padding:0 10px 10px 0;color:{GOLD};'
+        f'font-family:{SANS};font-size:14px;">◆</td>'
+        f'<td style="padding:0 0 10px 0;font-family:{SANS};font-size:15px;'
+        f'line-height:1.6;color:{TEXT};">{esc(tip)}</td></tr>'
+        for tip in t["tips"]
+    )
+
+    body = (
+        paragraph(esc(t["intro"]))
+        + paragraph(f"<strong>{esc(t['tips_title'])}</strong>", size=15)
+        + '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
+        'style="margin:0 0 18px 0;">' + tips_html + "</table>"
+        + button(t["button"], chat_url)
+    )
+
+    if telegram_url:
+        safe = esc(telegram_url)
+        body += paragraph(
+            esc(t["telegram"].split("{url}")[0])
+            + f'<a href="{safe}" target="_blank" style="color:{GOLD};">{safe}</a>',
+            muted=True,
+            size=14,
+        )
+
+    body += note(esc(t["help"]), icon="☎")
+
+    html_body = render_email(
+        title=t["subject"],
+        preheader=t["preheader"],
+        heading=t["heading"].format(name=name),
+        body_html=body,
+        language=language,
+    )
+
+    return t["subject"], text, html_body
