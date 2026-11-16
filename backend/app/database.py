@@ -1142,6 +1142,35 @@ def init_password_reset_schema():
             """
         )
 
+        # Telegram бот: Telegram пайдаланушысы -> ERKEK AI аккаунты.
+        # telegram_user_id / chat_id мәтін ретінде (үлкен сандар).
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS telegram_accounts (
+                telegram_user_id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL UNIQUE,
+                chat_id TEXT NOT NULL,
+                lang TEXT NOT NULL DEFAULT 'kk',
+                active_session_id BIGINT,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+
+        # Сайт аккаунтын Telegram-ға байланыстыру кодтары
+        # (бір реттік, қысқа мерзімді; тек hash сақталады).
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS telegram_link_codes (
+                code_hash TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                used_at TEXT,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+
         connection.commit()
 
     except Exception:

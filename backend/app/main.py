@@ -31,6 +31,7 @@ from app.routes.profile import router as profile_router
 from app.routes.usage import router as usage_router
 from app.routes.admin import router as admin_router
 from app.routes.feedback import router as feedback_router
+from app.routes.telegram import router as telegram_router
 
 
 # =====================================================
@@ -114,6 +115,10 @@ app.include_router(
 
 app.include_router(
     feedback_router
+)
+
+app.include_router(
+    telegram_router
 )
 
 app.include_router(

@@ -159,3 +159,26 @@ frontend lint + build, Docker image-дер build.
   шамамен 450 хабарлама). Бітсе, барлығына «ертең келіңіз» деген хабар шығады.
 - Соңғы қорғаныс: [OpenAI баптауларында](https://platform.openai.com/settings/organization/limits)
   ай сайынғы шектеу (budget) және ескерту email-ін қойыңыз.
+
+## 10. Telegram бот
+
+1. Telegram-да [@BotFather](https://t.me/BotFather) → `/newbot` → атын және
+   `username`-ін (`..._bot` деп аяқталады) беріңіз. Ол **token** береді.
+2. Серверде `deploy/.env` файлына қосыңыз (token-ді ешкімге көрсетпеңіз):
+
+   ```bash
+   TELEGRAM_BOT_TOKEN=<BotFather берген token>
+   TELEGRAM_WEBHOOK_SECRET=<openssl rand -hex 32 нәтижесі>
+   TELEGRAM_BOT_USERNAME=<бот username, @-сыз>
+   ```
+
+3. Backend-ті қайта іске қосып, webhook пен мәзірді орнатыңыз:
+
+   ```bash
+   docker compose --env-file deploy/.env up -d backend
+   docker compose --env-file deploy/.env exec backend python -m app.telegram.setup
+   ```
+
+Бот қосылғаннан кейін басты бетте «Telegram-да жаз» сілтемесі, ал
+Баптаулар бетінде «Telegram-ды байланыстыру» бөлімі өзі пайда болады.
+Token берілмесе, бот өшірулі тұрады.

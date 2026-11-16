@@ -64,7 +64,7 @@ type Stats = {
   };
   recent_users: {
     username: string;
-    email: string;
+    email: string | null;
     is_active: boolean;
     created_at: string | null;
     messages_30d: number;
@@ -395,10 +395,10 @@ function Dashboard({ stats }: { stats: Stats }) {
             </thead>
             <tbody>
               {stats.recent_users.map((u) => (
-                <tr key={u.email} className="border-t border-neutral-900 align-top">
+                <tr key={`${u.username}:${u.email ?? ""}`} className="border-t border-neutral-900 align-top">
                   <td className="py-3 pr-4">
                     <div className="font-medium text-neutral-100">{u.username}</div>
-                    <div className="text-xs text-neutral-500">{u.email}</div>
+                    <div className="text-xs text-neutral-500">{u.email ?? "Telegram"}</div>
                   </td>
                   <td className="py-3 pr-4 text-neutral-400">{formatDateTime(u.created_at)}</td>
                   <td className="py-3 pr-4 text-right tabular-nums text-neutral-200">{fmt(u.messages_30d)}</td>

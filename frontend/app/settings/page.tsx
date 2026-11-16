@@ -15,6 +15,7 @@ import {
 } from "@/lib/auth";
 
 import { DeleteAccountSection } from "./delete-account";
+import { TelegramLinkSection } from "./telegram-link";
 
 type UserProfile = {
   user_id: string;
@@ -1622,6 +1623,14 @@ export default function SettingsPage() {
             </button>
 
           </section>
+
+          {/* TELEGRAM */}
+
+          <TelegramLinkSection
+            onUnauthorized={
+              handleUnauthorized
+            }
+          />
 
           {/* DELETE ACCOUNT */}
 

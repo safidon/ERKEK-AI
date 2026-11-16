@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -7,10 +8,38 @@ import {
 } from "@/lib/auth";
 import { LanguageSwitcher, useLang } from "@/lib/i18n";
 
+import { TelegramIcon } from "./settings/telegram-link";
+
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://127.0.0.1:8000";
+
 
 export default function Home() {
   const router = useRouter();
   const { tr } = useLang();
+
+  // Telegram бот қосулы болса — басты бетте сілтеме көрсетеміз.
+  const [telegramUrl, setTelegramUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch(`${API_URL}/telegram/info`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.enabled && data.url) {
+          setTelegramUrl(data.url);
+        }
+      })
+      .catch(() => {
+        // Міндетті емес.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
 
   // =====================================================
@@ -161,6 +190,18 @@ export default function Home() {
             </button>
 
           </div>
+
+          {telegramUrl && (
+            <a
+              href={telegramUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-4 inline-flex items-center gap-2 text-sm text-neutral-400 transition hover:text-gold-300"
+            >
+              <TelegramIcon className="h-4 w-4 text-[#2AABEE]" />
+              {tr("Немесе тіркелмей-ақ Telegram-да жаз →", "Или пиши в Telegram без регистрации →")}
+            </a>
+          )}
 
 
           {/* CHAT PREVIEW */}

@@ -60,7 +60,9 @@ DEFAULT_RULES: tuple[RateRule, ...] = (
 )
 
 # Бұл жолдар лимитке кірмейді (мониторинг жиі тексереді).
-EXEMPT_PATHS = ("/health",)
+# /telegram/webhook: Telegram серверлері бірнеше IP-ден келеді,
+# сұраныс құпия token-мен тексеріледі; күндік лимит бәрібір жұмыс істейді.
+EXEMPT_PATHS = ("/health", "/telegram/webhook")
 
 
 class RateLimiter:
