@@ -42,3 +42,44 @@ def test_high_response_has_emergency_number():
 
 def test_low_risk_has_no_special_response():
     assert build_risk_response("low") is None
+
+
+# =====================================================
+# СӨЗ ІШІНДЕГІ ЖАЛҒАН СӘЙКЕСТІКТЕР
+# =====================================================
+
+import pytest  # noqa: E402
+
+from app.brain.risk import detect_risk as _detect  # noqa: E402
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        # "бөлгім келеді" ішінде "өлгім келеді" бар
+        "Осы жылға нақты мақсаттар қойып, оларды қадамдарға бөлгім келеді.",
+        "Жоспарымды бөліктерге бөлгім келеді",
+        # "очень золотой" ішінде "очень зол" бар
+        "У меня очень золотой характер",
+        "Жұмысты бітіргім келеді, бірақ уақыт жоқ",
+    ],
+)
+def test_no_false_alarm_inside_words(message):
+    assert _detect(message) == "low"
+
+
+@pytest.mark.parametrize(
+    "message, level",
+    [
+        ("Өлгім келеді.", "critical"),
+        ("кейде   өлгім   келеді", "critical"),
+        ("Суицид туралы ойлап жүрмін", "critical"),
+        ("суицидке барғым келеді", "critical"),
+        ("Не хочу жить", "critical"),
+        ("Я тебя убью", "high"),
+        ("Шыдай алмаймын енді", "medium"),
+        ("я очень зол на него", "medium"),
+    ],
+)
+def test_real_risks_still_detected(message, level):
+    assert _detect(message) == level

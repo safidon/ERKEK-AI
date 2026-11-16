@@ -1,3 +1,6 @@
+import re
+
+
 def detect_risk(message: str) -> str:
     """
     Пайдаланушы хабарламасындағы қауіп деңгейін анықтайды.
@@ -9,7 +12,7 @@ def detect_risk(message: str) -> str:
     - critical
     """
 
-    text = message.lower().strip()
+    text = " ".join(message.lower().split())
 
     # ==========================================
     # 1. CRITICAL — ӨЗІНЕ ЗИЯН КЕЛТІРУ ҚАУПІ
@@ -21,7 +24,7 @@ def detect_risk(message: str) -> str:
         "өзімді өлтіремін",
         "өзімді өлтіргім келеді",
         "өмір сүргім келмейді",
-        "суицид",
+        "суицид*",
         "асылып қалам",
         "асылып өлгім келеді",
         "бәрін бітіргім келеді",
@@ -31,7 +34,6 @@ def detect_risk(message: str) -> str:
         "убью себя",
         "хочу убить себя",
         "не хочу жить",
-        "суицид",
         "покончу с собой",
         "хочу покончить с собой"
     ]
@@ -85,15 +87,33 @@ def detect_risk(message: str) -> str:
     # ==========================================
 
     for pattern in critical_patterns:
-        if pattern in text:
+        if _matches(pattern, text):
             return "critical"
 
     for pattern in high_patterns:
-        if pattern in text:
+        if _matches(pattern, text):
             return "high"
 
     for pattern in medium_patterns:
-        if pattern in text:
+        if _matches(pattern, text):
             return "medium"
 
     return "low"
+
+
+def _matches(pattern: str, text: str) -> bool:
+    """
+    Тіркес бөлек сөз ретінде кездессе ғана сәйкес келеді.
+
+    Бұрын қарапайым "ішінде бар ма" тексерісі қолданылатын, сондықтан
+    "бөлгім келеді" сөзінің ішіндегі "өлгім келеді" қауіп деп табылатын.
+
+    - Тіркес сөздің ортасынан басталмауы керек.
+    - Соңында "*" болса, жалғау қосылуы мүмкін ("суицид*" -> "суицидке").
+      Әйтпесе тіркес сөз шекарасымен аяқталуы керек ("очень зол" != "очень золотой").
+    """
+
+    allow_suffix = pattern.endswith("*")
+    core = re.escape(pattern.rstrip("*")).replace(r"\ ", r"\s+")
+    regex = r"(?<!\w)" + core + ("" if allow_suffix else r"(?!\w)")
+    return re.search(regex, text) is not None
