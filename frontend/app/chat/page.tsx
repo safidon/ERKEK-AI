@@ -20,6 +20,7 @@ import {
 } from "@/lib/auth";
 
 import {
+  AdminLink,
   ChatWelcome,
   LogoMark,
   PersonaSwitcher,
@@ -2381,6 +2382,13 @@ export default function ChatPage() {
   </div>
 
   <div className="space-y-1">
+
+    <AdminLink
+      onNavigate={() => {
+        setSidebarOpen(false);
+        router.push("/admin");
+      }}
+    />
 
     <button
       type="button"

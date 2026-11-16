@@ -28,6 +28,7 @@ from app.routes.auth import router as auth_router
 from app.routes.sessions import router as sessions_router
 from app.routes.profile import router as profile_router
 from app.routes.usage import router as usage_router
+from app.routes.admin import router as admin_router
 
 
 # =====================================================
@@ -116,6 +117,10 @@ app.include_router(
 
 app.include_router(
     usage_router
+)
+
+app.include_router(
+    admin_router
 )
 
 

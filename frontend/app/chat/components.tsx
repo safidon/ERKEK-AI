@@ -429,3 +429,54 @@ export function UsageHint({ busy }: { busy: boolean }) {
     </div>
   );
 }
+
+
+// =====================================================
+// ADMIN LINK (тек әкімшіге көрінеді)
+// =====================================================
+
+export function AdminLink({ onNavigate }: { onNavigate: () => void }) {
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const token = getValidToken();
+
+    if (!token) {
+      return;
+    }
+
+    let cancelled = false;
+
+    fetch(`${API_URL}/admin/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.is_admin) {
+          setIsAdmin(true);
+        }
+      })
+      .catch(() => {
+        // Сілтеме көрсетілмейді — бұл міндетті емес.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!isAdmin) {
+    return null;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onNavigate}
+      className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm text-gold-400 transition hover:bg-neutral-900 hover:text-gold-300"
+    >
+      <span>◆</span>
+      <span>Әкімші панелі</span>
+    </button>
+  );
+}
