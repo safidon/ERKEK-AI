@@ -24,6 +24,7 @@ import {
 import {
   AdminLink,
   ChatWelcome,
+  FeedbackButtons,
   LogoMark,
   PersonaSwitcher,
   UsageHint,
@@ -40,6 +41,8 @@ type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   created_at?: string;
+  // AI жауабына қойылған баға: 1, -1 немесе 0
+  feedback?: number;
 };
 
 
@@ -1091,6 +1094,69 @@ export default function ChatPage() {
   // LOAD ONE SESSION
   // =====================================================
 
+  // Жаңа жауап stream арқылы келгенде id-сі болмайды.
+  // Сақталғаннан кейін серверден id-лерді алып қоямыз
+  // (👍 / 👎 бағалау үшін керек).
+  async function syncMessageIds(
+    sessionId: number
+  ) {
+    const token =
+      getToken();
+
+    if (!token) {
+      return;
+    }
+
+    try {
+      const response =
+        await fetch(
+          `${API_URL}/sessions/${sessionId}`,
+          {
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
+
+      if (!response.ok) {
+        return;
+      }
+
+      const data =
+        await response.json();
+
+      const serverMessages: ChatMessage[] =
+        data.messages || [];
+
+      setMessages(
+        (current) => {
+          if (
+            current.length !==
+            serverMessages.length
+          ) {
+            return current;
+          }
+
+          return current.map(
+            (message, index) =>
+              message.role ===
+              serverMessages[index].role
+                ? {
+                    ...message,
+                    id: serverMessages[index].id,
+                    feedback: serverMessages[index].feedback,
+                  }
+                : message
+          );
+        }
+      );
+    } catch {
+      // Міндетті емес: id-лер келесі ашқанда келеді.
+    }
+  }
+
+
   async function loadSession(
     sessionId: number,
     closeSidebar:
@@ -1813,6 +1879,10 @@ export default function ChatPage() {
       }
 
       await refreshSessionList();
+
+      void syncMessageIds(
+        sessionId
+      );
 
     } catch (error) {
       const wasAborted =
@@ -2734,6 +2804,19 @@ export default function ChatPage() {
                                   message.content
                                 }
                               />
+
+                              {message.id !== undefined &&
+                                !(
+                                  index ===
+                                    messages.length - 1 &&
+                                  (loading || regenerating)
+                                ) && (
+                                <FeedbackButtons
+                                  key={`${message.id}:${message.feedback ?? 0}`}
+                                  messageId={message.id}
+                                  initialRating={message.feedback ?? 0}
+                                />
+                              )}
 
                               {index ===
                                 messages.length - 1 && (

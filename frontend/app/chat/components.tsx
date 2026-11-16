@@ -535,6 +535,127 @@ export function UsageHint({ busy }: { busy: boolean }) {
 
 
 // =====================================================
+// FEEDBACK (👍 / 👎)
+// =====================================================
+
+export function FeedbackButtons({
+  messageId,
+  initialRating,
+}: {
+  messageId: number;
+  initialRating: number;
+}) {
+  const { tr } = useLang();
+  const [rating, setRating] = useState(initialRating);
+  const [saving, setSaving] = useState(false);
+
+  async function rate(value: 1 | -1) {
+    if (saving) {
+      return;
+    }
+
+    const token = getValidToken();
+
+    if (!token) {
+      return;
+    }
+
+    const previous = rating;
+    // Сол батырманы қайта басса — бағаны алып тастаймыз.
+    const next = rating === value ? 0 : value;
+
+    setRating(next);
+    setSaving(true);
+
+    try {
+      const response = await fetch(`${API_URL}/feedback`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ message_id: messageId, rating: next }),
+      });
+
+      if (!response.ok) {
+        setRating(previous);
+      }
+    } catch {
+      setRating(previous);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const base =
+    "inline-flex h-7 w-7 items-center justify-center rounded-lg text-sm transition disabled:cursor-not-allowed";
+
+  return (
+    <div className="flex items-center gap-0.5" aria-label={tr("Жауапты бағалау", "Оценить ответ")}>
+      <button
+        type="button"
+        onClick={() => void rate(1)}
+        disabled={saving}
+        aria-pressed={rating === 1}
+        title={tr("Жақсы жауап", "Хороший ответ")}
+        aria-label={tr("Жақсы жауап", "Хороший ответ")}
+        className={`${base} ${
+          rating === 1
+            ? "bg-gold-500/15 text-gold-300"
+            : "text-neutral-600 opacity-70 hover:bg-white/[0.04] hover:text-neutral-300 hover:opacity-100"
+        }`}
+      >
+        <ThumbIcon up filled={rating === 1} />
+      </button>
+
+      <button
+        type="button"
+        onClick={() => void rate(-1)}
+        disabled={saving}
+        aria-pressed={rating === -1}
+        title={tr("Жауап ұнамады", "Ответ не понравился")}
+        aria-label={tr("Жауап ұнамады", "Ответ не понравился")}
+        className={`${base} ${
+          rating === -1
+            ? "bg-white/[0.08] text-neutral-200"
+            : "text-neutral-600 opacity-70 hover:bg-white/[0.04] hover:text-neutral-300 hover:opacity-100"
+        }`}
+      >
+        <ThumbIcon filled={rating === -1} />
+      </button>
+
+      {rating !== 0 && (
+        <span className="ml-1 text-[11px] text-neutral-600" role="status">
+          {tr("Рақмет!", "Спасибо!")}
+        </span>
+      )}
+    </div>
+  );
+}
+
+
+function ThumbIcon({ up = false, filled }: { up?: boolean; filled: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="15"
+      height="15"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      style={up ? undefined : { transform: "rotate(180deg)" }}
+    >
+      <path d="M7 10v11" />
+      <path d="M15 5.9 14 10h5.8a2 2 0 0 1 1.9 2.6l-2.3 7A2 2 0 0 1 17.5 21H7V10l4.3-7.4a1.6 1.6 0 0 1 2.9 1.2Z" />
+    </svg>
+  );
+}
+
+
+// =====================================================
 // ADMIN LINK (тек әкімшіге көрінеді)
 // =====================================================
 

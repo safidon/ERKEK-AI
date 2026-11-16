@@ -21,6 +21,7 @@ _DELETE_QUERIES = (
     "DELETE FROM auth_sessions WHERE user_id = ?",
     "DELETE FROM user_consents WHERE user_id = ?",
     "DELETE FROM usage_daily WHERE scope = ?",
+    "DELETE FROM message_feedback WHERE user_id = ?",
     "DELETE FROM users WHERE user_id = ?",
 )
 

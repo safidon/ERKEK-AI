@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.auth.dependencies import get_current_user
 from app.database import adapt_query, get_connection
+from app.services.feedback import feedback_stats
 from app.services.usage import (
     DAILY_SITE_TOKEN_BUDGET,
     SITE_SCOPE,
@@ -275,5 +276,10 @@ def admin_stats(_admin=Depends(require_admin)):
             }
             for day in days
         ],
+        "feedback": {
+            "last_30d": feedback_stats(
+                (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+            ),
+        },
         "recent_users": recent_users,
     }

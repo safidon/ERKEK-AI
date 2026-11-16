@@ -23,6 +23,7 @@ USER_TABLES = (
     ("auth_sessions", "user_id"),
     ("user_consents", "user_id"),
     ("usage_daily", "scope"),
+    ("message_feedback", "user_id"),
 )
 
 
@@ -73,6 +74,19 @@ def make_active_user() -> dict:
     assert client.post(
         "/chat",
         json={"session_id": session_id, "message": "Менің жасым 30, екі балам бар."},
+        headers=headers,
+    ).status_code == 200
+
+    answer_id = next(
+        message["id"]
+        for message in client.get(
+            f"/sessions/{session_id}", headers=headers
+        ).json()["messages"]
+        if message["role"] == "assistant"
+    )
+    assert client.post(
+        "/feedback",
+        json={"message_id": answer_id, "rating": 1},
         headers=headers,
     ).status_code == 200
 
@@ -129,6 +143,7 @@ def test_delete_account_removes_all_data():
     assert before["conversations"] > 0
     assert before["auth_sessions"] > 0
     assert before["user_consents"] > 0
+    assert before["message_feedback"] == 1
 
     response = client.post(
         "/auth/delete-account",

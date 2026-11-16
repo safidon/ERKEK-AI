@@ -1126,6 +1126,22 @@ def init_password_reset_schema():
             """
         )
 
+        # AI жауаптарына баға (👍 = 1, 👎 = -1).
+        # Хабарлама мәтіні мұнда көшірілмейді — тек баға.
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS message_feedback (
+                user_id TEXT NOT NULL,
+                message_id BIGINT NOT NULL,
+                rating INTEGER NOT NULL,
+                persona TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (user_id, message_id)
+            )
+            """
+        )
+
         connection.commit()
 
     except Exception:

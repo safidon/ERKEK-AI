@@ -637,6 +637,21 @@ def replace_assistant_message(
             cursor.rowcount > 0
         )
 
+        # Жауап жаңарды — ескі жауапқа қойылған баға енді жарамсыз.
+        if updated:
+            cursor.execute(
+                adapt_query(
+                    '''
+                    DELETE FROM message_feedback
+                    WHERE user_id = ? AND message_id = ?
+                    '''
+                ),
+                (
+                    user_id,
+                    message_id,
+                ),
+            )
+
         connection.commit()
 
         return updated

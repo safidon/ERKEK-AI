@@ -20,6 +20,7 @@ from app.brain.conversation_sessions import (
 )
 
 from app.core.logger import logger
+from app.services.feedback import get_feedback_map
 
 
 router = APIRouter(
@@ -126,6 +127,19 @@ def get_conversation_session(
             message["content"] = strip_decorations(
                 message.get("content") or ""
             )
+
+    ratings = get_feedback_map(
+        user_id,
+        [
+            int(message["id"])
+            for message in messages
+            if message.get("role") == "assistant"
+        ],
+    )
+
+    for message in messages:
+        if message.get("role") == "assistant":
+            message["feedback"] = ratings.get(int(message["id"]), 0)
 
     return {
         "id": session["id"],

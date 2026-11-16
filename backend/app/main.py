@@ -30,6 +30,7 @@ from app.routes.sessions import router as sessions_router
 from app.routes.profile import router as profile_router
 from app.routes.usage import router as usage_router
 from app.routes.admin import router as admin_router
+from app.routes.feedback import router as feedback_router
 
 
 # =====================================================
@@ -109,6 +110,10 @@ app.add_middleware(
 
 app.include_router(
     auth_router
+)
+
+app.include_router(
+    feedback_router
 )
 
 app.include_router(

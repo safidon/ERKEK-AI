@@ -54,6 +54,14 @@ type Stats = {
     new_users: number;
     tokens: number;
   }[];
+  feedback?: {
+    last_30d: {
+      likes: number;
+      dislikes: number;
+      satisfaction: number | null;
+      by_persona: Record<string, { likes: number; dislikes: number }>;
+    };
+  };
   recent_users: {
     username: string;
     email: string;
@@ -306,6 +314,13 @@ function Dashboard({ stats }: { stats: Stats }) {
       )}
 
 
+      {/* FEEDBACK */}
+
+      {stats.feedback && (
+        <FeedbackPanel feedback={stats.feedback.last_30d} />
+      )}
+
+
       {/* CHARTS */}
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -407,6 +422,76 @@ function Dashboard({ stats }: { stats: Stats }) {
 // STAT TILE
 // =====================================================
 
+const PERSONA_NAMES: Record<string, string> = {
+  brother: "Аға / Брат",
+  hardcore: "Қатал",
+  strategist: "Стратег",
+};
+
+
+function FeedbackPanel({
+  feedback,
+}: {
+  feedback: NonNullable<Stats["feedback"]>["last_30d"];
+}) {
+  const total = feedback.likes + feedback.dislikes;
+  const personas = Object.entries(feedback.by_persona).sort(
+    (a, b) => (b[1].likes + b[1].dislikes) - (a[1].likes + a[1].dislikes)
+  );
+
+  return (
+    <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+
+      <StatTile
+        label="Жауап сапасы (30 күн)"
+        value={feedback.satisfaction === null ? "—" : `${feedback.satisfaction}%`}
+        detail={
+          total === 0
+            ? "Әзірге баға жоқ"
+            : `👍 ${fmt(feedback.likes)} · 👎 ${fmt(feedback.dislikes)} · барлығы ${fmt(total)}`
+        }
+        meter={feedback.satisfaction}
+      />
+
+      {personas.length > 0 && (
+        <div className="rounded-2xl border border-neutral-900 bg-neutral-950 p-5 sm:col-span-1 lg:col-span-3">
+          <div className="text-xs font-medium uppercase tracking-wider text-neutral-500">
+            Мінез бойынша
+          </div>
+
+          <table className="mt-3 w-full text-left text-sm">
+            <thead className="text-xs text-neutral-500">
+              <tr>
+                <th className="py-1.5 pr-4 font-medium">Мінез</th>
+                <th className="py-1.5 pr-4 text-right font-medium">👍</th>
+                <th className="py-1.5 pr-4 text-right font-medium">👎</th>
+                <th className="py-1.5 text-right font-medium">Ұнағаны</th>
+              </tr>
+            </thead>
+            <tbody className="text-neutral-300">
+              {personas.map(([id, counts]) => {
+                const sum = counts.likes + counts.dislikes;
+                return (
+                  <tr key={id} className="border-t border-neutral-900">
+                    <td className="py-1.5 pr-4">{PERSONA_NAMES[id] ?? id}</td>
+                    <td className="py-1.5 pr-4 text-right tabular-nums">{fmt(counts.likes)}</td>
+                    <td className="py-1.5 pr-4 text-right tabular-nums">{fmt(counts.dislikes)}</td>
+                    <td className="py-1.5 text-right tabular-nums">
+                      {sum ? `${Math.round((counts.likes / sum) * 100)}%` : "—"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+    </section>
+  );
+}
+
+
 function StatTile({
   label,
   value,
@@ -433,7 +518,7 @@ function StatTile({
           aria-valuenow={meter}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-label="Күндік токен лимиті"
+          aria-label={label}
         >
           <div
             className="h-full rounded-full bg-gold-500"
