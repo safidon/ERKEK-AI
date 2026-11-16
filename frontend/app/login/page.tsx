@@ -16,6 +16,7 @@ import {
   GoogleButton,
   PENDING_GOOGLE_KEY,
 } from "../google-button";
+import { ResendVerificationButton } from "../resend-verification";
 
 
 export default function LoginPage() {
@@ -41,6 +42,10 @@ export default function LoginPage() {
     useState("");
 
   const [loading, setLoading] =
+    useState(false);
+
+  // Құпиясөз дұрыс, бірақ email расталмаған (сервер 403 береді).
+  const [needsVerification, setNeedsVerification] =
     useState(false);
 
 
@@ -105,6 +110,10 @@ export default function LoginPage() {
       router.push("/chat");
 
     } catch (error) {
+      setNeedsVerification(
+        (error as { status?: number })?.status === 403
+      );
+
       if (error instanceof Error) {
         setError(error.message);
       } else {
@@ -362,6 +371,10 @@ export default function LoginPage() {
                   <div className="rounded-xl border border-red-500/20 bg-red-500/[0.06] px-4 py-3 text-sm text-red-400">
                     {error}
                   </div>
+                )}
+
+                {needsVerification && (
+                  <ResendVerificationButton email={email} />
                 )}
 
 

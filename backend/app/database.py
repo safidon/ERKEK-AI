@@ -423,6 +423,10 @@ def init_sqlite_database():
             # Пайдаланушы өзі айтқан есімі (AI атымен атауы үшін)
             "display_name":
                 "TEXT",
+
+            # Email расталды ма: NULL — ескі аккаунт, 0 — жоқ, 1 — иә
+            "email_verified":
+                "INTEGER",
         }
 
         for (
@@ -716,6 +720,14 @@ def init_postgresql_database():
             """
             ALTER TABLE users
             ADD COLUMN IF NOT EXISTS display_name TEXT
+            """
+        )
+
+        # Email расталды ма: NULL — ескі аккаунт, 0 — жоқ, 1 — иә
+        cursor.execute(
+            """
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS email_verified INTEGER
             """
         )
 
@@ -1198,6 +1210,19 @@ def init_password_reset_schema():
                 cursor.execute(
                     "ALTER TABLE telegram_accounts ADD COLUMN awaiting TEXT"
                 )
+
+        # Email-ді растау сілтемелері (тек hash сақталады)
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS email_verification_tokens (
+                token_hash TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                used_at TEXT,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
 
         # Сайт аккаунтын Telegram-ға байланыстыру кодтары
         # (бір реттік, қысқа мерзімді; тек hash сақталады).

@@ -143,7 +143,12 @@ def reset_password(token: str, new_password: str) -> bool:
             adapt_query(
                 """
                 UPDATE users
-                SET password_hash = ?
+                SET password_hash = ?,
+                    -- Хаттағы сілтеме email-дің иесі екенін дәлелдейді.
+                    email_verified = CASE
+                        WHEN email_verified = 0 THEN 1
+                        ELSE email_verified
+                    END
                 WHERE user_id = ?
                 """
             ),

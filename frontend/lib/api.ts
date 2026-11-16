@@ -32,7 +32,13 @@ export async function registerUser(
     );
   }
 
-  return data;
+  return data as {
+    user_id: string;
+    email: string;
+    username: string;
+    is_active: boolean;
+    email_verification_required?: boolean;
+  };
 }
 
 export async function loginUser(
@@ -56,8 +62,10 @@ export async function loginUser(
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(
-      data.detail || "Кіру кезінде қате шықты."
+    // status: 403 — email әлі расталмаған (кіру бетінде «қайта жіберу» шығады).
+    throw Object.assign(
+      new Error(data.detail || "Кіру кезінде қате шықты."),
+      { status: response.status }
     );
   }
 
@@ -123,6 +131,56 @@ export async function resetPassword(
     throw new Error(
       errorMessage(data, "Құпиясөзді ауыстыру кезінде қате шықты.")
     );
+  }
+
+  return data as { detail: string };
+}
+
+
+// =====================================================
+// EMAIL VERIFICATION
+// =====================================================
+
+export async function verifyEmail(token: string) {
+  const response = await fetch(
+    `${API_URL}/auth/verify-email`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ token }),
+    }
+  );
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(errorMessage(data, ""));
+  }
+
+  return data as {
+    access_token: string;
+    refresh_token: string;
+  };
+}
+
+export async function resendVerification(email: string) {
+  const response = await fetch(
+    `${API_URL}/auth/resend-verification`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email }),
+    }
+  );
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(errorMessage(data, ""));
   }
 
   return data as { detail: string };

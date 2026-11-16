@@ -16,6 +16,7 @@ import {
   GoogleButton,
   PENDING_GOOGLE_KEY,
 } from "../google-button";
+import { CheckEmailOverlay } from "../resend-verification";
 
 
 function readPendingGoogle(): string | null {
@@ -59,6 +60,10 @@ export default function RegisterPage() {
 
   const [loading, setLoading] =
     useState(false);
+
+  // Белсендіру хаты жіберілген мекенжай.
+  const [sentTo, setSentTo] =
+    useState<string | null>(null);
 
   // Кіру бетінде Google арқылы келген жаңа пайдаланушы.
   const storedGoogle = useSyncExternalStore(
@@ -133,14 +138,18 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      await registerUser(
+      const created = await registerUser(
         email,
         username,
         password,
         acceptTerms
       );
 
-      router.push("/login");
+      if (created.email_verification_required) {
+        setSentTo(email);
+      } else {
+        router.push("/login");
+      }
 
     } catch (error) {
       if (error instanceof Error) {
@@ -572,6 +581,8 @@ export default function RegisterPage() {
         </div>
 
       </div>
+
+      {sentTo && <CheckEmailOverlay email={sentTo} />}
 
     </main>
   );

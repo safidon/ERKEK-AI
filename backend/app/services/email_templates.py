@@ -411,3 +411,89 @@ def welcome_email(
     )
 
     return t["subject"], text, html_body
+
+
+# =====================================================
+# EMAIL-ДІ РАСТАУ (БЕЛСЕНДІРУ)
+# =====================================================
+
+VERIFY_TEXTS = {
+    "kk": {
+        "subject": "Email-іңді растау — ERKEK AI",
+        "hello": "Сәлем, {name}!",
+        "hello_plain": "Сәлем!",
+        "intro": "ERKEK AI-да тіркелгенің үшін рақмет. Аккаунтты белсендіру үшін email-іңді растау керек.",
+        "press": "Төмендегі батырманы бас — бір рет қана.",
+        "open_link": "Аккаунтты белсендіру үшін мына сілтемені аш:",
+        "button": "Email-ді растау",
+        "valid": "Сілтеме {hours} сағат жарамды.",
+        "ignore": "Сен тіркелмеген болсаң — бұл хатты елеме, аккаунт белсенді болмайды.",
+        "preheader": "Аккаунтты белсендіру үшін бір рет бас.",
+        "heading": "Аккаунтты белсендір",
+    },
+    "ru": {
+        "subject": "Подтверди email — ERKEK AI",
+        "hello": "Привет, {name}!",
+        "hello_plain": "Привет!",
+        "intro": "Спасибо за регистрацию в ERKEK AI. Чтобы активировать аккаунт, подтверди свой email.",
+        "press": "Нажми на кнопку ниже — это нужно сделать один раз.",
+        "open_link": "Чтобы активировать аккаунт, открой ссылку:",
+        "button": "Подтвердить email",
+        "valid": "Ссылка действует {hours} часа.",
+        "ignore": "Если ты не регистрировался — просто проигнорируй письмо, аккаунт не будет активирован.",
+        "preheader": "Один клик — и аккаунт активирован.",
+        "heading": "Активируй аккаунт",
+    },
+}
+
+
+def verification_email(
+    *,
+    username: str,
+    link: str,
+    hours: int,
+    language: str = "kk",
+) -> tuple[str, str, str]:
+    """(subject, text, html) қайтарады."""
+
+    t = VERIFY_TEXTS.get(language, VERIFY_TEXTS["kk"])
+    greeting = t["hello"].format(name=username) if username else t["hello_plain"]
+    valid = t["valid"].format(hours=hours)
+
+    text = "\n".join([
+        greeting,
+        "",
+        t["intro"],
+        t["open_link"],
+        "",
+        link,
+        "",
+        valid,
+        "",
+        t["ignore"],
+        "",
+        "—",
+        "ERKEK AI",
+        CONTACT_EMAIL,
+    ])
+
+    body = (
+        paragraph(esc(greeting))
+        + paragraph(f"{esc(t['intro'])} {esc(t['press'])}")
+        + button(t["button"], link)
+        + note(esc(valid), icon="⏱")
+        + paragraph(esc(t["ignore"]), muted=True, size=14)
+        + '<div style="height:1px;background:#2a2620;margin:8px 0 18px 0;'
+        'font-size:0;line-height:0;">&nbsp;</div>'
+        + fallback_link(link, language=language)
+    )
+
+    html_body = render_email(
+        title=t["subject"],
+        preheader=t["preheader"],
+        heading=t["heading"],
+        body_html=body,
+        language=language,
+    )
+
+    return t["subject"], text, html_body

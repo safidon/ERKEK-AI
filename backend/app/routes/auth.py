@@ -4,6 +4,7 @@ from pydantic import BaseModel, EmailStr, Field
 from app.core.i18n import language_from_request
 from app.services.welcome import send_welcome_email
 from app.auth import google as google_auth
+from app.auth import email_verification
 from app.core.logger import logger
 
 from app.auth.account import delete_account
@@ -29,7 +30,8 @@ from app.auth.password_reset import (
 
 from app.auth.service import (
     create_user,
-    authenticate_user
+    authenticate_user,
+    get_user_by_id,
 )
 
 
@@ -66,6 +68,8 @@ class RegisterResponse(BaseModel):
     email: str
     username: str
     is_active: bool
+    # True болса — кірер алдында почтадағы сілтеме арқылы растау керек.
+    email_verification_required: bool = False
 
 
 class LoginRequest(BaseModel):
@@ -152,6 +156,18 @@ def register(
             user["username"]
         )
 
+        if email_verification.verification_required():
+            # Алдымен email-ді растау; қош келдің хаты растағаннан кейін.
+            email_verification.mark_unverified(user["user_id"])
+            background_tasks.add_task(
+                email_verification.send_verification,
+                user["user_id"],
+                str(data.email),
+                user["username"],
+                language_from_request(request),
+            )
+            return {**user, "email_verification_required": True}
+
         background_tasks.add_task(
             send_welcome_email,
             str(data.email),
@@ -223,6 +239,16 @@ def login(data: LoginRequest):
                 headers={
                     "WWW-Authenticate": "Bearer"
                 }
+            )
+
+        # Құпиясөз дұрыс, бірақ email әлі расталмаған.
+        if email_verification.is_unverified(user):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "Email әлі расталмаған. Почтаңа келген сілтемені "
+                    "аш немесе хатты қайта жібер."
+                ),
             )
 
         session_id, refresh_token = create_session(
@@ -565,8 +591,79 @@ def google_login(
                 detail="Аккаунт белсенді емес.",
             )
         user_id = user["user_id"]
+
+        # Google email-ді растаған — растауды күтіп тұрған аккаунт белсенді болады.
+        if email_verification.is_unverified(user):
+            email_verification.mark_verified(user_id)
+
         logger.info("Login via Google | user_id=%s", user_id)
 
     session_id, refresh_token = create_session(user_id)
 
     return _issue_tokens(user_id, session_id, refresh_token)
+
+
+# =====================================================
+# EMAIL-ДІ РАСТАУ
+# =====================================================
+
+class VerifyEmailRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=200)
+
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
+
+
+@router.post("/verify-email", response_model=TokenResponse)
+def verify_email(
+    data: VerifyEmailRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+):
+    """Сілтеме жарамды болса — email расталады және пайдаланушы бірден кіреді."""
+
+    user_id = email_verification.verify_token(data.token)
+
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Сілтеме жарамсыз немесе мерзімі өткен. Растау хатын қайта сұра.",
+        )
+
+    user = get_user_by_id(user_id)
+
+    if not user or not user["is_active"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Аккаунт белсенді емес.",
+        )
+
+    background_tasks.add_task(
+        send_welcome_email,
+        user["email"],
+        user["username"] or "",
+        language_from_request(request),
+    )
+
+    session_id, refresh_token = create_session(user_id)
+
+    return _issue_tokens(user_id, session_id, refresh_token)
+
+
+@router.post("/resend-verification")
+def resend_verification(
+    data: ResendVerificationRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+):
+    # Жауап әрқашан бірдей: бөгде адам кімнің аккаунты бар екенін біле алмайды.
+    background_tasks.add_task(
+        email_verification.resend_verification,
+        str(data.email),
+        language_from_request(request),
+    )
+
+    return {
+        "detail": "Егер аккаунт растауды күтіп тұрса, жаңа сілтеме жіберілді."
+    }

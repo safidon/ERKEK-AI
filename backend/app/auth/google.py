@@ -114,8 +114,8 @@ def create_google_user(email: str, given_name: str | None) -> dict:
         cursor.execute(
             adapt_query(
                 """
-                INSERT INTO users (user_id, email, username, password_hash, is_active, display_name)
-                VALUES (?, ?, ?, NULL, 1, ?)
+                INSERT INTO users (user_id, email, username, password_hash, is_active, display_name, email_verified)
+                VALUES (?, ?, ?, NULL, 1, ?, 1)
                 """
             ),
             (user_id, email, username, display_name),

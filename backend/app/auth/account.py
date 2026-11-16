@@ -24,6 +24,7 @@ _DELETE_QUERIES = (
     "DELETE FROM message_feedback WHERE user_id = ?",
     "DELETE FROM telegram_accounts WHERE user_id = ?",
     "DELETE FROM telegram_link_codes WHERE user_id = ?",
+    "DELETE FROM email_verification_tokens WHERE user_id = ?",
     "DELETE FROM users WHERE user_id = ?",
 )
 
