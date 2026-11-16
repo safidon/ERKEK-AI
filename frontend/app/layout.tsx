@@ -6,6 +6,8 @@ import { LanguageProvider } from "@/lib/i18n";
 import { getLang } from "@/lib/lang-server";
 import { SITE_URL } from "@/lib/site";
 
+import { ErrorReporter } from "./error-reporter";
+
 const manrope = Manrope({
   variable: "--font-manrope",
   subsets: ["latin", "cyrillic", "cyrillic-ext"],
@@ -77,7 +79,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${manrope.variable} ${cormorant.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <LanguageProvider initialLang={lang}>{children}</LanguageProvider>
+        <LanguageProvider initialLang={lang}>
+          <ErrorReporter />
+          {children}
+        </LanguageProvider>
       </body>
     </html>
   );

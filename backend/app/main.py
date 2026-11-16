@@ -1,8 +1,10 @@
+import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 
 from app.core.config import (
     APP_NAME,
@@ -17,6 +19,7 @@ from app.core.logger import logger
 from app.core.rate_limit import RateLimiter, RateLimitMiddleware
 from app.core.security_headers import SecurityHeadersMiddleware
 from app.core.i18n import TranslateDetailMiddleware
+from app.services.alerts import install_alert_handler, send_alert
 
 from app.database import (
     get_connection,
@@ -196,3 +199,62 @@ def home():
         "status": "online",
         "version": APP_VERSION,
     }
+
+
+# =====================================================
+# ҚАТЕ МОНИТОРИНГІ
+# =====================================================
+# ERROR логтары және күтпеген қателер әкімшінің Telegram-ына барады.
+
+if os.getenv("ALERTS_ENABLED", "true").lower() != "false":
+    install_alert_handler(logger)
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.error(
+        "Unhandled error | %s %s",
+        request.method,
+        request.url.path,
+        exc_info=(type(exc), exc, exc.__traceback__),
+    )
+
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Сервер қатесі. Біраз уақыттан кейін қайталап көр."},
+    )
+
+
+class ClientError(BaseModel):
+    message: str = Field(max_length=1000)
+    stack: str | None = Field(default=None, max_length=4000)
+    url: str | None = Field(default=None, max_length=500)
+    user_agent: str | None = Field(default=None, max_length=300)
+
+
+@app.post("/client-errors", status_code=204)
+def report_client_error(data: ClientError):
+    """Браузердегі (frontend) қателер. Тек әкімшіге хабар жібереді."""
+
+    details = "\n".join(
+        part
+        for part in (
+            data.message,
+            f"URL: {data.url}" if data.url else "",
+            f"Browser: {data.user_agent}" if data.user_agent else "",
+            "",
+            data.stack or "",
+        )
+        if part is not None
+    ).strip()
+
+    logger.warning("Client error | %s | %s", data.url, data.message[:200])
+
+    if os.getenv("ALERTS_ENABLED", "true").lower() != "false":
+        send_alert(
+            "Frontend қатесі",
+            details,
+            key=f"client|{data.message[:200]}",
+        )
+
+    return Response(status_code=204)

@@ -23,6 +23,8 @@ os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", "")
 os.environ["RATE_LIMIT_ENABLED"] = "false"
 # Күндік хабарлама лимиті өз тестінде тексеріледі.
 os.environ["DAILY_MESSAGES_PER_USER"] = "100000"
+# Қате хабарлары тесттерде жіберілмейді (өз тестінде тексеріледі).
+os.environ["ALERTS_ENABLED"] = "false"
 os.environ.setdefault("OPENAI_API_KEY", "test-openai-key")
 os.environ.setdefault(
     "JWT_SECRET_KEY",
