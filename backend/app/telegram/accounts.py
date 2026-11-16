@@ -107,8 +107,8 @@ def create_telegram_user(
         (
             """
             INSERT INTO telegram_accounts
-                (telegram_user_id, user_id, chat_id, lang, active_session_id, created_at)
-            VALUES (?, ?, ?, ?, NULL, ?)
+                (telegram_user_id, user_id, chat_id, lang, active_session_id, created_at, awaiting)
+            VALUES (?, ?, ?, ?, NULL, ?, 'name')
             """,
             (str(telegram_user_id), user_id, str(chat_id), lang, _now().isoformat()),
         ),
@@ -125,6 +125,20 @@ def set_active_session(telegram_user_id: int | str, session_id: int | None) -> N
     _execute([(
         "UPDATE telegram_accounts SET active_session_id = ? WHERE telegram_user_id = ?",
         (session_id, str(telegram_user_id)),
+    )])
+
+
+def set_awaiting(telegram_user_id: int | str, value: str | None) -> None:
+    _execute([(
+        "UPDATE telegram_accounts SET awaiting = ? WHERE telegram_user_id = ?",
+        (value, str(telegram_user_id)),
+    )])
+
+
+def set_display_name(user_id: str, name: str | None) -> None:
+    _execute([(
+        "UPDATE users SET display_name = ? WHERE user_id = ?",
+        (name, user_id),
     )])
 
 

@@ -12,6 +12,7 @@ Telegram бот логикасы: бір update-ті өңдейді.
 import os
 import threading
 from collections import OrderedDict
+from html import escape as html_escape
 
 from fastapi import HTTPException
 
@@ -58,6 +59,27 @@ TEXTS = {
             "<a href=\"{privacy}\">Политика конфиденциальности</a>"
         ),
     },
+    "choose_lang": {
+        "kk": "Тілді таңда / Выбери язык 👇",
+        "ru": "Тілді таңда / Выбери язык 👇",
+    },
+    "lang_saved": {
+        "kk": "Тіл: 🇰🇿 Қазақша ✓",
+        "ru": "Язык: 🇷🇺 Русский ✓",
+    },
+    "ask_name": {
+        "kk": "Танысайық 🤝 Атың кім? Саған қалай атайын?",
+        "ru": "Давай знакомиться 🤝 Как тебя зовут? Как к тебе обращаться?",
+    },
+    "skip_name": {"kk": "Өткізіп жіберу", "ru": "Пропустить"},
+    "name_saved": {
+        "kk": "Танысқаныма қуаныштымын, <b>{name}</b>! 🤝\n\nНе ойландырып жүр? Жай ғана жаз.",
+        "ru": "Рад знакомству, <b>{name}</b>! 🤝\n\nЧто тебя беспокоит? Просто напиши.",
+    },
+    "name_skipped": {
+        "kk": "Жарайды. Не ойландырып жүр? Жай ғана жаз.",
+        "ru": "Хорошо. Что тебя беспокоит? Просто напиши.",
+    },
     "accept_button": {
         "kk": "✅ Келісемін, 18 жастан асқанмын",
         "ru": "✅ Согласен, мне больше 18 лет",
@@ -103,6 +125,8 @@ TEXTS = {
             "Маған жай ғана жаз — жауап беремін.\n\n"
             "/new — жаңа әңгіме\n"
             "/mode — мінезді таңдау\n"
+            "/lang — тілді ауыстыру\n"
+            "/name — атыңды өзгерту\n"
             "/delete — аккаунтты жою\n"
             "/help — көмек\n\n"
             "Сайттағы аккаунтыңмен байланыстыру: {site}/settings → Telegram."
@@ -111,6 +135,8 @@ TEXTS = {
             "Просто напиши мне — я отвечу.\n\n"
             "/new — новый разговор\n"
             "/mode — выбрать характер\n"
+            "/lang — сменить язык\n"
+            "/name — изменить имя\n"
             "/delete — удалить аккаунт\n"
             "/help — помощь\n\n"
             "Привязать аккаунт с сайта: {site}/settings → Telegram."
@@ -192,6 +218,19 @@ def detect_lang(language_code: str | None) -> str:
 # KEYBOARDS
 # =====================================================
 
+def lang_keyboard() -> dict:
+    return {
+        "inline_keyboard": [[
+            {"text": "🇰🇿 Қазақша", "callback_data": "lang:kk"},
+            {"text": "🇷🇺 Русский", "callback_data": "lang:ru"},
+        ]]
+    }
+
+
+def skip_name_keyboard(lang: str) -> dict:
+    return {"inline_keyboard": [[{"text": t("skip_name", lang), "callback_data": "name:skip"}]]}
+
+
 def accept_keyboard(lang: str) -> dict:
     return {"inline_keyboard": [[{"text": t("accept_button", lang), "callback_data": "accept"}]]}
 
@@ -237,6 +276,21 @@ _seen_lock = threading.Lock()
 # Келісім батырмасын баспай тұрып жазған алғашқы хабарлама:
 # келіскен бойда соған жауап береміз (қайта жазудың қажеті жоқ).
 _pending_first_message: "OrderedDict[str, str]" = OrderedDict()
+
+# Аккаунт ашылмай тұрып таңдалған тіл (келісім батырмасына дейін).
+_pending_lang: "OrderedDict[str, str]" = OrderedDict()
+
+
+def _remember(store: OrderedDict, key, value) -> None:
+    with _seen_lock:
+        store[str(key)] = value
+        while len(store) > 500:
+            store.popitem(last=False)
+
+
+def _take(store: OrderedDict, key):
+    with _seen_lock:
+        return store.pop(str(key), None)
 
 
 def _already_seen(update_id: int | None) -> bool:
@@ -294,11 +348,12 @@ def _handle_message(message: dict) -> None:
 
     if not account:
         if text and len(text) <= MAX_MESSAGE_LENGTH:
-            with _seen_lock:
-                _pending_first_message[str(tg_id)] = text
-                while len(_pending_first_message) > 500:
-                    _pending_first_message.popitem(last=False)
-        _send_welcome(chat_id, lang)
+            _remember(_pending_first_message, tg_id, text)
+        _start_onboarding(tg_id, chat_id)
+        return
+
+    if account["awaiting"] == "name" and text:
+        _receive_name(account, chat_id, text, lang)
         return
 
     if not text:
@@ -325,7 +380,11 @@ def _handle_command(text: str, tg_id, chat_id, account, lang: str) -> None:
         if account:
             api.send_message(chat_id, t("accepted", lang))
         else:
-            _send_welcome(chat_id, lang)
+            _start_onboarding(tg_id, chat_id)
+        return
+
+    if command == "/lang":
+        api.send_message(chat_id, t("choose_lang", lang), lang_keyboard())
         return
 
     if command == "/help":
@@ -333,7 +392,12 @@ def _handle_command(text: str, tg_id, chat_id, account, lang: str) -> None:
         return
 
     if not account:
-        api.send_message(chat_id, t("need_accept", lang), accept_keyboard(lang))
+        _start_onboarding(tg_id, chat_id)
+        return
+
+    if command == "/name":
+        accounts.set_awaiting(tg_id, "name")
+        api.send_message(chat_id, t("ask_name", lang), skip_name_keyboard(lang))
         return
 
     if command == "/new":
@@ -366,6 +430,57 @@ def _handle_command(text: str, tg_id, chat_id, account, lang: str) -> None:
         return
 
     api.send_message(chat_id, t("help", lang, site=_site_url()), html=False)
+
+
+def _start_onboarding(tg_id, chat_id) -> None:
+    """Жаңа адам: алдымен тіл, содан кейін келісім, содан кейін есім."""
+
+    chosen = _pending_lang.get(str(tg_id))
+
+    if chosen:
+        _send_welcome(chat_id, chosen)
+    else:
+        api.send_message(chat_id, t("choose_lang", "kk"), lang_keyboard())
+
+
+def _clean_name(text: str) -> str | None:
+    """Есімге ұқсаса — тазартып қайтарады, сұраққа ұқсаса — None."""
+
+    name = " ".join(text.replace("<", "").replace(">", "").split())
+
+    if not name or len(name) > 40 or len(name.split()) > 3:
+        return None
+
+    if any(mark in name for mark in "?!/:@#"):
+        return None
+
+    return name[:1].upper() + name[1:]
+
+
+def _receive_name(account, chat_id, text: str, lang: str) -> None:
+    tg_id = account["telegram_user_id"]
+    accounts.set_awaiting(tg_id, None)
+
+    name = _clean_name(text)
+
+    if name is None:
+        # Есім емес, бірден сұрақ жазды — сұрағына жауап береміз.
+        _chat(accounts.get_by_telegram_id(tg_id), chat_id, text, lang)
+        return
+
+    accounts.set_display_name(account["user_id"], name)
+    _after_onboarding(tg_id, chat_id, lang, t("name_saved", lang, name=html_escape(name)))
+
+
+def _after_onboarding(tg_id, chat_id, lang: str, greeting: str) -> None:
+    pending = _take(_pending_first_message, tg_id)
+    account = accounts.get_by_telegram_id(tg_id)
+
+    if pending and account:
+        # Алғашқы сұрағына бірден жауап береміз.
+        _chat(account, chat_id, pending, lang)
+    else:
+        api.send_message(chat_id, greeting)
 
 
 def _send_welcome(chat_id, lang: str) -> None:
@@ -508,21 +623,41 @@ def _handle_callback(callback: dict) -> None:
     account = accounts.get_by_telegram_id(tg_id)
     lang = account["lang"] if account else detect_lang(sender.get("language_code"))
 
+    if data.startswith("lang:"):
+        chosen = data.split(":", 1)[1]
+        if chosen not in ("kk", "ru"):
+            api.answer_callback(callback_id)
+            return
+
+        api.answer_callback(callback_id)
+        api.edit_text(chat_id, message.get("message_id"), t("lang_saved", chosen))
+
+        if account:
+            accounts.set_lang(tg_id, chosen)
+        else:
+            _remember(_pending_lang, tg_id, chosen)
+            _send_welcome(chat_id, chosen)
+        return
+
     if data == "accept":
-        if not account:
-            accounts.create_telegram_user(tg_id, chat_id, lang)
         api.answer_callback(callback_id)
         api.edit_reply_markup(chat_id, message.get("message_id"), None)
 
-        with _seen_lock:
-            pending = _pending_first_message.pop(str(tg_id), None)
-
-        account = accounts.get_by_telegram_id(tg_id)
-        if pending and account:
-            # Бұрын жазған сұрағына бірден жауап береміз.
-            _chat(account, chat_id, pending, lang)
-        else:
+        if account:
             api.send_message(chat_id, t("accepted", lang))
+            return
+
+        lang = _take(_pending_lang, tg_id) or lang
+        accounts.create_telegram_user(tg_id, chat_id, lang)
+        api.send_message(chat_id, t("ask_name", lang), skip_name_keyboard(lang))
+        return
+
+    if data == "name:skip":
+        api.answer_callback(callback_id)
+        api.edit_reply_markup(chat_id, message.get("message_id"), None)
+        if account:
+            accounts.set_awaiting(tg_id, None)
+            _after_onboarding(tg_id, chat_id, lang, t("name_skipped", lang))
         return
 
     if not account:

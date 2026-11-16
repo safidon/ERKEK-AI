@@ -43,6 +43,9 @@ class UserProfile:
     ):
         self.user_id = user_id
 
+        # Есімді пайдаланушы өзі береді (AI өзгертпейді).
+        self.display_name: Optional[str] = None
+
         self.language: Optional[str] = None
         self.age: Optional[int] = None
         self.marital_status: Optional[str] = None
@@ -291,6 +294,11 @@ class UserProfile:
 
         context = []
 
+        if self.display_name:
+            context.append(
+                f"Аты: {self.display_name}"
+            )
+
         if self.language:
             context.append(
                 f"Тілі: {self.language}"
@@ -422,6 +430,13 @@ def get_user_profile(
         if row is None:
             profile.save()
             return profile
+
+        try:
+            profile.display_name = (
+                row["display_name"]
+            )
+        except (KeyError, IndexError):
+            profile.display_name = None
 
         profile.language = (
             row["language"]

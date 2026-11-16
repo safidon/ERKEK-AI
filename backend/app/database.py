@@ -419,6 +419,10 @@ def init_sqlite_database():
             # ERKEK AI мінезі (brother / hardcore / strategist)
             "persona":
                 "TEXT",
+
+            # Пайдаланушы өзі айтқан есімі (AI атымен атауы үшін)
+            "display_name":
+                "TEXT",
         }
 
         for (
@@ -704,6 +708,14 @@ def init_postgresql_database():
             """
             ALTER TABLE users
             ADD COLUMN IF NOT EXISTS persona TEXT
+            """
+        )
+
+        # Пайдаланушы өзі айтқан есімі
+        cursor.execute(
+            """
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS display_name TEXT
             """
         )
 
@@ -1156,6 +1168,21 @@ def init_password_reset_schema():
             )
             """
         )
+
+        # Бот қазір не күтіп тұр: 'name' — есімін, NULL — кәдімгі чат.
+        if is_postgresql():
+            cursor.execute(
+                """
+                ALTER TABLE telegram_accounts
+                ADD COLUMN IF NOT EXISTS awaiting TEXT
+                """
+            )
+        else:
+            cursor.execute("PRAGMA table_info(telegram_accounts)")
+            if "awaiting" not in [row["name"] for row in cursor.fetchall()]:
+                cursor.execute(
+                    "ALTER TABLE telegram_accounts ADD COLUMN awaiting TEXT"
+                )
 
         # Сайт аккаунтын Telegram-ға байланыстыру кодтары
         # (бір реттік, қысқа мерзімді; тек hash сақталады).

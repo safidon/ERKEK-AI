@@ -88,9 +88,11 @@ def count(table: str, column: str, value) -> int:
         connection.close()
 
 
-def start_and_accept(tg_id: int, sent) -> str:
+def start_and_accept(tg_id: int, sent, lang: str = "kk") -> str:
     bot.handle_update(text_update(tg_id, "/start"))
+    bot.handle_update(callback_update(tg_id, f"lang:{lang}"))
     bot.handle_update(callback_update(tg_id, "accept"))
+    bot.handle_update(callback_update(tg_id, "name:skip"))
     return accounts.get_by_telegram_id(tg_id)["user_id"]
 
 
@@ -118,24 +120,38 @@ def test_split_long_message():
 # CONSENT + CHAT
 # =====================================================
 
-def test_first_message_waits_for_consent_then_gets_answer(fake_telegram):
+def test_onboarding_language_consent_name_then_first_question(fake_telegram):
     tg_id = new_tg_id()
 
     bot.handle_update(text_update(tg_id, "Жұмыс таппай жүрмін"))
 
+    # 1. Тіл таңдау (жалаушалар)
     assert accounts.get_by_telegram_id(tg_id) is None
-    assert fake_telegram[-1]["markup"]["inline_keyboard"][0][0]["callback_data"] == "accept"
+    flags = [b["callback_data"] for b in fake_telegram[-1]["markup"]["inline_keyboard"][0]]
+    assert flags == ["lang:kk", "lang:ru"]
 
+    # 2. Келісім (таңдалған тілде)
+    bot.handle_update(callback_update(tg_id, "lang:ru"))
+    assert "Согласен" in fake_telegram[-1]["markup"]["inline_keyboard"][0][0]["text"]
+    assert accounts.get_by_telegram_id(tg_id) is None
+
+    # 3. Есім
     bot.handle_update(callback_update(tg_id, "accept"))
-
     account = accounts.get_by_telegram_id(tg_id)
     assert account is not None
+    assert account["lang"] == "ru"
+    assert account["awaiting"] == "name"
+    assert "Как тебя зовут" in fake_telegram[-1]["text"]
 
     user = get_user_by_id(account["user_id"])
     assert user["email"] is None
     assert count("user_consents", "user_id", account["user_id"]) > 0
 
-    # Келіскен бойда алғашқы сұраққа жауап келеді (батырмалары бар).
+    bot.handle_update(text_update(tg_id, "ерлан"))
+    assert get_user_by_id(account["user_id"])["display_name"] == "Ерлан"
+    assert accounts.get_by_telegram_id(tg_id)["awaiting"] is None
+
+    # 4. Алғашқы сұраққа бірден жауап келеді (батырмалары бар).
     answer = fake_telegram[-1]
     assert "<b>Жарайсың</b>" in answer["text"]
     buttons = answer["markup"]["inline_keyboard"][0]
@@ -381,3 +397,58 @@ def test_admin_sees_telegram_split(fake_telegram, monkeypatch):
     assert after["daily"][-1]["telegram_messages"] == after["telegram"]["messages_today"]
     # Telegram санауышы пайдаланушы ретінде есептелмейді.
     assert after["users"]["active_today"] == before["users"]["active_today"] + 2
+
+
+# =====================================================
+# NAME + LANGUAGE
+# =====================================================
+
+def test_name_goes_into_ai_memory(fake_telegram):
+    from app.brain.memory import get_user_profile
+
+    tg_id = new_tg_id()
+    bot.handle_update(text_update(tg_id, "/start"))
+    bot.handle_update(callback_update(tg_id, "lang:kk"))
+    bot.handle_update(callback_update(tg_id, "accept"))
+    bot.handle_update(text_update(tg_id, "Мейрамбек"))
+
+    user_id = accounts.get_by_telegram_id(tg_id)["user_id"]
+    assert "Аты: Мейрамбек" in get_user_profile(user_id).get_context()
+    assert "Мейрамбек" in fake_telegram[-1]["text"]
+
+
+def test_question_instead_of_name_is_answered(fake_telegram):
+    tg_id = new_tg_id()
+    bot.handle_update(text_update(tg_id, "/start"))
+    bot.handle_update(callback_update(tg_id, "lang:kk"))
+    bot.handle_update(callback_update(tg_id, "accept"))
+
+    bot.handle_update(text_update(tg_id, "Жұмысымды қалай ауыстырсам болады?"))
+
+    user_id = accounts.get_by_telegram_id(tg_id)["user_id"]
+    assert get_user_by_id(user_id)["display_name"] is None
+    assert count("conversations", "user_id", user_id) == 2
+
+
+def test_change_language_and_name_later(fake_telegram):
+    tg_id = new_tg_id()
+    user_id = start_and_accept(tg_id, fake_telegram)
+
+    bot.handle_update(text_update(tg_id, "/lang"))
+    bot.handle_update(callback_update(tg_id, "lang:ru"))
+    assert accounts.get_by_telegram_id(tg_id)["lang"] == "ru"
+
+    bot.handle_update(text_update(tg_id, "/name"))
+    assert "Как тебя зовут" in fake_telegram[-1]["text"]
+    bot.handle_update(text_update(tg_id, "Арман"))
+    assert get_user_by_id(user_id)["display_name"] == "Арман"
+
+
+def test_name_is_html_escaped(fake_telegram):
+    tg_id = new_tg_id()
+    bot.handle_update(text_update(tg_id, "/start"))
+    bot.handle_update(callback_update(tg_id, "lang:kk"))
+    bot.handle_update(callback_update(tg_id, "accept"))
+    bot.handle_update(text_update(tg_id, "Али & Co"))
+
+    assert "Али &amp; Co" in fake_telegram[-1]["text"]
