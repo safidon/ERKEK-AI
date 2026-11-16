@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Manrope } from "next/font/google";
 import "./globals.css";
 
@@ -17,6 +17,18 @@ export const metadata: Metadata = {
   title: "ERKEK AI — Digital mentor",
   description:
     "ERKEK AI — ер адамдарға арналған AI-негізіндегі цифрлық ментор.",
+  applicationName: "ERKEK AI",
+  // iPhone: «Экранға қосу» кезінде толық экранда ашылады
+  appleWebApp: {
+    capable: true,
+    title: "ERKEK AI",
+    statusBarStyle: "black",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0c0b09",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

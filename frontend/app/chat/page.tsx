@@ -27,6 +27,8 @@ import {
   UsageHint,
 } from "./components";
 
+import { InstallAppButton } from "../install-app";
+
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -2382,6 +2384,8 @@ export default function ChatPage() {
   </div>
 
   <div className="space-y-1">
+
+    <InstallAppButton />
 
     <AdminLink
       onNavigate={() => {
