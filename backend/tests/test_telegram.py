@@ -352,3 +352,32 @@ def test_webhook_disabled_without_token(monkeypatch):
     )
     assert response.status_code == 404
     assert client.get("/telegram/info").json()["enabled"] is False
+
+
+# =====================================================
+# ADMIN STATS
+# =====================================================
+
+def test_admin_sees_telegram_split(fake_telegram, monkeypatch):
+    admin = site_user()
+    admin_email = get_user_by_id(admin["user_id"])["email"]
+    monkeypatch.setenv("ADMIN_EMAILS", admin_email)
+
+    before = client.get("/admin/stats", headers=admin["headers"]).json()
+
+    tg_only = new_tg_id()
+    start_and_accept(tg_only, fake_telegram)
+    bot.handle_update(text_update(tg_only, "Telegram-нан сұрақ"))
+
+    linked = new_tg_id()
+    bot.handle_update(text_update(linked, f"/start {link_code(site_user())}"))
+    bot.handle_update(text_update(linked, "Байланысқан аккаунттан сұрақ"))
+
+    after = client.get("/admin/stats", headers=admin["headers"]).json()
+
+    assert after["telegram"]["users"] == before["telegram"]["users"] + 2
+    assert after["telegram"]["linked_to_site"] == before["telegram"]["linked_to_site"] + 1
+    assert after["telegram"]["messages_today"] == before["telegram"]["messages_today"] + 2
+    assert after["daily"][-1]["telegram_messages"] == after["telegram"]["messages_today"]
+    # Telegram санауышы пайдаланушы ретінде есептелмейді.
+    assert after["users"]["active_today"] == before["users"]["active_today"] + 2

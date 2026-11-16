@@ -23,7 +23,7 @@ from app.core.logger import logger
 from app.database import adapt_query, get_connection
 from app.prompts.personas import PERSONAS, normalize_persona
 from app.services.feedback import get_feedback_map, set_feedback
-from app.services.usage import enforce_chat_quota
+from app.services.usage import enforce_chat_quota, record_telegram_message
 from app.telegram import accounts, api
 from app.telegram.format import markdown_to_telegram_html, split_message
 
@@ -456,6 +456,8 @@ def _chat(account, chat_id, text: str, lang: str) -> None:
     except HTTPException as error:
         api.send_message(chat_id, translate(str(error.detail), lang), html=False)
         return
+
+    record_telegram_message()
 
     stop = threading.Event()
     threading.Thread(target=_typing_loop, args=(chat_id, stop), daemon=True).start()

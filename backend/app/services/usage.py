@@ -35,6 +35,8 @@ DAILY_SITE_TOKEN_BUDGET = _env_int("DAILY_SITE_TOKEN_BUDGET", 2_000_000)
 USAGE_TZ = timezone(timedelta(hours=_env_int("USAGE_TZ_OFFSET_HOURS", 5)))
 
 SITE_SCOPE = "__site__"
+# Telegram бот арқылы келген хабарламалар (әкімші панеліндегі бөлініс үшін).
+TELEGRAM_SCOPE = "__telegram__"
 
 
 def _today() -> str:
@@ -49,6 +51,10 @@ def next_reset_at() -> datetime:
     return datetime(
         tomorrow.year, tomorrow.month, tomorrow.day, tzinfo=USAGE_TZ
     )
+
+
+def record_telegram_message() -> None:
+    _add(TELEGRAM_SCOPE, messages=1)
 
 
 def _add(scope: str, messages: int = 0, input_tokens: int = 0,

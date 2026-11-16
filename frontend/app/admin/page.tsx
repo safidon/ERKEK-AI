@@ -52,8 +52,16 @@ type Stats = {
     messages: number;
     active_users: number;
     new_users: number;
+    telegram_messages?: number;
     tokens: number;
   }[];
+  telegram?: {
+    users: number;
+    linked_to_site: number;
+    messages_today: number;
+    messages_7d: number;
+    messages_30d: number;
+  };
   feedback?: {
     last_30d: {
       likes: number;
@@ -314,6 +322,18 @@ function Dashboard({ stats }: { stats: Stats }) {
       )}
 
 
+      {/* TELEGRAM */}
+
+      {stats.telegram && (
+        <TelegramPanel
+          telegram={stats.telegram}
+          messagesToday={stats.messages.today}
+          messages7d={stats.messages.last_7d}
+          messages30d={stats.messages.last_30d}
+        />
+      )}
+
+
       {/* FEEDBACK */}
 
       {stats.feedback && (
@@ -348,13 +368,14 @@ function Dashboard({ stats }: { stats: Stats }) {
         </summary>
 
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[480px] text-left">
+          <table className="w-full min-w-[560px] text-left">
             <thead className="text-xs uppercase tracking-wider text-neutral-500">
               <tr>
                 <th className="py-2 pr-4 font-medium">Күн</th>
                 <th className="py-2 pr-4 text-right font-medium">Хабарлама</th>
                 <th className="py-2 pr-4 text-right font-medium">Белсенді</th>
                 <th className="py-2 pr-4 text-right font-medium">Жаңа</th>
+                <th className="py-2 pr-4 text-right font-medium">Telegram</th>
                 <th className="py-2 text-right font-medium">Токен</th>
               </tr>
             </thead>
@@ -365,6 +386,7 @@ function Dashboard({ stats }: { stats: Stats }) {
                   <td className="py-2 pr-4 text-right tabular-nums">{fmt(d.messages)}</td>
                   <td className="py-2 pr-4 text-right tabular-nums">{fmt(d.active_users)}</td>
                   <td className="py-2 pr-4 text-right tabular-nums">{fmt(d.new_users)}</td>
+                  <td className="py-2 pr-4 text-right tabular-nums">{fmt(d.telegram_messages ?? 0)}</td>
                   <td className="py-2 text-right tabular-nums">{fmt(d.tokens)}</td>
                 </tr>
               ))}
@@ -421,6 +443,50 @@ function Dashboard({ stats }: { stats: Stats }) {
 // =====================================================
 // STAT TILE
 // =====================================================
+
+function TelegramPanel({
+  telegram,
+  messagesToday,
+  messages7d,
+  messages30d,
+}: {
+  telegram: NonNullable<Stats["telegram"]>;
+  messagesToday: number;
+  messages7d: number;
+  messages30d: number;
+}) {
+  const share = (part: number, total: number) =>
+    total > 0 ? Math.round((part / total) * 100) : null;
+
+  const share30 = share(telegram.messages_30d, messages30d);
+  const telegramOnly = telegram.users - telegram.linked_to_site;
+
+  return (
+    <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+
+      <StatTile
+        label="Telegram хабарламалары"
+        value={fmt(telegram.messages_today)}
+        detail={`Бүгін сайтта: ${fmt(Math.max(messagesToday - telegram.messages_today, 0))} · 7 күн Telegram: ${fmt(telegram.messages_7d)} / сайт: ${fmt(Math.max(messages7d - telegram.messages_7d, 0))}`}
+      />
+
+      <StatTile
+        label="Telegram үлесі (30 күн)"
+        value={share30 === null ? "—" : `${share30}%`}
+        detail={`Telegram: ${fmt(telegram.messages_30d)} · сайт: ${fmt(Math.max(messages30d - telegram.messages_30d, 0))}`}
+        meter={share30}
+      />
+
+      <StatTile
+        label="Telegram пайдаланушылары"
+        value={fmt(telegram.users)}
+        detail={`Тек Telegram: ${fmt(telegramOnly)} · сайтқа байланған: ${fmt(telegram.linked_to_site)}`}
+      />
+
+    </section>
+  );
+}
+
 
 const PERSONA_NAMES: Record<string, string> = {
   brother: "Аға / Брат",

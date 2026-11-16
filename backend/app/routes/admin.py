@@ -20,6 +20,7 @@ from app.services.feedback import feedback_stats
 from app.services.usage import (
     DAILY_SITE_TOKEN_BUDGET,
     SITE_SCOPE,
+    TELEGRAM_SCOPE,
     USAGE_TZ,
 )
 
@@ -178,6 +179,7 @@ def admin_stats(_admin=Depends(require_admin)):
     )
 
     messages_by_day: dict[str, int] = {}
+    telegram_by_day: dict[str, int] = {}
     active_by_day: dict[str, int] = {}
     tokens_by_day: dict[str, dict] = {}
     messages_by_user_30: dict[str, int] = {}
@@ -187,6 +189,10 @@ def admin_stats(_admin=Depends(require_admin)):
 
     for row in usage:
         day = row["day"]
+
+        if row["scope"] == TELEGRAM_SCOPE:
+            telegram_by_day[day] = int(row["messages"] or 0)
+            continue
 
         if row["scope"] == SITE_SCOPE:
             tokens_by_day[day] = {
@@ -221,6 +227,17 @@ def admin_stats(_admin=Depends(require_admin)):
 
     tokens_today = tokens_sum(lambda d: d == today.isoformat())
     tokens_30 = tokens_sum(lambda d: d >= since_30)
+
+    # ---------- telegram ----------
+    telegram_rows = _fetch_all(
+        """
+        SELECT u.email
+        FROM telegram_accounts t
+        JOIN users u ON u.user_id = t.user_id
+        """
+    )
+    telegram_users = len(telegram_rows)
+    telegram_linked = sum(1 for row in telegram_rows if (row["email"] or "").strip())
 
     # ---------- recent users ----------
     recent = sorted(
@@ -269,6 +286,7 @@ def admin_stats(_admin=Depends(require_admin)):
                 "messages": messages_by_day.get(day, 0),
                 "active_users": active_by_day.get(day, 0),
                 "new_users": new_by_day.get(day, 0),
+                "telegram_messages": telegram_by_day.get(day, 0),
                 "tokens": (
                     tokens_by_day.get(day, {}).get("input", 0)
                     + tokens_by_day.get(day, {}).get("output", 0)
@@ -276,6 +294,13 @@ def admin_stats(_admin=Depends(require_admin)):
             }
             for day in days
         ],
+        "telegram": {
+            "users": telegram_users,
+            "linked_to_site": telegram_linked,
+            "messages_today": telegram_by_day.get(today.isoformat(), 0),
+            "messages_7d": sum(n for d, n in telegram_by_day.items() if d >= since_7),
+            "messages_30d": sum(telegram_by_day.values()),
+        },
         "feedback": {
             "last_30d": feedback_stats(
                 (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
