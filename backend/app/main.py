@@ -16,6 +16,7 @@ from app.core.config import (
 from app.core.logger import logger
 from app.core.rate_limit import RateLimiter, RateLimitMiddleware
 from app.core.security_headers import SecurityHeadersMiddleware
+from app.core.i18n import TranslateDetailMiddleware
 
 from app.database import (
     get_connection,
@@ -68,6 +69,12 @@ app.add_middleware(
     enabled=RATE_LIMIT_ENABLED,
 )
 
+# Орысша интерфейсте қате хабарламаларын аударады
+# (rate limit жауабын да қамтуы үшін одан сыртта тұр).
+app.add_middleware(
+    TranslateDetailMiddleware,
+)
+
 app.add_middleware(
     CORSMiddleware,
 
@@ -86,6 +93,7 @@ app.add_middleware(
     allow_headers=[
         "Authorization",
         "Content-Type",
+        "X-Lang",
     ],
 )
 

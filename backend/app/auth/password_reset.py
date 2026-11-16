@@ -73,7 +73,7 @@ def build_reset_link(token: str) -> str:
     return f"{FRONTEND_URL.rstrip('/')}/reset-password?token={token}"
 
 
-def request_password_reset(email: str) -> None:
+def request_password_reset(email: str, language: str = "kk") -> None:
     """
     Email тіркелген болса — қалпына келтіру хатын жібереді.
     Тіркелмеген болса — ештеңе істемейді (жауап бірдей болуы үшін).
@@ -93,6 +93,7 @@ def request_password_reset(email: str) -> None:
         username=user["username"] or "",
         link=link,
         minutes=minutes,
+        language=language,
     )
 
     send_email(

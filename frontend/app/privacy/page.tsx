@@ -2,16 +2,28 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { OPERATOR, SERVER_LOCATION } from "@/lib/legal";
+import { getLang } from "@/lib/lang-server";
 
 import { Bullets, LegalPage, Section } from "../legal-page";
+import { PrivacyRu } from "./privacy-ru";
 
 
-export const metadata: Metadata = {
-  title: "Құпиялылық саясаты — ERKEK AI",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const lang = await getLang();
+
+  return {
+    title: lang === "ru"
+      ? "Политика конфиденциальности — ERKEK AI"
+      : "Құпиялылық саясаты — ERKEK AI",
+  };
+}
 
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  if ((await getLang()) === "ru") {
+    return <PrivacyRu />;
+  }
+
   return (
     <LegalPage
       title="Құпиялылық саясаты"
@@ -54,7 +66,8 @@ export default function PrivacyPage() {
           серверге жасалған сұраныстардың журналы (IP мекенжай, уақыт).</p>
 
         <p>Сайт жарнамалық немесе бақылау cookie-лерін қолданбайды.
-          Браузеріңде тек жүйеге кіру үшін қажетті token-дер сақталады.</p>
+          Браузеріңде тек жүйеге кіру үшін қажетті token-дер және
+          таңдалған интерфейс тілі сақталады.</p>
       </Section>
 
 

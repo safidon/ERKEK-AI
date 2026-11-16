@@ -1,6 +1,7 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr, Field
 
+from app.core.i18n import language_from_request
 from app.core.logger import logger
 
 from app.auth.account import delete_account
@@ -274,6 +275,7 @@ FORGOT_PASSWORD_MESSAGE = (
 def forgot_password(
     data: ForgotPasswordRequest,
     background_tasks: BackgroundTasks,
+    request: Request,
 ):
     # Email тіркелген-тіркелмегеніне қарамастан жауап бірдей:
     # бөгде адам кімнің аккаунты бар екенін біле алмайды.
@@ -281,6 +283,7 @@ def forgot_password(
     background_tasks.add_task(
         _safe_request_password_reset,
         str(data.email),
+        language_from_request(request),
     )
 
     return {
@@ -288,9 +291,9 @@ def forgot_password(
     }
 
 
-def _safe_request_password_reset(email: str) -> None:
+def _safe_request_password_reset(email: str, language: str = "kk") -> None:
     try:
-        request_password_reset(email)
+        request_password_reset(email, language=language)
     except Exception:
         logger.exception("Password reset request failed")
 

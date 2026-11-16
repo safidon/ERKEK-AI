@@ -10,6 +10,8 @@ import {
 
 import { useRouter } from "next/navigation";
 
+import { LanguageSwitcher, useLang } from "@/lib/i18n";
+
 import {
   clearSession,
   ensureFreshToken,
@@ -105,8 +107,8 @@ async function copyText(
 
 function CopyButton({
   text,
-  label = "Көшіру",
-  copiedLabel = "Көшірілді ✓",
+  label,
+  copiedLabel,
   compact = false,
 }: {
   text: string;
@@ -114,6 +116,8 @@ function CopyButton({
   copiedLabel?: string;
   compact?: boolean;
 }) {
+  const { tr } = useLang();
+
   const [copied, setCopied] =
     useState(false);
 
@@ -172,8 +176,8 @@ function CopyButton({
       }
     >
       {copied
-        ? copiedLabel
-        : label}
+        ? copiedLabel ?? tr("Көшірілді ✓", "Скопировано ✓")
+        : label ?? tr("Көшіру", "Копировать")}
     </button>
   );
 }
@@ -670,6 +674,15 @@ export default function ChatPage() {
   const router =
     useRouter();
 
+  const { tr } = useLang();
+
+  // Backend жаңа чатқа әдепкі атау береді — оны тілге қарай көрсетеміз.
+  function displayTitle(title: string) {
+    return title === "Жаңа әңгіме"
+      ? tr("Жаңа әңгіме", "Новый разговор")
+      : title;
+  }
+
   const [
     sessions,
     setSessions,
@@ -992,7 +1005,7 @@ export default function ChatPage() {
       if (!response.ok) {
         throw new Error(
           data.detail ||
-            "Әңгімелерді жүктеу кезінде қате шықты."
+            tr("Әңгімелерді жүктеу кезінде қате шықты.", "Ошибка при загрузке разговоров.")
         );
       }
 
@@ -1036,7 +1049,7 @@ export default function ChatPage() {
         );
       } else {
         setError(
-          "Белгісіз қате шықты."
+          tr("Белгісіз қате шықты.", "Произошла неизвестная ошибка.")
         );
       }
 
@@ -1123,7 +1136,7 @@ export default function ChatPage() {
       if (!response.ok) {
         throw new Error(
           data.detail ||
-            "Әңгімені ашу кезінде қате шықты."
+            tr("Әңгімені ашу кезінде қате шықты.", "Ошибка при открытии разговора.")
         );
       }
 
@@ -1159,7 +1172,7 @@ export default function ChatPage() {
         );
       } else {
         setError(
-          "Белгісіз қате шықты."
+          tr("Белгісіз қате шықты.", "Произошла неизвестная ошибка.")
         );
       }
 
@@ -1228,7 +1241,7 @@ export default function ChatPage() {
       if (!response.ok) {
         throw new Error(
           data.detail ||
-            "Жаңа чат ашу кезінде қате шықты."
+            tr("Жаңа чат ашу кезінде қате шықты.", "Ошибка при создании нового чата.")
         );
       }
 
@@ -1271,7 +1284,7 @@ export default function ChatPage() {
         );
       } else {
         setError(
-          "Белгісіз қате шықты."
+          tr("Белгісіз қате шықты.", "Произошла неизвестная ошибка.")
         );
       }
 
@@ -1298,7 +1311,7 @@ export default function ChatPage() {
 
     const newTitle =
       window.prompt(
-        "Жаңа атау:",
+        tr("Жаңа атау:", "Новое название:"),
         currentTitle
       );
 
@@ -1362,7 +1375,7 @@ export default function ChatPage() {
       if (!response.ok) {
         throw new Error(
           data.detail ||
-            "Әңгіме атауын өзгерту кезінде қате шықты."
+            tr("Әңгіме атауын өзгерту кезінде қате шықты.", "Ошибка при переименовании разговора.")
         );
       }
 
@@ -1395,7 +1408,7 @@ export default function ChatPage() {
         );
       } else {
         setError(
-          "Белгісіз қате шықты."
+          tr("Белгісіз қате шықты.", "Произошла неизвестная ошибка.")
         );
       }
     }
@@ -1419,7 +1432,7 @@ export default function ChatPage() {
 
     const confirmed =
       window.confirm(
-        "Бұл әңгімені өшіргің келе ме?"
+        tr("Бұл әңгімені өшіргің келе ме?", "Удалить этот разговор?")
       );
 
 
@@ -1462,7 +1475,7 @@ export default function ChatPage() {
       if (!response.ok) {
         throw new Error(
           data.detail ||
-            "Әңгімені өшіру кезінде қате шықты."
+            tr("Әңгімені өшіру кезінде қате шықты.", "Ошибка при удалении разговора.")
         );
       }
 
@@ -1519,7 +1532,7 @@ export default function ChatPage() {
         );
       } else {
         setError(
-          "Белгісіз қате шықты."
+          tr("Белгісіз қате шықты.", "Произошла неизвестная ошибка.")
         );
       }
     }
@@ -1644,7 +1657,7 @@ export default function ChatPage() {
 
       if (!response.ok) {
         let detail =
-          "Сұраныс кезінде қате шықты.";
+          tr("Сұраныс кезінде қате шықты.", "Ошибка при выполнении запроса.");
 
         try {
           const data =
@@ -1795,7 +1808,7 @@ export default function ChatPage() {
         !assistantText.trim()
       ) {
         throw new Error(
-          "AI жауабы бос келді."
+          tr("AI жауабы бос келді.", "Ответ ИИ пришёл пустым.")
         );
       }
 
@@ -1886,7 +1899,7 @@ export default function ChatPage() {
           );
         } else {
           setError(
-            "Белгісіз қате шықты."
+            tr("Белгісіз қате шықты.", "Произошла неизвестная ошибка.")
           );
         }
       }
@@ -1959,7 +1972,7 @@ export default function ChatPage() {
       !lastUserMessage
     ) {
       setError(
-        "Қайта жауап беруге жарамды соңғы сұрақ табылмады."
+        tr("Қайта жауап беруге жарамды соңғы сұрақ табылмады.", "Не найден последний вопрос, на который можно ответить заново.")
       );
       return;
     }
@@ -2007,7 +2020,7 @@ export default function ChatPage() {
       if (!response.ok) {
         throw new Error(
           data.detail ||
-            "Жауапты қайта дайындау кезінде қате шықты."
+            tr("Жауапты қайта дайындау кезінде қате шықты.", "Ошибка при повторной генерации ответа.")
         );
       }
 
@@ -2029,7 +2042,7 @@ export default function ChatPage() {
         );
       } else {
         setError(
-          "Белгісіз қате шықты."
+          tr("Белгісіз қате шықты.", "Произошла неизвестная ошибка.")
         );
       }
 
@@ -2182,7 +2195,7 @@ export default function ChatPage() {
                 hover:bg-neutral-900
                 hover:text-white
               "
-              aria-label="Мәзірді жабу"
+              aria-label={tr("Мәзірді жабу", "Закрыть меню")}
             >
               ×
             </button>
@@ -2219,7 +2232,7 @@ export default function ChatPage() {
               disabled:opacity-50
             "
           >
-            + Жаңа чат
+            {tr("+ Жаңа чат", "+ Новый чат")}
           </button>
 
         </div>
@@ -2263,12 +2276,14 @@ export default function ChatPage() {
               <div className="px-3 py-4">
 
                 <div className="text-sm text-neutral-500">
-                  Әзірге әңгіме жоқ.
+                  {tr("Әзірге әңгіме жоқ.", "Пока нет разговоров.")}
                 </div>
 
                 <div className="mt-1 text-xs leading-5 text-neutral-700">
-                  Жаңа чат ашып,
-                  ERKEK AI-мен сөйлесуді баста.
+                  {tr(
+                    "Жаңа чат ашып, ERKEK AI-мен сөйлесуді баста.",
+                    "Открой новый чат и начни разговор с ERKEK AI."
+                  )}
                 </div>
 
               </div>
@@ -2312,7 +2327,7 @@ export default function ChatPage() {
                         session.title
                       )
                     }
-                    title="Ашу үшін бас. Атын өзгерту үшін екі рет бас."
+                    title={tr("Ашу үшін бас. Атын өзгерту үшін екі рет бас.", "Нажми, чтобы открыть. Дважды — чтобы переименовать.")}
                     className="
                       min-w-0
                       flex-1
@@ -2325,7 +2340,7 @@ export default function ChatPage() {
                     "
                   >
                     {
-                      session.title
+                      displayTitle(session.title)
                     }
                   </button>
 
@@ -2345,7 +2360,7 @@ export default function ChatPage() {
                       lg:hidden
                       lg:group-hover:block
                     "
-                    title="Атын өзгерту"
+                    title={tr("Атын өзгерту", "Переименовать")}
                   >
                     ✎
                   </button>
@@ -2365,7 +2380,7 @@ export default function ChatPage() {
                       lg:hidden
                       lg:group-hover:block
                     "
-                    title="Өшіру"
+                    title={tr("Өшіру", "Удалить")}
                   >
                     ×
                   </button>
@@ -2379,8 +2394,9 @@ export default function ChatPage() {
 
 <div className="border-t border-neutral-900 p-4">
 
-  <div className="mb-3 text-sm font-medium">
+  <div className="mb-3 flex items-center justify-between gap-2 text-sm font-medium">
     ERKEK AI
+    <LanguageSwitcher />
   </div>
 
   <div className="space-y-1">
@@ -2417,7 +2433,7 @@ export default function ChatPage() {
       "
     >
       <span>⚙</span>
-      <span>Баптаулар</span>
+      <span>{tr("Баптаулар", "Настройки")}</span>
     </button>
 
     <button
@@ -2440,7 +2456,7 @@ export default function ChatPage() {
       "
     >
       <span>↪</span>
-      <span>Шығу</span>
+      <span>{tr("Шығу", "Выйти")}</span>
     </button>
 
   </div>
@@ -2470,7 +2486,7 @@ export default function ChatPage() {
       {sidebarOpen && (
         <button
           type="button"
-          aria-label="Мәзірді жабу"
+          aria-label={tr("Мәзірді жабу", "Закрыть меню")}
           onClick={() =>
             setSidebarOpen(
               false
@@ -2546,7 +2562,7 @@ export default function ChatPage() {
               hover:bg-neutral-900
               lg:hidden
             "
-            aria-label="Мәзірді ашу"
+            aria-label={tr("Мәзірді ашу", "Открыть меню")}
           >
             ☰
           </button>
@@ -2557,7 +2573,7 @@ export default function ChatPage() {
             <div className="truncate font-semibold">
               {
                 activeSession
-                  ? activeSession.title
+                  ? displayTitle(activeSession.title)
                   : "ERKEK AI"
               }
             </div>
@@ -2594,7 +2610,7 @@ export default function ChatPage() {
           {sessionLoading && (
             <div className="pointer-events-none sticky top-3 z-20 mx-auto flex w-fit items-center gap-2 rounded-full border border-white/[0.08] bg-neutral-950/90 px-3 py-1.5 text-xs text-neutral-400 shadow-lg backdrop-blur">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-neutral-500" />
-              Әңгіме жүктелуде...
+              {tr("Әңгіме жүктелуде...", "Загружаем разговор...")}
             </div>
           )}
 
@@ -2604,9 +2620,9 @@ export default function ChatPage() {
                 type="button"
                 onClick={scrollToBottom}
                 className="sticky top-[calc(100%-3rem)] z-20 mx-auto mb-2 flex h-9 items-center gap-2 rounded-full border border-white/[0.08] bg-neutral-950/95 px-3 text-xs text-neutral-300 shadow-lg backdrop-blur transition hover:bg-neutral-900 hover:text-white"
-                aria-label="Соңғы хабарламаға өту"
+                aria-label={tr("Соңғы хабарламаға өту", "К последнему сообщению")}
               >
-                ↓ Соңғы хабарлама
+                {tr("↓ Соңғы хабарлама", "↓ Последнее сообщение")}
               </button>
             )}
 
@@ -2746,8 +2762,8 @@ export default function ChatPage() {
                                   "
                                 >
                                   {regenerating
-                                    ? "Қайта дайындалуда..."
-                                    : "Қайта жауап беру"}
+                                    ? tr("Қайта дайындалуда...", "Готовим заново...")
+                                    : tr("Қайта жауап беру", "Ответить заново")}
                                 </button>
                               )}
                             </div>
@@ -2803,8 +2819,8 @@ export default function ChatPage() {
 
                         <span>
                           {regenerating
-                            ? "Жауап қайта дайындалуда..."
-                            : "Жауап басталуда..."}
+                            ? tr("Жауап қайта дайындалуда...", "Ответ готовится заново...")
+                            : tr("Жауап басталуда...", "Начинаем отвечать...")}
                         </span>
 
                       </div>
@@ -2852,7 +2868,7 @@ export default function ChatPage() {
                     )
                   }
                   className="shrink-0 text-red-400/60 transition hover:text-red-300"
-                  aria-label="Қатені жабу"
+                  aria-label={tr("Қатені жабу", "Закрыть ошибку")}
                 >
                   ×
                 </button>
@@ -2894,12 +2910,12 @@ export default function ChatPage() {
                 onKeyDown={
                   handleKeyDown
                 }
-                placeholder="Не ойландырып жүр?"
+                placeholder={tr("Не ойландырып жүр?", "Что тебя беспокоит?")}
                 maxLength={
                   MAX_MESSAGE_LENGTH
                 }
                 rows={1}
-                aria-label="Хабарлама"
+                aria-label={tr("Хабарлама", "Сообщение")}
                 aria-busy={
                   loading ||
                   regenerating
@@ -2936,8 +2952,8 @@ export default function ChatPage() {
                   onClick={
                     stopGenerating
                   }
-                  aria-label="Жауапты тоқтату"
-                  title="Жауапты тоқтату"
+                  aria-label={tr("Жауапты тоқтату", "Остановить ответ")}
+                  title={tr("Жауапты тоқтату", "Остановить ответ")}
                   className="
                     flex
                     h-11
@@ -2960,7 +2976,7 @@ export default function ChatPage() {
                   <span className="h-3 w-3 rounded-[2px] bg-black" />
 
                   <span className="hidden sm:inline">
-                    Тоқтату
+                    {tr("Тоқтату", "Стоп")}
                   </span>
                 </button>
               ) : (
@@ -2969,7 +2985,7 @@ export default function ChatPage() {
                   onClick={
                     sendMessage
                   }
-                  aria-label="Хабарламаны жіберу"
+                  aria-label={tr("Хабарламаны жіберу", "Отправить сообщение")}
                   disabled={
                     regenerating ||
                     !input.trim()
@@ -2992,7 +3008,7 @@ export default function ChatPage() {
                   "
                 >
                   <span className="hidden sm:inline">
-                    Жіберу
+                    {tr("Жіберу", "Отправить")}
                   </span>
 
                   <span className="sm:hidden">
@@ -3005,8 +3021,10 @@ export default function ChatPage() {
 
 
             <div className="mt-2 text-center text-[10px] text-neutral-700 sm:mt-3 sm:text-xs">
-              ERKEK AI қателесуі мүмкін.
-              Маңызды шешімдерді тексер.
+              {tr(
+                "ERKEK AI қателесуі мүмкін. Маңызды шешімдерді тексер.",
+                "ERKEK AI может ошибаться. Проверяй важные решения."
+              )}
             </div>
 
           </div>

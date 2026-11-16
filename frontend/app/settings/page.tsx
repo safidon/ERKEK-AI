@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { LanguageSwitcher, useLang } from "@/lib/i18n";
+import { localizePersona } from "../chat/components";
+
 import {
   clearSession,
   ensureFreshToken,
@@ -46,6 +49,7 @@ const API_URL =
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { tr, lang } = useLang();
 
   const [loading, setLoading] =
     useState(true);
@@ -279,7 +283,7 @@ export default function SettingsPage() {
       if (!response.ok) {
         throw new Error(
           data.detail ||
-            "Профильді жүктеу кезінде қате шықты."
+            tr("Профильді жүктеу кезінде қате шықты.", "Ошибка при загрузке профиля.")
         );
       }
 
@@ -316,7 +320,7 @@ export default function SettingsPage() {
         setError(error.message);
       } else {
         setError(
-          "Белгісіз қате шықты."
+          tr("Белгісіз қате шықты.", "Произошла неизвестная ошибка.")
         );
       }
 
@@ -395,12 +399,12 @@ export default function SettingsPage() {
 
       if (!response.ok) {
         throw new Error(
-          "Мінезді сақтау кезінде қате шықты."
+          tr("Мінезді сақтау кезінде қате шықты.", "Ошибка при сохранении характера.")
         );
       }
 
       showSuccess(
-        "ERKEK AI мінезі сақталды."
+        tr("ERKEK AI мінезі сақталды.", "Характер ERKEK AI сохранён.")
       );
 
     } catch (error) {
@@ -410,7 +414,7 @@ export default function SettingsPage() {
         setError(error.message);
       } else {
         setError(
-          "Белгісіз қате шықты."
+          tr("Белгісіз қате шықты.", "Произошла неизвестная ошибка.")
         );
       }
 
@@ -503,7 +507,7 @@ export default function SettingsPage() {
       if (!response.ok) {
         throw new Error(
           data.detail ||
-            "Профильді сақтау кезінде қате шықты."
+            tr("Профильді сақтау кезінде қате шықты.", "Ошибка при сохранении профиля.")
         );
       }
 
@@ -512,7 +516,7 @@ export default function SettingsPage() {
       );
 
       showSuccess(
-        "Өзгерістер сақталды ✓"
+        tr("Өзгерістер сақталды ✓", "Изменения сохранены ✓")
       );
 
     } catch (error) {
@@ -520,7 +524,7 @@ export default function SettingsPage() {
         setError(error.message);
       } else {
         setError(
-          "Белгісіз қате шықты."
+          tr("Белгісіз қате шықты.", "Произошла неизвестная ошибка.")
         );
       }
 
@@ -546,7 +550,10 @@ export default function SettingsPage() {
 
     const confirmed =
       window.confirm(
-        `${label} бөліміндегі сақталған ақпаратты жадтан өшіреміз бе?`
+        tr(
+          `${label} бөліміндегі сақталған ақпаратты жадтан өшіреміз бе?`,
+          `Удалить из памяти сохранённые сведения в разделе «${label}»?`
+        )
       );
 
     if (!confirmed) {
@@ -587,7 +594,7 @@ export default function SettingsPage() {
           typeof data.detail ===
           "string"
             ? data.detail
-            : "Жадты тазалау кезінде қате шықты.";
+            : tr("Жадты тазалау кезінде қате шықты.", "Ошибка при очистке памяти.");
 
         throw new Error(
           detail
@@ -599,7 +606,7 @@ export default function SettingsPage() {
       );
 
       showSuccess(
-        `${label} жадтан өшірілді ✓`
+        tr(`${label} жадтан өшірілді ✓`, `«${label}» удалено из памяти ✓`)
       );
 
     } catch (error) {
@@ -607,7 +614,7 @@ export default function SettingsPage() {
         setError(error.message);
       } else {
         setError(
-          "Белгісіз қате шықты."
+          tr("Белгісіз қате шықты.", "Произошла неизвестная ошибка.")
         );
       }
 
@@ -632,7 +639,7 @@ export default function SettingsPage() {
 
     const confirmed =
       window.confirm(
-        "ERKEK AI сен туралы сақтаған барлық long-term memory-ді тазалаймыз ба? Аккаунт пен чаттар өшірілмейді."
+        tr("ERKEK AI сен туралы сақтаған барлық long-term memory-ді тазалаймыз ба? Аккаунт пен чаттар өшірілмейді.", "Очистить всю долгосрочную память ERKEK AI о тебе? Аккаунт и чаты не удаляются.")
       );
 
     if (!confirmed) {
@@ -673,7 +680,7 @@ export default function SettingsPage() {
           typeof data.detail ===
           "string"
             ? data.detail
-            : "Жадты толық тазалау кезінде қате шықты.";
+            : tr("Жадты толық тазалау кезінде қате шықты.", "Ошибка при полной очистке памяти.");
 
         throw new Error(
           detail
@@ -685,7 +692,7 @@ export default function SettingsPage() {
       );
 
       showSuccess(
-        "ERKEK AI жады толық тазаланды ✓"
+        tr("ERKEK AI жады толық тазаланды ✓", "Память ERKEK AI полностью очищена ✓")
       );
 
     } catch (error) {
@@ -693,7 +700,7 @@ export default function SettingsPage() {
         setError(error.message);
       } else {
         setError(
-          "Белгісіз қате шықты."
+          tr("Белгісіз қате шықты.", "Произошла неизвестная ошибка.")
         );
       }
 
@@ -866,7 +873,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="mt-4 text-sm text-neutral-500">
-            Профиль жүктелуде...
+            {tr("Профиль жүктелуде...", "Загружаем профиль...")}
           </div>
 
         </div>
@@ -909,7 +916,7 @@ export default function SettingsPage() {
                 hover:bg-neutral-900
                 hover:text-white
               "
-              aria-label="Чатқа оралу"
+              aria-label={tr("Чатқа оралу", "Назад в чат")}
             >
               ←
             </button>
@@ -917,16 +924,18 @@ export default function SettingsPage() {
             <div className="min-w-0">
 
               <div className="truncate font-semibold">
-                Баптаулар
+                {tr("Баптаулар", "Настройки")}
               </div>
 
               <div className="text-xs text-neutral-500">
-                ERKEK AI профилі және жады
+                {tr("ERKEK AI профилі және жады", "Профиль и память ERKEK AI")}
               </div>
 
             </div>
 
           </div>
+
+          <LanguageSwitcher className="ml-auto mr-2 shrink-0" />
 
           <button
             type="button"
@@ -948,7 +957,7 @@ export default function SettingsPage() {
               sm:block
             "
           >
-            Чатқа оралу
+            {tr("Чатқа оралу", "Назад в чат")}
           </button>
 
         </div>
@@ -962,14 +971,14 @@ export default function SettingsPage() {
         <div className="mb-8">
 
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            Профиль және жады
+            {tr("Профиль және жады", "Профиль и память")}
           </h1>
 
           <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-500 sm:text-base">
-            Бұл ақпарат ERKEK AI-ға
-            сені жақсырақ түсінуге және
-            жауаптарды жеке жағдайыңа
-            бейімдеуге көмектеседі.
+            {tr(
+              "Бұл ақпарат ERKEK AI-ға сені жақсырақ түсінуге және жауаптарды жеке жағдайыңа бейімдеуге көмектеседі.",
+              "Эти сведения помогают ERKEK AI лучше понимать тебя и подстраивать ответы под твою ситуацию."
+            )}
           </p>
 
         </div>
@@ -988,7 +997,7 @@ export default function SettingsPage() {
               onClick={() =>
                 setError("")
               }
-              aria-label="Қатені жабу"
+              aria-label={tr("Қатені жабу", "Закрыть ошибку")}
             >
               ×
             </button>
@@ -1014,12 +1023,14 @@ export default function SettingsPage() {
               <div className="mb-6">
 
                 <h2 className="text-lg font-semibold">
-                  ERKEK AI мінезі
+                  {tr("ERKEK AI мінезі", "Характер ERKEK AI")}
                 </h2>
 
                 <p className="mt-1 text-sm text-neutral-500">
-                  ERKEK AI саған қалай сөйлейтінін таңда.
-                  Бірден сақталады.
+                  {tr(
+                    "ERKEK AI саған қалай сөйлейтінін таңда. Бірден сақталады.",
+                    "Выбери, как ERKEK AI будет с тобой говорить. Сохраняется сразу."
+                  )}
                 </p>
 
               </div>
@@ -1027,7 +1038,8 @@ export default function SettingsPage() {
               <div className="grid gap-3 sm:grid-cols-3">
 
                 {personaOptions.map(
-                  (option) => {
+                  (rawOption) => {
+                    const option = localizePersona(rawOption, lang);
                     const selected =
                       option.id === persona;
 
@@ -1077,12 +1089,14 @@ export default function SettingsPage() {
             <div className="mb-6">
 
               <h2 className="text-lg font-semibold">
-                Негізгі ақпарат
+                {tr("Негізгі ақпарат", "Основная информация")}
               </h2>
 
               <p className="mt-1 text-sm text-neutral-500">
-                ERKEK AI пайдаланушы туралы
-                негізгі контекст ретінде қолданады.
+                {tr(
+                  "ERKEK AI пайдаланушы туралы негізгі контекст ретінде қолданады.",
+                  "ERKEK AI использует это как основной контекст о тебе."
+                )}
               </p>
 
             </div>
@@ -1094,7 +1108,7 @@ export default function SettingsPage() {
               <div>
 
                 <label className="mb-2 block text-sm text-neutral-400">
-                  Тіл
+                  {tr("Тіл", "Язык")}
                 </label>
 
                 <select
@@ -1120,7 +1134,7 @@ export default function SettingsPage() {
                   "
                 >
                   <option value="">
-                    Таңдалмаған
+                    {tr("Таңдалмаған", "Не выбран")}
                   </option>
 
                   <option value="kk">
@@ -1143,7 +1157,7 @@ export default function SettingsPage() {
               <div>
 
                 <label className="mb-2 block text-sm text-neutral-400">
-                  Жас
+                  {tr("Жас", "Возраст")}
                 </label>
 
                 <input
@@ -1156,7 +1170,7 @@ export default function SettingsPage() {
                       event.target.value
                     )
                   }
-                  placeholder="Мысалы: 32"
+                  placeholder={tr("Мысалы: 32", "Например: 32")}
                   className="
                     w-full
                     rounded-xl
@@ -1182,12 +1196,12 @@ export default function SettingsPage() {
                     onClick={() =>
                       clearMemoryField(
                         "age",
-                        "Жас"
+                        tr("Жас", "Возраст")
                       )
                     }
                     className="mt-2 text-xs text-neutral-600 transition hover:text-red-400 disabled:opacity-40"
                   >
-                    Жадтан өшіру
+                    {tr("Жадтан өшіру", "Удалить из памяти")}
                   </button>
                 )}
 
@@ -1198,7 +1212,7 @@ export default function SettingsPage() {
               <div>
 
                 <label className="mb-2 block text-sm text-neutral-400">
-                  Отбасылық жағдай
+                  {tr("Отбасылық жағдай", "Семейное положение")}
                 </label>
 
                 <input
@@ -1208,7 +1222,7 @@ export default function SettingsPage() {
                       event.target.value
                     )
                   }
-                  placeholder="Мысалы: үйленген"
+                  placeholder={tr("Мысалы: үйленген", "Например: женат")}
                   className="
                     w-full
                     rounded-xl
@@ -1234,12 +1248,12 @@ export default function SettingsPage() {
                     onClick={() =>
                       clearMemoryField(
                         "marital_status",
-                        "Отбасылық жағдай"
+                        tr("Отбасылық жағдай", "Семейное положение")
                       )
                     }
                     className="mt-2 text-xs text-neutral-600 transition hover:text-red-400 disabled:opacity-40"
                   >
-                    Жадтан өшіру
+                    {tr("Жадтан өшіру", "Удалить из памяти")}
                   </button>
                 )}
 
@@ -1250,7 +1264,7 @@ export default function SettingsPage() {
               <div>
 
                 <label className="mb-2 block text-sm text-neutral-400">
-                  Балалар саны
+                  {tr("Балалар саны", "Количество детей")}
                 </label>
 
                 <input
@@ -1262,7 +1276,7 @@ export default function SettingsPage() {
                       event.target.value
                     )
                   }
-                  placeholder="Мысалы: 2"
+                  placeholder={tr("Мысалы: 2", "Например: 2")}
                   className="
                     w-full
                     rounded-xl
@@ -1288,12 +1302,12 @@ export default function SettingsPage() {
                     onClick={() =>
                       clearMemoryField(
                         "children",
-                        "Балалар саны"
+                        tr("Балалар саны", "Количество детей")
                       )
                     }
                     className="mt-2 text-xs text-neutral-600 transition hover:text-red-400 disabled:opacity-40"
                   >
-                    Жадтан өшіру
+                    {tr("Жадтан өшіру", "Удалить из памяти")}
                   </button>
                 )}
 
@@ -1310,12 +1324,14 @@ export default function SettingsPage() {
             <div className="mb-6">
 
               <h2 className="text-lg font-semibold">
-                Өмірлік контекст
+                {tr("Өмірлік контекст", "Жизненный контекст")}
               </h2>
 
               <p className="mt-1 text-sm text-neutral-500">
-                Жұмыс, қаржы және негізгі
-                мақсат туралы ақпарат.
+                {tr(
+                  "Жұмыс, қаржы және негізгі мақсат туралы ақпарат.",
+                  "Сведения о работе, финансах и главной цели."
+                )}
               </p>
 
             </div>
@@ -1327,7 +1343,7 @@ export default function SettingsPage() {
               <div>
 
                 <label className="mb-2 block text-sm text-neutral-400">
-                  Жұмыс / мансап
+                  {tr("Жұмыс / мансап", "Работа / карьера")}
                 </label>
 
                 <textarea
@@ -1338,7 +1354,7 @@ export default function SettingsPage() {
                     )
                   }
                   rows={3}
-                  placeholder="Қазіргі жұмысың, мамандығың немесе мансаптық жағдайың..."
+                  placeholder={tr("Қазіргі жұмысың, мамандығың немесе мансаптық жағдайың...", "Твоя текущая работа, профессия или карьерная ситуация...")}
                   className="
                     w-full
                     resize-none
@@ -1366,12 +1382,12 @@ export default function SettingsPage() {
                     onClick={() =>
                       clearMemoryField(
                         "career",
-                        "Жұмыс / мансап"
+                        tr("Жұмыс / мансап", "Работа / карьера")
                       )
                     }
                     className="mt-2 text-xs text-neutral-600 transition hover:text-red-400 disabled:opacity-40"
                   >
-                    Жадтан өшіру
+                    {tr("Жадтан өшіру", "Удалить из памяти")}
                   </button>
                 )}
 
@@ -1382,7 +1398,7 @@ export default function SettingsPage() {
               <div>
 
                 <label className="mb-2 block text-sm text-neutral-400">
-                  Қаржылық жағдай
+                  {tr("Қаржылық жағдай", "Финансовое положение")}
                 </label>
 
                 <textarea
@@ -1393,7 +1409,7 @@ export default function SettingsPage() {
                     )
                   }
                   rows={3}
-                  placeholder="Қаржыға қатысты маңызды контекст..."
+                  placeholder={tr("Қаржыға қатысты маңызды контекст...", "Важный контекст о финансах...")}
                   className="
                     w-full
                     resize-none
@@ -1421,12 +1437,12 @@ export default function SettingsPage() {
                     onClick={() =>
                       clearMemoryField(
                         "financial_status",
-                        "Қаржылық жағдай"
+                        tr("Қаржылық жағдай", "Финансовое положение")
                       )
                     }
                     className="mt-2 text-xs text-neutral-600 transition hover:text-red-400 disabled:opacity-40"
                   >
-                    Жадтан өшіру
+                    {tr("Жадтан өшіру", "Удалить из памяти")}
                   </button>
                 )}
 
@@ -1437,7 +1453,7 @@ export default function SettingsPage() {
               <div>
 
                 <label className="mb-2 block text-sm text-neutral-400">
-                  Негізгі мақсат
+                  {tr("Негізгі мақсат", "Главная цель")}
                 </label>
 
                 <textarea
@@ -1448,7 +1464,7 @@ export default function SettingsPage() {
                     )
                   }
                   rows={3}
-                  placeholder="Қазір сен үшін ең маңызды мақсат..."
+                  placeholder={tr("Қазір сен үшін ең маңызды мақсат...", "Самая важная для тебя цель сейчас...")}
                   className="
                     w-full
                     resize-none
@@ -1476,12 +1492,12 @@ export default function SettingsPage() {
                     onClick={() =>
                       clearMemoryField(
                         "main_goal",
-                        "Негізгі мақсат"
+                        tr("Негізгі мақсат", "Главная цель")
                       )
                     }
                     className="mt-2 text-xs text-neutral-600 transition hover:text-red-400 disabled:opacity-40"
                   >
-                    Жадтан өшіру
+                    {tr("Жадтан өшіру", "Удалить из памяти")}
                   </button>
                 )}
 
@@ -1494,12 +1510,12 @@ export default function SettingsPage() {
           {/* GOALS */}
 
           <MemorySection
-            title="Мақсаттар"
-            description="ERKEK AI есте сақтайтын мақсаттар."
+            title={tr("Мақсаттар", "Цели")}
+            description={tr("ERKEK AI есте сақтайтын мақсаттар.", "Цели, которые запоминает ERKEK AI.")}
             fieldName="goals"
             items={goals}
             value={newGoal}
-            placeholder="Жаңа мақсат..."
+            placeholder={tr("Жаңа мақсат...", "Новая цель...")}
             onChange={setNewGoal}
             onAdd={addGoal}
             onRemove={removeGoal}
@@ -1513,12 +1529,12 @@ export default function SettingsPage() {
           {/* HABITS */}
 
           <MemorySection
-            title="Әдеттер"
-            description="Күнделікті немесе тұрақты әдеттер."
+            title={tr("Әдеттер", "Привычки")}
+            description={tr("Күнделікті немесе тұрақты әдеттер.", "Ежедневные или постоянные привычки.")}
             fieldName="habits"
             items={habits}
             value={newHabit}
-            placeholder="Жаңа әдет..."
+            placeholder={tr("Жаңа әдет...", "Новая привычка...")}
             onChange={setNewHabit}
             onAdd={addHabit}
             onRemove={removeHabit}
@@ -1532,12 +1548,12 @@ export default function SettingsPage() {
           {/* IMPORTANT EVENTS */}
 
           <MemorySection
-            title="Маңызды оқиғалар"
-            description="AI болашақ әңгімелерде ескеруі тиіс маңызды оқиғалар."
+            title={tr("Маңызды оқиғалар", "Важные события")}
+            description={tr("AI болашақ әңгімелерде ескеруі тиіс маңызды оқиғалар.", "Важные события, которые ИИ должен учитывать в будущих разговорах.")}
             fieldName="important_events"
             items={importantEvents}
             value={newImportantEvent}
-            placeholder="Маңызды оқиға..."
+            placeholder={tr("Маңызды оқиға...", "Важное событие...")}
             onChange={
               setNewImportantEvent
             }
@@ -1563,15 +1579,14 @@ export default function SettingsPage() {
           <section className="rounded-2xl border border-red-500/15 bg-red-500/[0.03] p-5 sm:p-6">
 
             <h2 className="text-lg font-semibold">
-              Жадты басқару
+              {tr("Жадты басқару", "Управление памятью")}
             </h2>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-500">
-              Бұл әрекет ERKEK AI сен туралы
-              сақтаған long-term memory-ді
-              тазартады. Аккаунт пен әңгімелер
-              өшірілмейді. Тіл параметрі
-              сақталады.
+              {tr(
+                "Бұл әрекет ERKEK AI сен туралы сақтаған long-term memory-ді тазартады. Аккаунт пен әңгімелер өшірілмейді. Тіл параметрі сақталады.",
+                "Это действие очистит долгосрочную память ERKEK AI о тебе. Аккаунт и разговоры не удаляются. Настройка языка сохранится."
+              )}
             </p>
 
             <button
@@ -1602,8 +1617,8 @@ export default function SettingsPage() {
               "
             >
               {memoryActionLoading
-                ? "Орындалуда..."
-                : "Барлық жадты тазалау"}
+                ? tr("Орындалуда...", "Выполняется...")
+                : tr("Барлық жадты тазалау", "Очистить всю память")}
             </button>
 
           </section>
@@ -1623,8 +1638,10 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between gap-4">
 
               <div className="hidden text-xs text-neutral-600 sm:block">
-                Өзгерістер автоматты түрде
-                сақталмайды.
+                {tr(
+                  "Өзгерістер автоматты түрде сақталмайды.",
+                  "Изменения не сохраняются автоматически."
+                )}
               </div>
 
               <button
@@ -1652,8 +1669,8 @@ export default function SettingsPage() {
                 "
               >
                 {saving
-                  ? "Сақталуда..."
-                  : "Өзгерістерді сақтау"}
+                  ? tr("Сақталуда...", "Сохраняем...")
+                  : tr("Өзгерістерді сақтау", "Сохранить изменения")}
               </button>
 
             </div>
@@ -1720,6 +1737,8 @@ function MemorySection({
 
   disabled: boolean;
 }) {
+  const { tr } = useLang();
+
   return (
     <section className="rounded-2xl border border-neutral-900 bg-neutral-950 p-5 sm:p-6">
 
@@ -1763,7 +1782,7 @@ function MemorySection({
               disabled:opacity-40
             "
           >
-            Тазалау
+            {tr("Тазалау", "Очистить")}
           </button>
         )}
 
@@ -1824,7 +1843,7 @@ function MemorySection({
                     disabled:cursor-not-allowed
                     disabled:opacity-40
                   "
-                  aria-label={`${title}: элементті өшіру`}
+                  aria-label={tr(`${title}: элементті өшіру`, `${title}: удалить элемент`)}
                 >
                   ×
                 </button>
@@ -1838,7 +1857,7 @@ function MemorySection({
       ) : (
 
         <div className="mb-5 rounded-xl border border-dashed border-neutral-800 px-4 py-5 text-center text-sm text-neutral-600">
-          Әзірге ештеңе сақталмаған.
+          {tr("Әзірге ештеңе сақталмаған.", "Пока ничего не сохранено.")}
         </div>
 
       )}
@@ -1910,7 +1929,7 @@ function MemorySection({
             disabled:opacity-30
           "
         >
-          Қосу
+          {tr("Қосу", "Добавить")}
         </button>
 
       </div>

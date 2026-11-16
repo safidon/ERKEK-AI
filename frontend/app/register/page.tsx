@@ -9,10 +9,12 @@ import {
 } from "@/lib/auth";
 
 import { registerUser } from "@/lib/api";
+import { LanguageSwitcher, useLang } from "@/lib/i18n";
 
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { tr } = useLang();
 
   // Кірген пайдаланушыны бірден чатқа жібереміз
   useEffect(() => {
@@ -55,7 +57,10 @@ export default function RegisterPage() {
 
     if (!acceptTerms) {
       setError(
-        "Тіркелу үшін шарттар мен құпиялылық саясатына келісу керек."
+        tr(
+          "Тіркелу үшін шарттар мен құпиялылық саясатына келісу керек.",
+          "Для регистрации нужно принять условия и политику конфиденциальности."
+        )
       );
       return;
     }
@@ -76,7 +81,7 @@ export default function RegisterPage() {
       if (error instanceof Error) {
         setError(error.message);
       } else {
-        setError("Белгісіз қате шықты.");
+        setError(tr("Белгісіз қате шықты.", "Произошла неизвестная ошибка."));
       }
 
     } finally {
@@ -147,6 +152,8 @@ export default function RegisterPage() {
 
       </button>
 
+      <LanguageSwitcher className="absolute right-5 top-6 z-20 sm:right-7 sm:top-8" />
+
 
       {/* CONTENT */}
 
@@ -165,24 +172,25 @@ export default function RegisterPage() {
 
                 <span className="text-[9px] text-gold-500">◆</span>
 
-                Жеке AI көмекшіңді баста
+                {tr("Жеке AI көмекшіңді баста", "Начни с личным ИИ-помощником")}
 
               </div>
 
               <h1 className="text-6xl font-semibold leading-[1.05]">
 
-                Бір аккаунт.
+                {tr("Бір аккаунт.", "Один аккаунт.")}
                 <span className="text-gold-gradient block pb-1 italic">
-                  Барлық әңгімең.
+                  {tr("Барлық әңгімең.", "Все твои разговоры.")}
                 </span>
 
               </h1>
 
               <p className="mt-6 max-w-lg text-base leading-8 text-neutral-500">
 
-                Тіркелгеннен кейін жеке чаттарың,
-                ұзақ мерзімді memory және әңгіме тарихы
-                бір аккаунтқа байланысады.
+                {tr(
+                  "Тіркелгеннен кейін жеке чаттарың, ұзақ мерзімді memory және әңгіме тарихы бір аккаунтқа байланысады.",
+                  "После регистрации твои чаты, долгосрочная память и история разговоров будут привязаны к одному аккаунту."
+                )}
 
               </p>
 
@@ -200,15 +208,15 @@ export default function RegisterPage() {
               <div className="mb-8">
 
                 <div className="mb-3 text-xs font-semibold uppercase tracking-[0.26em] text-gold-500">
-                  Жаңа аккаунт
+                  {tr("Жаңа аккаунт", "Новый аккаунт")}
                 </div>
 
                 <h2 className="text-4xl font-semibold">
-                  Тіркелу
+                  {tr("Тіркелу", "Регистрация")}
                 </h2>
 
                 <p className="mt-2 text-sm leading-6 text-neutral-500">
-                  ERKEK AI-ды пайдалануды баста.
+                  {tr("ERKEK AI-ды пайдалануды баста.", "Начни пользоваться ERKEK AI.")}
                 </p>
 
               </div>
@@ -271,7 +279,7 @@ export default function RegisterPage() {
                     htmlFor="username"
                     className="text-sm text-neutral-400"
                   >
-                    Username
+                    {tr("Username", "Имя пользователя")}
                   </label>
 
                   <input
@@ -317,7 +325,7 @@ export default function RegisterPage() {
                     htmlFor="password"
                     className="text-sm text-neutral-400"
                   >
-                    Құпиясөз
+                    {tr("Құпиясөз", "Пароль")}
                   </label>
 
                   <input
@@ -333,7 +341,7 @@ export default function RegisterPage() {
                     required
                     minLength={8}
                     maxLength={128}
-                    placeholder="Кемінде 8 таңба"
+                    placeholder={tr("Кемінде 8 таңба", "Минимум 8 символов")}
                     className="
                       mt-2
                       w-full
@@ -353,7 +361,7 @@ export default function RegisterPage() {
                   />
 
                   <p className="mt-2 text-xs leading-5 text-neutral-700">
-                    Құпиясөз кемінде 8 таңбадан тұрсын.
+                    {tr("Құпиясөз кемінде 8 таңбадан тұрсын.", "Пароль должен содержать минимум 8 символов.")}
                   </p>
 
                 </div>
@@ -375,25 +383,27 @@ export default function RegisterPage() {
                   />
 
                   <span>
-                    18 жастан асқанмын.{" "}
+                    {tr("18 жастан асқанмын.", "Мне больше 18 лет.")}{" "}
+                    {tr("", "Я ознакомился с ")}
                     <Link
                       href="/terms"
                       target="_blank"
                       className="text-gold-400 underline-offset-4 hover:underline"
                     >
-                      Пайдалану шарттарымен
+                      {tr("Пайдалану шарттарымен", "Условиями использования")}
                     </Link>{" "}
-                    және{" "}
+                    {tr("және", "и")}{" "}
                     <Link
                       href="/privacy"
                       target="_blank"
                       className="text-gold-400 underline-offset-4 hover:underline"
                     >
-                      Құпиялылық саясатымен
-                    </Link>{" "}
-                    таныстым. Дербес деректерімді өңдеуге, оның ішінде
-                    жауап дайындау үшін OpenAI (АҚШ) қызметіне беруге
-                    келісемін.
+                      {tr("Құпиялылық саясатымен", "Политикой конфиденциальности")}
+                    </Link>
+                    {tr(
+                      " таныстым. Дербес деректерімді өңдеуге, оның ішінде жауап дайындау үшін OpenAI (АҚШ) қызметіне беруге келісемін.",
+                      " и согласен на обработку моих персональных данных, в том числе на их передачу сервису OpenAI (США) для подготовки ответов."
+                    )}
                   </span>
 
                 </label>
@@ -431,8 +441,8 @@ export default function RegisterPage() {
                   "
                 >
                   {loading
-                    ? "Тіркелуде..."
-                    : "Тіркелу"}
+                    ? tr("Тіркелуде...", "Регистрируем...")
+                    : tr("Тіркелу", "Зарегистрироваться")}
                 </button>
 
               </form>
@@ -443,7 +453,7 @@ export default function RegisterPage() {
               <div className="mt-7 border-t border-white/[0.06] pt-6 text-center">
 
                 <p className="text-sm text-neutral-600">
-                  Аккаунтың бар ма?
+                  {tr("Аккаунтың бар ма?", "Уже есть аккаунт?")}
                 </p>
 
                 <button
@@ -452,7 +462,7 @@ export default function RegisterPage() {
                   }
                   className="mt-2 text-sm font-semibold text-gold-400 transition hover:text-gold-300"
                 >
-                  Аккаунтқа кіру →
+                  {tr("Аккаунтқа кіру →", "Войти в аккаунт →")}
                 </button>
 
               </div>
@@ -463,8 +473,10 @@ export default function RegisterPage() {
             {/* DISCLAIMER */}
 
             <p className="mt-5 text-center text-xs leading-5 text-neutral-700">
-              Тіркелу арқылы ERKEK AI сервисін
-              пайдалануды бастайсың.
+              {tr(
+                "Тіркелу арқылы ERKEK AI сервисін пайдалануды бастайсың.",
+                "Зарегистрировавшись, ты начинаешь пользоваться сервисом ERKEK AI."
+              )}
             </p>
 
           </div>

@@ -27,3 +27,15 @@ export const OPERATOR = {
 // Серверлер қай елде орналасқан (Қазақстан заңы бойынша
 // азаматтардың дербес деректері ел аумағында сақталуы тиіс).
 export const SERVER_LOCATION = "Қазақстан Республикасы";
+
+
+// Орысша нұсқа үшін
+export const LEGAL_DATE_RU = "15 ноября 2026 г.";
+
+export const OPERATOR_RU = {
+  ...OPERATOR,
+  name: "ИП Рысбаев",
+  address: "Республика Казахстан, Мангистауская область, г. Актау",
+};
+
+export const SERVER_LOCATION_RU = "Республики Казахстан";

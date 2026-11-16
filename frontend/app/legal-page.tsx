@@ -1,6 +1,9 @@
 import Link from "next/link";
 
-import { LEGAL_DATE } from "@/lib/legal";
+import { LEGAL_DATE, LEGAL_DATE_RU } from "@/lib/legal";
+import type { Lang } from "@/lib/lang";
+
+import { LanguageSwitcher } from "@/lib/i18n";
 
 
 // =====================================================
@@ -8,14 +11,18 @@ import { LEGAL_DATE } from "@/lib/legal";
 // =====================================================
 
 export function LegalPage({
+  lang = "kk",
   title,
   intro,
   children,
 }: {
+  lang?: Lang;
   title: string;
   intro: string;
   children: React.ReactNode;
 }) {
+  const ru = lang === "ru";
+
   return (
     <main className="min-h-screen bg-black text-white">
 
@@ -31,13 +38,14 @@ export function LegalPage({
             </span>
           </Link>
 
-          <nav className="flex gap-4 text-sm text-neutral-400">
+          <nav className="flex items-center gap-4 text-sm text-neutral-400">
             <Link href="/terms" className="transition hover:text-gold-300">
-              Шарттар
+              {ru ? "Условия" : "Шарттар"}
             </Link>
-            <Link href="/privacy" className="transition hover:text-gold-300">
-              Құпиялылық
+            <Link href="/privacy" className="hidden transition hover:text-gold-300 sm:inline">
+              {ru ? "Конфиденциальность" : "Құпиялылық"}
             </Link>
+            <LanguageSwitcher />
           </nav>
 
         </div>
@@ -47,7 +55,7 @@ export function LegalPage({
       <article className="mx-auto w-full max-w-3xl px-4 pb-24 pt-12 sm:px-6">
 
         <div className="mb-3 text-xs font-semibold uppercase tracking-[0.26em] text-gold-500">
-          Құжат · {LEGAL_DATE}
+          {ru ? `Документ · ${LEGAL_DATE_RU}` : `Құжат · ${LEGAL_DATE}`}
         </div>
 
         <h1 className="text-4xl font-semibold leading-tight sm:text-5xl">

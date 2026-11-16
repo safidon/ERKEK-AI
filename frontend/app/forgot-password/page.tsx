@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 
 import { requestPasswordReset } from "@/lib/api";
+import { useLang } from "@/lib/i18n";
 
 import {
   AuthCard,
@@ -15,6 +16,7 @@ import {
 
 
 export default function ForgotPasswordPage() {
+  const { tr } = useLang();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [sentMessage, setSentMessage] = useState("");
@@ -34,7 +36,7 @@ export default function ForgotPasswordPage() {
       setError(
         error instanceof Error
           ? error.message
-          : "Белгісіз қате шықты."
+          : tr("Белгісіз қате шықты.", "Произошла неизвестная ошибка.")
       );
     } finally {
       setLoading(false);
@@ -44,9 +46,12 @@ export default function ForgotPasswordPage() {
 
   return (
     <AuthCard
-      eyebrow="Аккаунт"
-      title="Құпиясөзді ұмыттың ба?"
-      description="Email-іңді жаз — жаңа құпиясөз қоюға арналған сілтеме жібереміз."
+      eyebrow={tr("Аккаунт", "Аккаунт")}
+      title={tr("Құпиясөзді ұмыттың ба?", "Забыл пароль?")}
+      description={tr(
+        "Email-іңді жаз — жаңа құпиясөз қоюға арналған сілтеме жібереміз.",
+        "Укажи свой email — мы пришлём ссылку для нового пароля."
+      )}
     >
       {sentMessage ? (
         <div className="space-y-5">
@@ -54,15 +59,17 @@ export default function ForgotPasswordPage() {
           <FormSuccess message={sentMessage} />
 
           <p className="text-sm leading-6 text-neutral-500">
-            Хат бірнеше минут ішінде келеді. Көрмесең, «Спам»
-            папкасын тексер. Сілтеме 30 минут жарамды.
+            {tr(
+              "Хат бірнеше минут ішінде келеді. Көрмесең, «Спам» папкасын тексер. Сілтеме 30 минут жарамды.",
+              "Письмо придёт в течение нескольких минут. Если не видишь его, проверь папку «Спам». Ссылка действует 30 минут."
+            )}
           </p>
 
           <Link
             href="/login"
             className="block text-center text-sm font-semibold text-gold-400 transition hover:text-gold-300"
           >
-            ← Кіру бетіне оралу
+            {tr("← Кіру бетіне оралу", "← Вернуться ко входу")}
           </Link>
 
         </div>
@@ -93,7 +100,7 @@ export default function ForgotPasswordPage() {
             disabled={loading}
             className={primaryButtonClassName}
           >
-            {loading ? "Жіберілуде..." : "Сілтеме жіберу"}
+            {loading ? tr("Жіберілуде...", "Отправляем...") : tr("Сілтеме жіберу", "Отправить ссылку")}
           </button>
 
           <div className="border-t border-white/[0.06] pt-5 text-center">
@@ -101,7 +108,7 @@ export default function ForgotPasswordPage() {
               href="/login"
               className="text-sm font-semibold text-gold-400 transition hover:text-gold-300"
             >
-              ← Кіру бетіне оралу
+              {tr("← Кіру бетіне оралу", "← Вернуться ко входу")}
             </Link>
           </div>
 

@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 
+import { LanguageSwitcher } from "@/lib/i18n";
+
 
 // =====================================================
 // AUTH CARD
@@ -46,6 +48,8 @@ export function AuthCard({
           </div>
         </div>
       </Link>
+
+      <LanguageSwitcher className="absolute right-5 top-6 z-20 sm:right-7 sm:top-8" />
 
 
       <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-md items-center px-4 py-24">

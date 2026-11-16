@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import {
   hasStoredSession,
 } from "@/lib/auth";
+import { LanguageSwitcher, useLang } from "@/lib/i18n";
 
 
 export default function Home() {
   const router = useRouter();
+  const { tr } = useLang();
 
 
   // =====================================================
@@ -76,20 +78,22 @@ export default function Home() {
 
           <div className="flex items-center gap-2">
 
+            <LanguageSwitcher />
+
             <button
               onClick={() =>
                 router.push("/login")
               }
               className="hidden rounded-full px-4 py-2 text-sm text-neutral-400 transition hover:text-gold-300 sm:block"
             >
-              Кіру
+              {tr("Кіру", "Войти")}
             </button>
 
             <button
               onClick={handleStart}
               className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black transition"
             >
-              Бастау
+              {tr("Бастау", "Начать")}
             </button>
 
           </div>
@@ -111,17 +115,17 @@ export default function Home() {
 
             <span className="text-[9px] text-gold-500">◆</span>
 
-            AI негізіндегі жеке digital mentor
+            {tr("AI негізіндегі жеке digital mentor", "Личный digital mentor на основе ИИ")}
 
           </div>
 
 
           <h1 className="max-w-4xl text-5xl font-semibold leading-[1.02] sm:text-7xl lg:text-[96px]">
 
-            Өмірдегі ойларыңды
+            {tr("Өмірдегі ойларыңды", "Разберём твои мысли")}
 
             <span className="text-gold-gradient block pb-2 italic">
-              бірге талдайық.
+              {tr("бірге талдайық.", "вместе.")}
             </span>
 
           </h1>
@@ -129,9 +133,10 @@ export default function Home() {
 
           <p className="mt-8 max-w-2xl text-base leading-8 text-neutral-400 sm:text-lg">
 
-            ERKEK AI — жұмыс, қаржы, отбасы,
-            мақсаттар және күнделікті шешімдер туралы
-            сөйлесуге арналған жеке AI көмекші.
+            {tr(
+              "ERKEK AI — жұмыс, қаржы, отбасы, мақсаттар және күнделікті шешімдер туралы сөйлесуге арналған жеке AI көмекші.",
+              "ERKEK AI — личный ИИ-помощник для разговоров о работе, деньгах, семье, целях и повседневных решениях."
+            )}
 
           </p>
 
@@ -142,7 +147,7 @@ export default function Home() {
               onClick={handleStart}
               className="flex flex-1 items-center justify-center gap-2 rounded-full bg-white px-7 py-4 font-semibold text-black transition"
             >
-              ERKEK AI-мен сөйлесу
+              {tr("ERKEK AI-мен сөйлесу", "Поговорить с ERKEK AI")}
               <span aria-hidden>→</span>
             </button>
 
@@ -152,7 +157,7 @@ export default function Home() {
               }
               className="flex items-center justify-center rounded-full border border-gold-500/25 px-7 py-4 font-medium text-neutral-200 transition hover:border-gold-500/50 hover:text-gold-200"
             >
-              Кіру
+              {tr("Кіру", "Войти")}
             </button>
 
           </div>
@@ -176,7 +181,7 @@ export default function Home() {
                   </div>
                   <div className="flex items-center gap-1.5 text-[10px] text-neutral-500">
                     <span className="h-1.5 w-1.5 rounded-full bg-gold-400" />
-                    онлайн
+                    {tr("онлайн", "онлайн")}
                   </div>
                 </div>
 
@@ -188,8 +193,10 @@ export default function Home() {
                 <div className="flex justify-end">
 
                   <div className="max-w-[85%] rounded-2xl rounded-br-md border border-neutral-800 bg-neutral-900 px-4 py-3 text-sm leading-6 text-neutral-100 sm:max-w-[65%]">
-                    Жұмысымды ауыстырғым келеді,
-                    бірақ неден бастарымды білмей жүрмін.
+                    {tr(
+                      "Жұмысымды ауыстырғым келеді, бірақ неден бастарымды білмей жүрмін.",
+                      "Хочу сменить работу, но не знаю, с чего начать."
+                    )}
                   </div>
 
                 </div>
@@ -200,11 +207,17 @@ export default function Home() {
                   <div className="mt-0.5 w-0.5 shrink-0 rounded-full bg-gradient-to-b from-gold-400 to-transparent" />
 
                   <div className="text-sm leading-7 text-neutral-300 sm:text-base">
-                    Алдымен асықпай жағдайыңды бөліп қарайық.
-                    Қазір сен үшін ең маңыздысы —
-                    <span className="text-gold-300"> жаңа бағыт таңдау ма</span>,
-                    табысты көбейту ме,
-                    әлде тұрақты жұмыс табу ма?
+                    {tr(
+                      "Алдымен асықпай жағдайыңды бөліп қарайық. Қазір сен үшін ең маңыздысы —",
+                      "Сначала спокойно разберём твою ситуацию. Что сейчас для тебя важнее всего —"
+                    )}
+                    <span className="text-gold-300">
+                      {tr(" жаңа бағыт таңдау ма", " выбрать новое направление")}
+                    </span>
+                    {tr(
+                      ", табысты көбейту ме, әлде тұрақты жұмыс табу ма?",
+                      ", увеличить доход или найти стабильную работу?"
+                    )}
                   </div>
 
                 </div>
@@ -213,7 +226,7 @@ export default function Home() {
                 <div className="flex items-center justify-between rounded-full border border-neutral-800 bg-black py-1.5 pl-5 pr-1.5">
 
                   <div className="text-sm text-neutral-600">
-                    Не ойландырып жүр?
+                    {tr("Не ойландырып жүр?", "Что тебя беспокоит?")}
                   </div>
 
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-black">
@@ -242,9 +255,12 @@ export default function Home() {
         <div className="mx-auto w-full max-w-6xl px-4 py-24 sm:px-6">
 
           <SectionHeading
-            eyebrow="Мүмкіндіктер"
-            title="Жай chatbot емес."
-            text="ERKEK AI әңгіменің контекстін сақтап, әр тақырыпты бөлек жүргізуге арналған."
+            eyebrow={tr("Мүмкіндіктер", "Возможности")}
+            title={tr("Жай chatbot емес.", "Не просто чат-бот.")}
+            text={tr(
+              "ERKEK AI әңгіменің контекстін сақтап, әр тақырыпты бөлек жүргізуге арналған.",
+              "ERKEK AI сохраняет контекст разговора и ведёт каждую тему отдельно."
+            )}
           />
 
 
@@ -252,38 +268,56 @@ export default function Home() {
 
             <FeatureCard
               number="01"
-              title="Жеке memory"
-              description="Саған қатысты маңызды контекстті есте сақтап, кейінгі жауаптарды соған бейімдейді."
+              title={tr("Жеке memory", "Личная память")}
+              description={tr(
+                "Саған қатысты маңызды контекстті есте сақтап, кейінгі жауаптарды соған бейімдейді.",
+                "Запоминает важное о тебе и подстраивает под это следующие ответы."
+              )}
             />
 
             <FeatureCard
               number="02"
-              title="Бөлек әңгімелер"
-              description="Жұмыс, қаржы немесе отбасы туралы чаттар бір-бірімен араласпайды."
+              title={tr("Бөлек әңгімелер", "Отдельные разговоры")}
+              description={tr(
+                "Жұмыс, қаржы немесе отбасы туралы чаттар бір-бірімен араласпайды.",
+                "Чаты о работе, деньгах или семье не смешиваются между собой."
+              )}
             />
 
             <FeatureCard
               number="03"
-              title="Контекст сақталады"
-              description="Бұрынғы әңгіменің маңызды бөліктерін summary арқылы сақтап отырады."
+              title={tr("Контекст сақталады", "Контекст сохраняется")}
+              description={tr(
+                "Бұрынғы әңгіменің маңызды бөліктерін summary арқылы сақтап отырады.",
+                "Сохраняет главное из прошлых разговоров в виде кратких итогов."
+              )}
             />
 
             <FeatureCard
               number="04"
-              title="Қазақша сөйлеседі"
-              description="Қазақша және орысша хабарламаларды түсініп, тілге сай жауап береді."
+              title={tr("Қазақша сөйлеседі", "Говорит по-казахски и по-русски")}
+              description={tr(
+                "Қазақша және орысша хабарламаларды түсініп, тілге сай жауап береді.",
+                "Понимает сообщения на казахском и русском и отвечает на твоём языке."
+              )}
             />
 
             <FeatureCard
               number="05"
-              title="Жауап стилі"
-              description="Сұраққа қарай қысқа, аналитикалық немесе қолдау стиліндегі жауап таңдайды."
+              title={tr("Жауап стилі", "Стиль ответа")}
+              description={tr(
+                "Сұраққа қарай қысқа, аналитикалық немесе қолдау стиліндегі жауап таңдайды.",
+                "В зависимости от вопроса отвечает коротко, аналитически или с поддержкой."
+              )}
             />
 
             <FeatureCard
               number="06"
-              title="Қауіпсіздік"
-              description="Қауіпті жағдайларды бөлек анықтап, қауіпсіз жауап логикасын қолданады."
+              title={tr("Қауіпсіздік", "Безопасность")}
+              description={tr(
+                "Қауіпті жағдайларды бөлек анықтап, қауіпсіз жауап логикасын қолданады.",
+                "Отдельно распознаёт опасные ситуации и отвечает по правилам безопасности."
+              )}
             />
 
           </div>
@@ -307,18 +341,21 @@ export default function Home() {
 
               <div className="mb-4 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.28em] text-gold-500">
                 <span className="h-px w-8 bg-gold-500/60" />
-                Қалай жұмыс істейді
+                {tr("Қалай жұмыс істейді", "Как это работает")}
               </div>
 
               <h2 className="max-w-xl text-4xl font-semibold leading-tight sm:text-5xl">
-                Бір әңгімеден келесі әңгімеге дейін
-                <span className="text-gold-gradient italic"> контекст жоғалмайды.</span>
+                {tr("Бір әңгімеден келесі әңгімеге дейін", "От одного разговора к другому")}
+                <span className="text-gold-gradient italic">
+                  {tr(" контекст жоғалмайды.", " контекст не теряется.")}
+                </span>
               </h2>
 
               <p className="mt-6 max-w-xl leading-8 text-neutral-400">
-                Әр чаттың жеке history және summary жүйесі бар.
-                Ал ұзақ мерзімді маңызды ақпарат user memory-де
-                сақталады.
+                {tr(
+                  "Әр чаттың жеке history және summary жүйесі бар. Ал ұзақ мерзімді маңызды ақпарат user memory-де сақталады.",
+                  "У каждого чата своя история и краткие итоги. А важное надолго сохраняется в личной памяти."
+                )}
               </p>
 
             </div>
@@ -328,20 +365,20 @@ export default function Home() {
 
               <ProcessItem
                 number="1"
-                title="Жаңа чат аш"
-                description="Әр тақырып үшін бөлек әңгіме баста."
+                title={tr("Жаңа чат аш", "Открой новый чат")}
+                description={tr("Әр тақырып үшін бөлек әңгіме баста.", "Для каждой темы — отдельный разговор.")}
               />
 
               <ProcessItem
                 number="2"
-                title="Еркін сөйлес"
-                description="ERKEK AI контекст, тіл және тақырыпты талдайды."
+                title={tr("Еркін сөйлес", "Говори свободно")}
+                description={tr("ERKEK AI контекст, тіл және тақырыпты талдайды.", "ERKEK AI учитывает контекст, язык и тему.")}
               />
 
               <ProcessItem
                 number="3"
-                title="Әңгімені жалғастыр"
-                description="Кейін қайта кіргенде бұрынғы чат тарихы сақталады."
+                title={tr("Әңгімені жалғастыр", "Продолжай разговор")}
+                description={tr("Кейін қайта кіргенде бұрынғы чат тарихы сақталады.", "Когда вернёшься, история чата будет на месте.")}
               />
 
             </ol>
@@ -372,19 +409,21 @@ export default function Home() {
               <div className="mb-6 text-gold-500">◆</div>
 
               <h2 className="mx-auto max-w-3xl text-4xl font-semibold leading-tight sm:text-5xl">
-                Кейде мәселені шешу үшін
-                алдымен оны дұрыс талқылау керек.
+                {tr(
+                  "Кейде мәселені шешу үшін алдымен оны дұрыс талқылау керек.",
+                  "Иногда, чтобы решить проблему, её сначала нужно правильно обсудить."
+                )}
               </h2>
 
               <p className="mx-auto mt-5 max-w-xl leading-7 text-neutral-400">
-                ERKEK AI-мен жаңа әңгіме баста.
+                {tr("ERKEK AI-мен жаңа әңгіме баста.", "Начни новый разговор с ERKEK AI.")}
               </p>
 
               <button
                 onClick={handleStart}
                 className="mt-9 rounded-full bg-white px-8 py-4 font-semibold text-black transition"
               >
-                Қазір бастау
+                {tr("Қазір бастау", "Начать сейчас")}
               </button>
 
             </div>
@@ -417,14 +456,14 @@ export default function Home() {
               href="/terms"
               className="transition hover:text-gold-300"
             >
-              Шарттар
+              {tr("Шарттар", "Условия")}
             </a>
 
             <a
               href="/privacy"
               className="transition hover:text-gold-300"
             >
-              Құпиялылық
+              {tr("Құпиялылық", "Конфиденциальность")}
             </a>
 
             <button
@@ -433,7 +472,7 @@ export default function Home() {
               }
               className="transition hover:text-gold-300"
             >
-              Кіру
+              {tr("Кіру", "Войти")}
             </button>
 
             <button
@@ -442,7 +481,7 @@ export default function Home() {
               }
               className="transition hover:text-gold-300"
             >
-              Тіркелу
+              {tr("Тіркелу", "Регистрация")}
             </button>
 
           </div>

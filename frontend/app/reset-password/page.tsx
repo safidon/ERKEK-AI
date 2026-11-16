@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
 import { resetPassword } from "@/lib/api";
+import { useLang } from "@/lib/i18n";
 
 import {
   AuthCard,
@@ -19,11 +20,15 @@ const MIN_PASSWORD_LENGTH = 8;
 
 
 export default function ResetPasswordPage() {
+  const { tr } = useLang();
   return (
     <AuthCard
-      eyebrow="Аккаунт"
-      title="Жаңа құпиясөз"
-      description="Кемінде 8 таңбадан тұратын жаңа құпиясөз ойлап тап."
+      eyebrow={tr("Аккаунт", "Аккаунт")}
+      title={tr("Жаңа құпиясөз", "Новый пароль")}
+      description={tr(
+        "Кемінде 8 таңбадан тұратын жаңа құпиясөз ойлап тап.",
+        "Придумай новый пароль минимум из 8 символов."
+      )}
     >
       {/* useSearchParams Suspense ішінде болуы керек (Next.js талабы) */}
       <Suspense fallback={<div className="h-48" />}>
@@ -37,6 +42,7 @@ export default function ResetPasswordPage() {
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") || "";
+  const { tr } = useLang();
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -48,13 +54,18 @@ function ResetPasswordForm() {
   if (!token) {
     return (
       <div className="space-y-5">
-        <FormError message="Сілтеме толық емес. Хаттағы сілтемені қайта аш немесе жаңасын сұра." />
+        <FormError
+          message={tr(
+            "Сілтеме толық емес. Хаттағы сілтемені қайта аш немесе жаңасын сұра.",
+            "Ссылка неполная. Открой ссылку из письма ещё раз или запроси новую."
+          )}
+        />
 
         <Link
           href="/forgot-password"
           className="block text-center text-sm font-semibold text-gold-400 transition hover:text-gold-300"
         >
-          Жаңа сілтеме сұрау →
+          {tr("Жаңа сілтеме сұрау →", "Запросить новую ссылку →")}
         </Link>
       </div>
     );
@@ -67,7 +78,7 @@ function ResetPasswordForm() {
         <FormSuccess message={doneMessage} />
 
         <Link href="/login" className={primaryButtonClassName}>
-          Кіру
+          {tr("Кіру", "Войти")}
         </Link>
       </div>
     );
@@ -80,12 +91,12 @@ function ResetPasswordForm() {
     setError("");
 
     if (password.length < MIN_PASSWORD_LENGTH) {
-      setError("Құпиясөз кемінде 8 таңба болуы керек.");
+      setError(tr("Құпиясөз кемінде 8 таңба болуы керек.", "Пароль должен содержать минимум 8 символов."));
       return;
     }
 
     if (password !== confirm) {
-      setError("Құпиясөздер сәйкес келмейді.");
+      setError(tr("Құпиясөздер сәйкес келмейді.", "Пароли не совпадают."));
       return;
     }
 
@@ -98,7 +109,7 @@ function ResetPasswordForm() {
       setError(
         error instanceof Error
           ? error.message
-          : "Белгісіз қате шықты."
+          : tr("Белгісіз қате шықты.", "Произошла неизвестная ошибка.")
       );
     } finally {
       setLoading(false);
@@ -111,7 +122,7 @@ function ResetPasswordForm() {
 
       <div>
         <label htmlFor="password" className="text-sm text-neutral-400">
-          Жаңа құпиясөз
+          {tr("Жаңа құпиясөз", "Новый пароль")}
         </label>
 
         <input
@@ -130,7 +141,7 @@ function ResetPasswordForm() {
 
       <div>
         <label htmlFor="confirm" className="text-sm text-neutral-400">
-          Құпиясөзді қайтала
+          {tr("Құпиясөзді қайтала", "Повтори пароль")}
         </label>
 
         <input
@@ -153,15 +164,15 @@ function ResetPasswordForm() {
         disabled={loading}
         className={primaryButtonClassName}
       >
-        {loading ? "Сақталуда..." : "Құпиясөзді сақтау"}
+        {loading ? tr("Сақталуда...", "Сохраняем...") : tr("Құпиясөзді сақтау", "Сохранить пароль")}
       </button>
 
-      {error.includes("мерзімі") && (
+      {(error.includes("мерзімі") || error.includes("устарела")) && (
         <Link
           href="/forgot-password"
           className="block text-center text-sm font-semibold text-gold-400 transition hover:text-gold-300"
         >
-          Жаңа сілтеме сұрау →
+          {tr("Жаңа сілтеме сұрау →", "Запросить новую ссылку →")}
         </Link>
       )}
 

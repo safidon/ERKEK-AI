@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { clearSession, ensureFreshToken } from "@/lib/auth";
+import { useLang } from "@/lib/i18n";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -21,6 +22,7 @@ export function DeleteAccountSection({
   onUnauthorized: () => void;
 }) {
   const router = useRouter();
+  const { tr } = useLang();
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState("");
   const [understood, setUnderstood] = useState(false);
@@ -78,7 +80,7 @@ export function DeleteAccountSection({
         setError(
           typeof data.detail === "string"
             ? data.detail
-            : "Аккаунтты жою кезінде қате шықты."
+            : tr("Аккаунтты жою кезінде қате шықты.", "Ошибка при удалении аккаунта.")
         );
         return;
       }
@@ -93,7 +95,7 @@ export function DeleteAccountSection({
       }, 5000);
 
     } catch {
-      setError("Серверге қосылу мүмкін болмады. Қайталап көр.");
+      setError(tr("Серверге қосылу мүмкін болмады. Қайталап көр.", "Не удалось подключиться к серверу. Попробуй ещё раз."));
 
     } finally {
       setLoading(false);
@@ -105,24 +107,25 @@ export function DeleteAccountSection({
     return (
       <section className="rounded-2xl border border-gold-500/25 bg-gold-500/[0.06] p-5 sm:p-6">
         <h2 className="text-lg font-semibold">
-          Аккаунт жойылды
+          {tr("Аккаунт жойылды", "Аккаунт удалён")}
         </h2>
 
         <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-300">
-          Аккаунтың, әңгімелерің және барлық деректерің өшірілді.
-          Резервтік көшірмелерден олар 14 күн ішінде өздігінен кетеді.
-          Сау бол, брат.
+          {tr(
+            "Аккаунтың, әңгімелерің және барлық деректерің өшірілді. Резервтік көшірмелерден олар 14 күн ішінде өздігінен кетеді. Сау бол, брат.",
+            "Твой аккаунт, разговоры и все данные удалены. Из резервных копий они исчезнут автоматически в течение 14 дней. Береги себя, брат."
+          )}
         </p>
 
         <p className="mt-2 text-xs text-neutral-500">
-          Бірнеше секундтан кейін басты бетке өтесің.
+          {tr("Бірнеше секундтан кейін басты бетке өтесің.", "Через несколько секунд ты перейдёшь на главную.")}
         </p>
 
         <Link
           href="/"
           className="mt-5 inline-flex rounded-xl bg-white px-5 py-3 text-sm font-semibold text-black"
         >
-          Басты бетке
+          {tr("Басты бетке", "На главную")}
         </Link>
       </section>
     );
@@ -133,12 +136,14 @@ export function DeleteAccountSection({
     <section className="rounded-2xl border border-red-500/20 bg-red-500/[0.04] p-5 sm:p-6">
 
       <h2 className="text-lg font-semibold">
-        Аккаунтты жою
+        {tr("Аккаунтты жою", "Удаление аккаунта")}
       </h2>
 
       <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-500">
-        Аккаунтың және ERKEK AI-да сақталған барлық деректерің
-        біржола өшіріледі. Бұл әрекетті қайтару мүмкін емес.
+        {tr(
+          "Аккаунтың және ERKEK AI-да сақталған барлық деректерің біржола өшіріледі. Бұл әрекетті қайтару мүмкін емес.",
+          "Твой аккаунт и все данные в ERKEK AI будут удалены навсегда. Это действие нельзя отменить."
+        )}
       </p>
 
 
@@ -148,20 +153,20 @@ export function DeleteAccountSection({
           onClick={() => setOpen(true)}
           className="mt-5 rounded-xl border border-red-500/25 bg-red-500/[0.06] px-4 py-3 text-sm font-medium text-red-400 transition hover:bg-red-500/[0.12] hover:text-red-300"
         >
-          Аккаунтты жою…
+          {tr("Аккаунтты жою…", "Удалить аккаунт…")}
         </button>
       ) : (
         <form onSubmit={handleDelete} className="mt-5 max-w-xl space-y-4">
 
           <div className="rounded-xl border border-red-500/20 bg-black/40 p-4 text-sm leading-6 text-neutral-300">
             <div className="mb-2 font-semibold text-red-300">
-              Не өшіріледі:
+              {tr("Не өшіріледі:", "Что будет удалено:")}
             </div>
             <ul className="list-disc space-y-1 pl-5 text-neutral-400">
-              <li>аккаунт (email, пайдаланушы аты, құпиясөз);</li>
-              <li>барлық әңгімелер мен олардың тарихы;</li>
-              <li>ERKEK AI «жадындағы» мәліметтер;</li>
-              <li>барлық құрылғылардағы кіру сессиялары.</li>
+              <li>{tr("аккаунт (email, пайдаланушы аты, құпиясөз);", "аккаунт (email, имя пользователя, пароль);")}</li>
+              <li>{tr("барлық әңгімелер мен олардың тарихы;", "все разговоры и их история;")}</li>
+              <li>{tr("ERKEK AI «жадындағы» мәліметтер;", "сведения в «памяти» ERKEK AI;")}</li>
+              <li>{tr("барлық құрылғылардағы кіру сессиялары.", "сессии входа на всех устройствах.")}</li>
             </ul>
           </div>
 
@@ -170,7 +175,7 @@ export function DeleteAccountSection({
               htmlFor="delete-password"
               className="text-sm text-neutral-400"
             >
-              Растау үшін құпиясөзіңді енгіз
+              {tr("Растау үшін құпиясөзіңді енгіз", "Для подтверждения введи пароль")}
             </label>
 
             <input
@@ -192,8 +197,10 @@ export function DeleteAccountSection({
               className="mt-1 h-4 w-4 shrink-0 accent-red-500"
             />
             <span>
-              Түсіндім: аккаунт пен деректер біржола жойылады,
-              оларды қалпына келтіру мүмкін емес.
+              {tr(
+                "Түсіндім: аккаунт пен деректер біржола жойылады, оларды қалпына келтіру мүмкін емес.",
+                "Понимаю: аккаунт и данные будут удалены навсегда, восстановить их нельзя."
+              )}
             </span>
           </label>
 
@@ -212,7 +219,7 @@ export function DeleteAccountSection({
               disabled={!understood || !password || loading}
               className="rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {loading ? "Жойылуда..." : "Аккаунтты біржола жою"}
+              {loading ? tr("Жойылуда...", "Удаляем...") : tr("Аккаунтты біржола жою", "Удалить аккаунт навсегда")}
             </button>
 
             <button
@@ -221,7 +228,7 @@ export function DeleteAccountSection({
               disabled={loading}
               className="rounded-xl border border-neutral-800 px-5 py-3 text-sm text-neutral-300 transition hover:border-neutral-700 hover:text-white"
             >
-              Бас тарту
+              {tr("Бас тарту", "Отмена")}
             </button>
           </div>
 

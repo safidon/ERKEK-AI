@@ -9,10 +9,12 @@ import {
 } from "@/lib/auth";
 
 import { loginUser } from "@/lib/api";
+import { LanguageSwitcher, useLang } from "@/lib/i18n";
 
 
 export default function LoginPage() {
   const router = useRouter();
+  const { tr } = useLang();
 
   // Кірген пайдаланушыны бірден чатқа жібереміз
   useEffect(() => {
@@ -65,7 +67,7 @@ export default function LoginPage() {
       if (error instanceof Error) {
         setError(error.message);
       } else {
-        setError("Белгісіз қате шықты.");
+        setError(tr("Белгісіз қате шықты.", "Произошла неизвестная ошибка."));
       }
 
     } finally {
@@ -136,6 +138,8 @@ export default function LoginPage() {
 
       </button>
 
+      <LanguageSwitcher className="absolute right-5 top-6 z-20 sm:right-7 sm:top-8" />
+
 
       {/* CONTENT */}
 
@@ -154,24 +158,25 @@ export default function LoginPage() {
 
                 <span className="text-[9px] text-gold-500">◆</span>
 
-                Қайта келгеніңе қуаныштымыз
+                {tr("Қайта келгеніңе қуаныштымыз", "Рады снова тебя видеть")}
 
               </div>
 
               <h1 className="text-6xl font-semibold leading-[1.05]">
 
-                Әңгімеңді
+                {tr("Әңгімеңді", "Продолжи")}
                 <span className="text-gold-gradient block pb-1 italic">
-                  жалғастыр.
+                  {tr("жалғастыр.", "разговор.")}
                 </span>
 
               </h1>
 
               <p className="mt-6 max-w-lg text-base leading-8 text-neutral-500">
 
-                Бұрынғы чаттарың, жеке контекст және
-                сақталған әңгімелерің аккаунтыңа кіргеннен
-                кейін қайта қолжетімді болады.
+                {tr(
+                  "Бұрынғы чаттарың, жеке контекст және сақталған әңгімелерің аккаунтыңа кіргеннен кейін қайта қолжетімді болады.",
+                  "После входа снова будут доступны твои чаты, личный контекст и сохранённые разговоры."
+                )}
 
               </p>
 
@@ -189,15 +194,15 @@ export default function LoginPage() {
               <div className="mb-8">
 
                 <div className="mb-3 text-xs font-semibold uppercase tracking-[0.26em] text-gold-500">
-                  Аккаунт
+                  {tr("Аккаунт", "Аккаунт")}
                 </div>
 
                 <h2 className="text-4xl font-semibold">
-                  Кіру
+                  {tr("Кіру", "Вход")}
                 </h2>
 
                 <p className="mt-2 text-sm leading-6 text-neutral-500">
-                  ERKEK AI аккаунтыңа кір.
+                  {tr("ERKEK AI аккаунтыңа кір.", "Войди в свой аккаунт ERKEK AI.")}
                 </p>
 
               </div>
@@ -262,7 +267,7 @@ export default function LoginPage() {
                       htmlFor="password"
                       className="text-sm text-neutral-400"
                     >
-                      Құпиясөз
+                      {tr("Құпиясөз", "Пароль")}
                     </label>
 
                     <button
@@ -272,7 +277,7 @@ export default function LoginPage() {
                       }
                       className="text-xs font-medium text-gold-400 transition hover:text-gold-300"
                     >
-                      Құпиясөзді ұмыттың ба?
+                      {tr("Құпиясөзді ұмыттың ба?", "Забыл пароль?")}
                     </button>
 
                   </div>
@@ -342,8 +347,8 @@ export default function LoginPage() {
                   "
                 >
                   {loading
-                    ? "Кіруде..."
-                    : "Кіру"}
+                    ? tr("Кіруде...", "Входим...")
+                    : tr("Кіру", "Войти")}
                 </button>
 
               </form>
@@ -354,7 +359,7 @@ export default function LoginPage() {
               <div className="mt-7 border-t border-white/[0.06] pt-6 text-center">
 
                 <p className="text-sm text-neutral-600">
-                  Аккаунтың жоқ па?
+                  {tr("Аккаунтың жоқ па?", "Нет аккаунта?")}
                 </p>
 
                 <button
@@ -363,7 +368,7 @@ export default function LoginPage() {
                   }
                   className="mt-2 text-sm font-semibold text-gold-400 transition hover:text-gold-300"
                 >
-                  Жаңа аккаунт ашу →
+                  {tr("Жаңа аккаунт ашу →", "Создать аккаунт →")}
                 </button>
 
               </div>
@@ -374,15 +379,15 @@ export default function LoginPage() {
             {/* DISCLAIMER */}
 
             <p className="mt-5 text-center text-xs leading-5 text-neutral-600">
-              Кіру арқылы ERKEK AI-дың{" "}
+              {tr("Кіру арқылы ERKEK AI-дың", "Входя, ты продолжаешь работу в соответствии с")}{" "}
               <a href="/terms" className="text-neutral-400 underline-offset-4 hover:text-gold-300 hover:underline">
-                пайдалану шарттары
+                {tr("пайдалану шарттары", "условиями использования")}
               </a>{" "}
-              мен{" "}
+              {tr("мен", "и")}{" "}
               <a href="/privacy" className="text-neutral-400 underline-offset-4 hover:text-gold-300 hover:underline">
-                құпиялылық саясатына
-              </a>{" "}
-              сәйкес жұмысты жалғастырасың.
+                {tr("құпиялылық саясатына", "политикой конфиденциальности")}
+              </a>
+              {tr(" сәйкес жұмысты жалғастырасың.", " ERKEK AI.")}
             </p>
 
           </div>

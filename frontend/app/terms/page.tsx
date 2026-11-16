@@ -2,16 +2,28 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { OPERATOR } from "@/lib/legal";
+import { getLang } from "@/lib/lang-server";
 
 import { Bullets, LegalPage, Section } from "../legal-page";
+import { TermsRu } from "./terms-ru";
 
 
-export const metadata: Metadata = {
-  title: "Пайдалану шарттары — ERKEK AI",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const lang = await getLang();
+
+  return {
+    title: lang === "ru"
+      ? "Условия использования — ERKEK AI"
+      : "Пайдалану шарттары — ERKEK AI",
+  };
+}
 
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  if ((await getLang()) === "ru") {
+    return <TermsRu />;
+  }
+
   return (
     <LegalPage
       title="Пайдалану шарттары"

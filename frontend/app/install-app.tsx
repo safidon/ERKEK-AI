@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { useLang } from "@/lib/i18n";
+
 
 // =====================================================
 // «ТЕЛЕФОНҒА ОРНАТУ» (PWA)
@@ -46,6 +48,7 @@ export function InstallAppButton({
   const [ios, setIos] = useState(false);
   const [installed, setInstalled] = useState(true);
   const [showIosHelp, setShowIosHelp] = useState(false);
+  const { tr, lang } = useLang();
 
   useEffect(() => {
     // Тек браузерде ғана анықталатын мәндер — mount кезінде бір рет.
@@ -106,28 +109,44 @@ export function InstallAppButton({
         className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm text-neutral-300 transition hover:bg-neutral-900 hover:text-gold-300"
       >
         <span aria-hidden>📲</span>
-        <span>Телефонға орнату</span>
+        <span>{tr("Телефонға орнату", "Установить на телефон")}</span>
       </button>
 
       {showIosHelp && (
         <div className="mt-2 rounded-xl border border-gold-500/25 bg-gold-500/[0.06] p-3 text-xs leading-5 text-neutral-300">
           <div className="mb-1 font-semibold text-gold-300">
-            iPhone-ға орнату:
+            {tr("iPhone-ға орнату:", "Установка на iPhone:")}
           </div>
-          <ol className="list-decimal space-y-1 pl-4">
-            <li>
-              Safari-де төмендегі <strong>«Бөлісу»</strong> батырмасын бас
-              (жоғары бағытталған нұсқамасы бар шаршы).
-            </li>
-            <li>
-              Тізімнен <strong>«Экранға қосу»</strong> («На экран
-              «Домой»») таңда.
-            </li>
-            <li>
-              <strong>«Қосу»</strong> бас — ERKEK AI иконкасы негізгі
-              экранда пайда болады.
-            </li>
-          </ol>
+          {lang === "ru" ? (
+            <ol className="list-decimal space-y-1 pl-4">
+              <li>
+                В Safari нажми кнопку <strong>«Поделиться»</strong> внизу
+                (квадрат со стрелкой вверх).
+              </li>
+              <li>
+                Выбери в списке <strong>«На экран „Домой“»</strong>.
+              </li>
+              <li>
+                Нажми <strong>«Добавить»</strong> — иконка ERKEK AI появится
+                на главном экране.
+              </li>
+            </ol>
+          ) : (
+            <ol className="list-decimal space-y-1 pl-4">
+              <li>
+                Safari-де төмендегі <strong>«Бөлісу»</strong> батырмасын бас
+                (жоғары бағытталған нұсқамасы бар шаршы).
+              </li>
+              <li>
+                Тізімнен <strong>«Экранға қосу»</strong> («На экран
+                «Домой»») таңда.
+              </li>
+              <li>
+                <strong>«Қосу»</strong> бас — ERKEK AI иконкасы негізгі
+                экранда пайда болады.
+              </li>
+            </ol>
+          )}
         </div>
       )}
 

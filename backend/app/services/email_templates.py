@@ -81,13 +81,15 @@ def note(text: str, icon: str = "◆") -> str:
 </table>"""
 
 
-def fallback_link(url: str) -> str:
+def fallback_link(url: str, language: str = "kk") -> str:
     """Батырма ашылмаса — сілтеменің өзі."""
 
     safe_url = esc(url)
     return (
         paragraph(
-            "Батырма ашылмаса, мына сілтемені көшіріп, браузерге қой:",
+            "Если кнопка не открывается, скопируй ссылку в браузер:"
+            if language == "ru"
+            else "Батырма ашылмаса, мына сілтемені көшіріп, браузерге қой:",
             muted=True,
             size=13,
         )
@@ -98,12 +100,29 @@ def fallback_link(url: str) -> str:
     )
 
 
+FOOTER_TEXTS = {
+    "kk": {
+        "tagline": "ERKEK AI — ер адамдарға арналған цифрлық ментор",
+        "privacy": "Құпиялылық",
+        "terms": "Шарттар",
+        "auto": "Бұл хат автоматты түрде жіберілді — оған жауап берудің қажеті жоқ.",
+    },
+    "ru": {
+        "tagline": "ERKEK AI — цифровой наставник для мужчин",
+        "privacy": "Конфиденциальность",
+        "terms": "Условия",
+        "auto": "Письмо отправлено автоматически — отвечать на него не нужно.",
+    },
+}
+
+
 def render_email(
     *,
     title: str,
     preheader: str,
     heading: str,
     body_html: str,
+    language: str = "kk",
 ) -> str:
     """
     Толық хат.
@@ -114,10 +133,12 @@ def render_email(
     privacy = esc(_site("/privacy"))
     terms = esc(_site("/terms"))
     home = esc(_site("/"))
+    html_lang = language if language in FOOTER_TEXTS else "kk"
+    f = FOOTER_TEXTS[html_lang]
 
     return f"""\
 <!DOCTYPE html>
-<html lang="kk">
+<html lang="{html_lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -169,14 +190,14 @@ def render_email(
         <tr>
           <td align="center" style="padding:28px 12px 0 12px;font-family:{SANS};font-size:12px;line-height:1.7;color:{FAINT};">
             <div style="color:{GOLD};font-size:10px;margin-bottom:10px;">◆</div>
-            ERKEK AI — ер адамдарға арналған цифрлық ментор<br>
-            <a href="{privacy}" target="_blank" style="color:{MUTED};text-decoration:underline;">Құпиялылық</a>
+            {f["tagline"]}<br>
+            <a href="{privacy}" target="_blank" style="color:{MUTED};text-decoration:underline;">{f["privacy"]}</a>
             &nbsp;·&nbsp;
-            <a href="{terms}" target="_blank" style="color:{MUTED};text-decoration:underline;">Шарттар</a>
+            <a href="{terms}" target="_blank" style="color:{MUTED};text-decoration:underline;">{f["terms"]}</a>
             &nbsp;·&nbsp;
             <a href="mailto:{CONTACT_EMAIL}" style="color:{MUTED};text-decoration:underline;">{CONTACT_EMAIL}</a><br>
             {esc(OPERATOR_NAME)}, {esc(OPERATOR_CITY)}<br>
-            Бұл хат автоматты түрде жіберілді — оған жауап берудің қажеті жоқ.
+            {f["auto"]}
           </td>
         </tr>
 
@@ -194,26 +215,62 @@ def render_email(
 # ҚҰПИЯСӨЗДІ ҚАЛПЫНА КЕЛТІРУ
 # =====================================================
 
+RESET_TEXTS = {
+    "kk": {
+        "subject": "Құпиясөзді қалпына келтіру — ERKEK AI",
+        "hello": "Сәлем, {name}!",
+        "hello_plain": "Сәлем!",
+        "asked": "ERKEK AI аккаунтыңның құпиясөзін қалпына келтіру сұралды.",
+        "open_link": "Жаңа құпиясөз қою үшін мына сілтемені аш:",
+        "press_button": "Жаңа құпиясөз қою үшін төмендегі батырманы бас.",
+        "valid": "Сілтеме {minutes} минут жарамды және бір рет қана қолданылады.",
+        "valid_html": "Сілтеме <strong>{minutes} минут</strong> жарамды "
+                      "және бір рет қана қолданылады.",
+        "ignore": "Бұл сұранысты сен жібермеген болсаң — хатты елеме, "
+                  "құпиясөзің өзгермейді. Сілтемені ешкімге берме.",
+        "button": "Жаңа құпиясөз қою",
+        "preheader": "Жаңа құпиясөз қоюға арналған сілтеме — {minutes} минут жарамды.",
+    },
+    "ru": {
+        "subject": "Восстановление пароля — ERKEK AI",
+        "hello": "Привет, {name}!",
+        "hello_plain": "Привет!",
+        "asked": "Для твоего аккаунта ERKEK AI запрошено восстановление пароля.",
+        "open_link": "Чтобы задать новый пароль, открой ссылку:",
+        "press_button": "Чтобы задать новый пароль, нажми на кнопку ниже.",
+        "valid": "Ссылка действует {minutes} минут и срабатывает только один раз.",
+        "valid_html": "Ссылка действует <strong>{minutes} минут</strong> "
+                      "и срабатывает только один раз.",
+        "ignore": "Если ты не отправлял этот запрос — просто проигнорируй письмо, "
+                  "пароль не изменится. Никому не передавай ссылку.",
+        "button": "Задать новый пароль",
+        "preheader": "Ссылка для нового пароля — действует {minutes} минут.",
+    },
+}
+
+
 def password_reset_email(
     *,
     username: str,
     link: str,
     minutes: int,
+    language: str = "kk",
 ) -> tuple[str, str, str]:
     """(subject, text, html) қайтарады."""
 
-    subject = "Құпиясөзді қалпына келтіру — ERKEK AI"
+    t = RESET_TEXTS.get(language, RESET_TEXTS["kk"])
 
-    greeting = f"Сәлем, {username}!" if username else "Сәлем!"
+    subject = t["subject"]
+
+    greeting = t["hello"].format(name=username) if username else t["hello_plain"]
 
     text = (
         f"{greeting}\n\n"
-        "ERKEK AI аккаунтыңның құпиясөзін қалпына келтіру сұралды.\n"
-        "Жаңа құпиясөз қою үшін мына сілтемені аш:\n\n"
+        f"{t['asked']}\n"
+        f"{t['open_link']}\n\n"
         f"{link}\n\n"
-        f"Сілтеме {minutes} минут жарамды және бір рет қана қолданылады.\n\n"
-        "Бұл сұранысты сен жібермеген болсаң — хатты елеме, "
-        "құпиясөзің өзгермейді. Сілтемені ешкімге берме.\n\n"
+        f"{t['valid'].format(minutes=minutes)}\n\n"
+        f"{t['ignore']}\n\n"
         "—\n"
         "ERKEK AI\n"
         f"{CONTACT_EMAIL}"
@@ -221,32 +278,21 @@ def password_reset_email(
 
     body = (
         paragraph(esc(greeting))
-        + paragraph(
-            "ERKEK AI аккаунтыңның құпиясөзін қалпына келтіру сұралды. "
-            "Жаңа құпиясөз қою үшін төмендегі батырманы бас."
-        )
-        + button("Жаңа құпиясөз қою", link)
-        + note(
-            f"Сілтеме <strong>{minutes} минут</strong> жарамды "
-            "және бір рет қана қолданылады.",
-            icon="⏱",
-        )
-        + paragraph(
-            "Бұл сұранысты сен жібермеген болсаң — хатты елеме, "
-            "құпиясөзің өзгермейді. Сілтемені ешкімге берме.",
-            muted=True,
-            size=14,
-        )
+        + paragraph(f"{t['asked']} {t['press_button']}")
+        + button(t["button"], link)
+        + note(t["valid_html"].format(minutes=minutes), icon="⏱")
+        + paragraph(t["ignore"], muted=True, size=14)
         + '<div style="height:1px;background:#2a2620;margin:8px 0 18px 0;'
         'font-size:0;line-height:0;">&nbsp;</div>'
-        + fallback_link(link)
+        + fallback_link(link, language=language)
     )
 
     html_body = render_email(
         title=subject,
-        preheader=f"Жаңа құпиясөз қоюға арналған сілтеме — {minutes} минут жарамды.",
-        heading="Жаңа құпиясөз қою",
+        preheader=t["preheader"].format(minutes=minutes),
+        heading=t["button"],
         body_html=body,
+        language=language,
     )
 
     return subject, text, html_body
