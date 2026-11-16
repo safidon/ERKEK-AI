@@ -13,8 +13,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     title: lang === "ru"
-      ? "Политика конфиденциальности — ERKEK AI"
-      : "Құпиялылық саясаты — ERKEK AI",
+      ? "Политика конфиденциальности"
+      : "Құпиялылық саясаты",
   };
 }
 

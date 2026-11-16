@@ -1,0 +1,22 @@
+import type { MetadataRoute } from "next";
+
+import { SITE_URL } from "@/lib/site";
+
+// Іздеу жүйелері тек ашық беттерді көрсетеді.
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: {
+      userAgent: "*",
+      allow: "/",
+      disallow: [
+        "/chat",
+        "/settings",
+        "/admin",
+        "/reset-password",
+        "/api/",
+      ],
+    },
+    sitemap: `${SITE_URL}/sitemap.xml`,
+    host: SITE_URL,
+  };
+}

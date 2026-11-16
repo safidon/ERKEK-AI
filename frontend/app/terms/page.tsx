@@ -13,8 +13,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     title: lang === "ru"
-      ? "Условия использования — ERKEK AI"
-      : "Пайдалану шарттары — ERKEK AI",
+      ? "Условия использования"
+      : "Пайдалану шарттары",
   };
 }
 

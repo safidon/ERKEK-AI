@@ -4,6 +4,7 @@ import "./globals.css";
 
 import { LanguageProvider } from "@/lib/i18n";
 import { getLang } from "@/lib/lang-server";
+import { SITE_URL } from "@/lib/site";
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -18,13 +19,40 @@ const cormorant = Cormorant_Garamond({
 
 export async function generateMetadata(): Promise<Metadata> {
   const lang = await getLang();
+  const ru = lang === "ru";
+
+  const title = ru
+    ? "ERKEK AI — ИИ-наставник для мужчин"
+    : "ERKEK AI — ер адамдарға арналған AI ментор";
+
+  const description = ru
+    ? "Личный ИИ-наставник: работа, деньги, семья, цели и решения. Отвечает на казахском и русском. На сайте и в Telegram."
+    : "Жеке AI ментор: жұмыс, ақша, отбасы, мақсат және шешімдер туралы. Қазақша және орысша жауап береді. Сайтта және Telegram-да.";
 
   return {
-    title: "ERKEK AI — Digital mentor",
-    description:
-      lang === "ru"
-        ? "ERKEK AI — цифровой наставник для мужчин на основе ИИ."
-        : "ERKEK AI — ер адамдарға арналған AI-негізіндегі цифрлық ментор.",
+    metadataBase: new URL(SITE_URL),
+    title: {
+      default: title,
+      template: "%s — ERKEK AI",
+    },
+    description,
+    keywords: ru
+      ? ["ИИ-наставник", "мужчины", "психология", "мотивация", "Казахстан", "ERKEK AI"]
+      : ["AI ментор", "ер адам", "кеңес", "мотивация", "Қазақстан", "ERKEK AI"],
+    openGraph: {
+      type: "website",
+      url: SITE_URL,
+      siteName: "ERKEK AI",
+      title,
+      description,
+      locale: ru ? "ru_RU" : "kk_KZ",
+      alternateLocale: ru ? ["kk_KZ"] : ["ru_RU"],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
     applicationName: "ERKEK AI",
     // iPhone: «Экранға қосу» кезінде толық экранда ашылады
     appleWebApp: {
