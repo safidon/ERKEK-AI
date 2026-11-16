@@ -1,0 +1,78 @@
+name: Uptime
+
+# Сайтты әр 10 минут сайын тексереді.
+# Істемесе — "site-down" белгісі бар issue ашылады (иесіне email келеді).
+# Қайта жұмыс істесе — issue өздігінен жабылады.
+# Ескерту: GitHub жоспарланған тексерулерді кейде бірнеше минутқа кешіктіреді.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+env:
+  SITE: https://erkekai.kz
+  GH_TOKEN: ${{ github.token }}
+  GH_REPO: ${{ github.repository }}
+  LABEL: site-down
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check the site (3 attempts)
+        id: probe
+        run: |
+          ok=false
+          for attempt in 1 2 3; do
+            page=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "$SITE/" || echo 000)
+            api=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "$SITE/api/health/ready" || echo 000)
+            echo "attempt $attempt: page=$page api=$api"
+            if [ "$page" = "200" ] && [ "$api" = "200" ]; then
+              ok=true
+              break
+            fi
+            sleep 20
+          done
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+          echo "page=$page" >> "$GITHUB_OUTPUT"
+          echo "api=$api" >> "$GITHUB_OUTPUT"
+
+      - name: Open an issue when the site is down
+        if: steps.probe.outputs.ok != 'true'
+        run: |
+          gh label create "$LABEL" --color B60205 --description "erkekai.kz is not responding" --force
+          open=$(gh issue list --label "$LABEL" --state open --json number --jq 'length')
+          if [ "$open" = "0" ]; then
+            gh issue create \
+              --title "🔴 erkekai.kz істемей тұр" \
+              --label "$LABEL" \
+              --assignee "${{ github.repository_owner }}" \
+              --body "Сайт тексеруден өтпеді ($(date -u '+%Y-%m-%d %H:%M UTC')).
+
+          - Басты бет: HTTP ${{ steps.probe.outputs.page }}
+          - API (/api/health/ready): HTTP ${{ steps.probe.outputs.api }}
+
+          Сайт қайта жұмыс істей бастағанда бұл issue өздігінен жабылады.
+
+          Не істеу керек: Claude-қа «сайт істемей тұр» деп жаз — ол сервер логтарын қарап, түзетеді."
+          else
+            echo "An open site-down issue already exists."
+          fi
+          exit 1
+
+      - name: Close the issue when the site is back
+        if: steps.probe.outputs.ok == 'true'
+        run: |
+          for n in $(gh issue list --label "$LABEL" --state open --json number --jq '.[].number'); do
+            gh issue close "$n" --comment "✅ Сайт қайта жұмыс істеп тұр ($(date -u '+%Y-%m-%d %H:%M UTC'))."
+          done

@@ -54,6 +54,10 @@ jobs:
           git checkout main
           git reset --hard origin/main
           docker compose --env-file deploy/.env up -d --build --remove-orphans
+          # backup.sh және Caddyfile файл ретінде қосылған — жаңа нұсқасын қолдану үшін:
+          docker compose --env-file deploy/.env restart backup
+          docker compose --env-file deploy/.env exec -T caddy \
+            caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile || true
           docker image prune -f
           for i in $(seq 1 30); do
             if docker compose --env-file deploy/.env exec -T backend \

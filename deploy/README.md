@@ -76,6 +76,13 @@ Caddy бірінші сұраныста Let's Encrypt сертификатын �
 
 ## 5. Мониторинг
 
+**Автоматты тексеру (GitHub):** `.github/workflows/uptime.yml` сайтты әр 10 минут
+сайын тексереді. Істемесе — `site-down` белгісі бар issue ашылады және репозиторий
+иесіне email келеді; сайт қайта жұмыс істегенде issue өздігінен жабылады.
+Ескерту: репозиторийде 60 күн бойы ешқандай өзгеріс болмаса, GitHub жоспарланған
+тексерулерді тоқтатады — Actions бетінде қайта қосу керек.
+
+
 - `https://ДОМЕН/api/health` — backend тірі ме.
 - `https://ДОМЕН/api/health/ready` — backend + database жұмыс істей ме (қате болса 503).
 - Сыртқы тегін мониторинг: [UptimeRobot](https://uptimerobot.com) немесе
@@ -93,7 +100,7 @@ docker compose --env-file deploy/.env logs -f caddy
 
 ## 6. Backup
 
-`backup` сервисі күн сайын `/opt/erkek-ai/backups/` ішіне
+`backup` сервисі күн сайын түнгі 03:00-де (Астана уақытымен) `/opt/erkek-ai/backups/` ішіне
 `erkek_ai_ДАТА.sql.gz` жасайды, `BACKUP_KEEP_DAYS` (әдепкі 14) күннен
 ескісін өшіреді.
 
