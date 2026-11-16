@@ -3,6 +3,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from app.core.i18n import language_from_request
 from app.services.welcome import send_welcome_email
+from app.auth import google as google_auth
 from app.core.logger import logger
 
 from app.auth.account import delete_account
@@ -423,8 +424,9 @@ def logout(data: RefreshRequest):
 # =====================================================
 
 class DeleteAccountRequest(BaseModel):
-    password: str = Field(
-        min_length=1,
+    # Google арқылы ашылған (құпиясөзсіз) аккаунттарда бос болады.
+    password: str | None = Field(
+        default=None,
         max_length=128
     )
 
@@ -442,8 +444,8 @@ def delete_account_endpoint(
     Қауіпсіздік үшін құпиясөз қайта сұралады.
     """
 
-    if not verify_password(
-        data.password,
+    if current_user["password_hash"] and not verify_password(
+        data.password or "",
         current_user["password_hash"]
     ):
         raise HTTPException(
@@ -470,3 +472,101 @@ def delete_account_endpoint(
     return {
         "detail": "Аккаунтың және барлық деректерің жойылды."
     }
+
+
+# =====================================================
+# ME (Баптаулар беті үшін)
+# =====================================================
+
+@router.get("/me")
+def me(current_user=Depends(get_current_user)):
+    try:
+        display_name = current_user["display_name"]
+    except (KeyError, IndexError):
+        display_name = None
+
+    return {
+        "email": current_user["email"],
+        "username": current_user["username"],
+        "display_name": display_name,
+        "has_password": bool(current_user["password_hash"]),
+    }
+
+
+# =====================================================
+# GOOGLE АРҚЫЛЫ КІРУ
+# =====================================================
+
+class GoogleLoginRequest(BaseModel):
+    credential: str = Field(min_length=20, max_length=4096)
+    accept_terms: bool = False
+
+
+@router.get("/google/config")
+def google_config():
+    return {
+        "enabled": google_auth.is_enabled(),
+        "client_id": google_auth.google_client_id() or None,
+    }
+
+
+@router.post("/google", response_model=TokenResponse)
+def google_login(
+    data: GoogleLoginRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+):
+    if not google_auth.is_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Google арқылы кіру қосылмаған.",
+        )
+
+    try:
+        claims = google_auth.verify_id_token(data.credential)
+    except google_auth.GoogleAuthError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Google арқылы кіру сәтсіз аяқталды. Қайталап көр.",
+        )
+
+    user = google_auth.find_user(claims["email"])
+
+    if user is None:
+        # Жаңа пайдаланушы: шарттарға келісім міндетті.
+        if not data.accept_terms:
+            raise HTTPException(
+                status_code=status.HTTP_428_PRECONDITION_REQUIRED,
+                detail=(
+                    "Тіркелу үшін пайдалану шарттары мен "
+                    "құпиялылық саясатына келісу керек."
+                ),
+            )
+
+        created = google_auth.create_google_user(
+            claims["email"], claims.get("given_name")
+        )
+        record_consents(created["user_id"])
+
+        background_tasks.add_task(
+            send_welcome_email,
+            created["email"],
+            claims.get("given_name") or created["username"],
+            language_from_request(request),
+        )
+
+        logger.info("User registered via Google | user_id=%s", created["user_id"])
+        user_id = created["user_id"]
+
+    else:
+        if not user["is_active"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Аккаунт белсенді емес.",
+            )
+        user_id = user["user_id"]
+        logger.info("Login via Google | user_id=%s", user_id)
+
+    session_id, refresh_token = create_session(user_id)
+
+    return _issue_tokens(user_id, session_id, refresh_token)

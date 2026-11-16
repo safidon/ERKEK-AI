@@ -182,3 +182,23 @@ frontend lint + build, Docker image-дер build.
 Бот қосылғаннан кейін басты бетте «Telegram-да жаз» сілтемесі, ал
 Баптаулар бетінде «Telegram-ды байланыстыру» бөлімі өзі пайда болады.
 Token берілмесе, бот өшірулі тұрады.
+
+## 11. Google арқылы кіру
+
+1. [Google Cloud Console](https://console.cloud.google.com/) → жаңа жоба →
+   **APIs & Services → OAuth consent screen**: External, қосымша аты
+   `ERKEK AI`, қолдау email-і, домен `erkekai.kz`, құпиялылық саясаты
+   `https://erkekai.kz/privacy`, шарттар `https://erkekai.kz/terms`.
+   Scopes: тек `email`, `profile`, `openid`. Соңында **Publish app**.
+2. **Credentials → Create credentials → OAuth client ID** → *Web application*.
+   **Authorized JavaScript origins**: `https://erkekai.kz` (және тексеру үшін
+   `http://localhost:3000`). Redirect URI қажет емес.
+3. Берілген **Client ID**-ді (`...apps.googleusercontent.com`, құпия емес)
+   `deploy/.env` файлына қосып, backend-ті қайта іске қосыңыз:
+
+   ```bash
+   GOOGLE_CLIENT_ID=<client id>
+   docker compose --env-file deploy/.env up -d backend
+   ```
+
+Client ID берілген соң кіру/тіркелу беттерінде Google батырмасы өзі шығады.

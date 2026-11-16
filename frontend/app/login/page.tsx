@@ -11,6 +11,12 @@ import {
 import { loginUser } from "@/lib/api";
 import { LanguageSwitcher, useLang } from "@/lib/i18n";
 
+import {
+  finishGoogleLogin,
+  GoogleButton,
+  PENDING_GOOGLE_KEY,
+} from "../google-button";
+
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,6 +42,41 @@ export default function LoginPage() {
 
   const [loading, setLoading] =
     useState(false);
+
+
+  // =====================================================
+  // GOOGLE
+  // =====================================================
+
+  async function handleGoogle(credential: string) {
+    setError("");
+    setLoading(true);
+
+    const result = await finishGoogleLogin(credential, false);
+
+    if (result.status === "ok") {
+      router.push("/chat");
+      return;
+    }
+
+    setLoading(false);
+
+    if (result.status === "consent_required") {
+      // Жаңа пайдаланушы: тіркелу бетінде келісім белгісін қояды.
+      try {
+        sessionStorage.setItem(PENDING_GOOGLE_KEY, credential);
+      } catch {
+        // ignore
+      }
+      router.push("/register?google=1");
+      return;
+    }
+
+    setError(
+      result.message ||
+        tr("Google арқылы кіру сәтсіз аяқталды. Қайталап көр.", "Не удалось войти через Google. Попробуй ещё раз.")
+    );
+  }
 
 
   // =====================================================
@@ -352,6 +393,10 @@ export default function LoginPage() {
                 </button>
 
               </form>
+
+              <div className="mt-5">
+                <GoogleButton onCredential={(credential) => void handleGoogle(credential)} />
+              </div>
 
 
               {/* REGISTER */}

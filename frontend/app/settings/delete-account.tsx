@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -29,6 +29,34 @@ export function DeleteAccountSection({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [deleted, setDeleted] = useState(false);
+  // Google арқылы ашылған аккаунттарда құпиясөз жоқ.
+  const [hasPassword, setHasPassword] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    ensureFreshToken()
+      .then((token) =>
+        token
+          ? fetch(`${API_URL}/auth/me`, {
+              headers: { Authorization: `Bearer ${token}` },
+            })
+          : null
+      )
+      .then((response) => (response?.ok ? response.json() : null))
+      .then((data) => {
+        if (!cancelled && data && data.has_password === false) {
+          setHasPassword(false);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const passwordMissing = hasPassword && !password;
 
 
   function close() {
@@ -42,7 +70,7 @@ export function DeleteAccountSection({
   async function handleDelete(event: React.FormEvent) {
     event.preventDefault();
 
-    if (!understood || !password) {
+    if (!understood || passwordMissing) {
       return;
     }
 
@@ -65,7 +93,7 @@ export function DeleteAccountSection({
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ password }),
+          body: JSON.stringify({ password: password || null }),
         }
       );
 
@@ -170,6 +198,7 @@ export function DeleteAccountSection({
             </ul>
           </div>
 
+          {hasPassword && (
           <div>
             <label
               htmlFor="delete-password"
@@ -188,6 +217,7 @@ export function DeleteAccountSection({
               placeholder="••••••••"
             />
           </div>
+          )}
 
           <label className="flex cursor-pointer items-start gap-3 text-sm leading-6 text-neutral-400">
             <input
@@ -216,7 +246,7 @@ export function DeleteAccountSection({
           <div className="flex flex-wrap gap-3">
             <button
               type="submit"
-              disabled={!understood || !password || loading}
+              disabled={!understood || passwordMissing || loading}
               className="rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {loading ? tr("Жойылуда...", "Удаляем...") : tr("Аккаунтты біржола жою", "Удалить аккаунт навсегда")}

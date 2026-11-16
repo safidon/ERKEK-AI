@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -10,6 +10,23 @@ import {
 
 import { registerUser } from "@/lib/api";
 import { LanguageSwitcher, useLang } from "@/lib/i18n";
+
+import {
+  finishGoogleLogin,
+  GoogleButton,
+  PENDING_GOOGLE_KEY,
+} from "../google-button";
+
+
+function readPendingGoogle(): string | null {
+  try {
+    return sessionStorage.getItem(PENDING_GOOGLE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+const noopSubscribe = () => () => {};
 
 
 export default function RegisterPage() {
@@ -42,6 +59,54 @@ export default function RegisterPage() {
 
   const [loading, setLoading] =
     useState(false);
+
+  // Кіру бетінде Google арқылы келген жаңа пайдаланушы.
+  const storedGoogle = useSyncExternalStore(
+    noopSubscribe,
+    readPendingGoogle,
+    () => null
+  );
+
+  const [localGoogle, setLocalGoogle] =
+    useState<string | null>(null);
+
+  const pendingGoogle = localGoogle ?? storedGoogle;
+
+
+  async function completeGoogle(credential: string) {
+    setError("");
+    setLoading(true);
+
+    const result = await finishGoogleLogin(credential, true);
+
+    if (result.status === "ok") {
+      router.push("/chat");
+      return;
+    }
+
+    setLoading(false);
+    setError(
+      result.status === "error" && result.message
+        ? result.message
+        : tr("Google арқылы кіру сәтсіз аяқталды. Қайталап көр.", "Не удалось войти через Google. Попробуй ещё раз.")
+    );
+  }
+
+
+  function handleGoogle(credential: string) {
+    if (!acceptTerms) {
+      setLocalGoogle(credential);
+      setError(
+        tr(
+          "Жалғастыру үшін алдымен төмендегі келісімге белгі қой.",
+          "Чтобы продолжить, сначала отметь согласие ниже."
+        )
+      );
+      return;
+    }
+
+    void completeGoogle(credential);
+  }
 
 
   // =====================================================
@@ -446,6 +511,29 @@ export default function RegisterPage() {
                 </button>
 
               </form>
+
+              {pendingGoogle ? (
+                <div className="mt-5 space-y-3 rounded-2xl border border-gold-500/25 bg-gold-500/[0.06] p-4 text-sm leading-6 text-gold-100">
+                  <p>
+                    {tr(
+                      "Google аккаунтың дайын. Жоғарыдағы келісімге белгі қойып, жалғастыр.",
+                      "Аккаунт Google готов. Отметь согласие выше и продолжай."
+                    )}
+                  </p>
+                  <button
+                    type="button"
+                    disabled={!acceptTerms || loading}
+                    onClick={() => void completeGoogle(pendingGoogle)}
+                    className="flex w-full items-center justify-center rounded-2xl bg-white px-5 py-3 font-medium text-black transition disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {tr("Google арқылы жалғастыру", "Продолжить через Google")}
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-5">
+                  <GoogleButton onCredential={handleGoogle} />
+                </div>
+              )}
 
 
               {/* LOGIN */}
