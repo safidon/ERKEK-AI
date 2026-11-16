@@ -8,6 +8,7 @@ import {
   ensureFreshToken,
   useSessionKeeper,
 } from "@/lib/auth";
+import { LanguageSwitcher, useLang, type Lang } from "@/lib/i18n";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -68,6 +69,7 @@ type Stats = {
       dislikes: number;
       satisfaction: number | null;
       by_persona: Record<string, { likes: number; dislikes: number }>;
+      by_reason?: Record<string, number>;
     };
   };
   recent_users: {
@@ -91,12 +93,12 @@ function fmt(value: number) {
   return numberFormat.format(value);
 }
 
-function compact(value: number) {
+function compact(value: number, lang: Lang = "kk") {
   if (value >= 1_000_000) {
     return `${(value / 1_000_000).toFixed(1).replace(".0", "")} млн`;
   }
   if (value >= 10_000) {
-    return `${Math.round(value / 1000)} мың`;
+    return `${Math.round(value / 1000)} ${lang === "ru" ? "тыс." : "мың"}`;
   }
   return fmt(value);
 }
@@ -126,6 +128,7 @@ function formatDateTime(iso: string | null) {
 
 export default function AdminPage() {
   const router = useRouter();
+  const { tr } = useLang();
 
   const [stats, setStats] = useState<Stats | null>(null);
   const [state, setState] = useState<
@@ -187,25 +190,29 @@ export default function AdminPage() {
             <Link
               href="/chat"
               className="flex h-10 w-10 items-center justify-center rounded-xl text-neutral-400 transition hover:bg-neutral-900 hover:text-white"
-              aria-label="Чатқа оралу"
+              aria-label={tr("Чатқа оралу", "Назад в чат")}
             >
               ←
             </Link>
             <div>
-              <div className="text-sm font-semibold">Әкімші панелі</div>
-              <div className="text-xs text-neutral-500">ERKEK AI статистикасы</div>
+              <div className="text-sm font-semibold">{tr("Әкімші панелі", "Панель администратора")}</div>
+              <div className="text-xs text-neutral-500">{tr("ERKEK AI статистикасы", "Статистика ERKEK AI")}</div>
             </div>
           </div>
 
-          {state === "ready" && (
-            <button
-              type="button"
-              onClick={() => void load()}
-              className="rounded-xl border border-neutral-800 px-3 py-2 text-xs text-neutral-300 transition hover:border-gold-500/40 hover:text-gold-300 sm:text-sm"
-            >
-              ↻ Жаңарту
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher />
+
+            {state === "ready" && (
+              <button
+                type="button"
+                onClick={() => void load()}
+                className="rounded-xl border border-neutral-800 px-3 py-2 text-xs text-neutral-300 transition hover:border-gold-500/40 hover:text-gold-300 sm:text-sm"
+              >
+                {tr("↻ Жаңарту", "↻ Обновить")}
+              </button>
+            )}
+          </div>
 
         </div>
       </header>
@@ -215,34 +222,34 @@ export default function AdminPage() {
 
         {state === "loading" && (
           <div className="py-24 text-center text-sm text-neutral-500">
-            Жүктелуде...
+            {tr("Жүктелуде...", "Загрузка...")}
           </div>
         )}
 
         {state === "forbidden" && (
           <div className="mx-auto max-w-md py-24 text-center">
-            <h1 className="text-3xl font-semibold">Рұқсат жоқ</h1>
+            <h1 className="text-3xl font-semibold">{tr("Рұқсат жоқ", "Нет доступа")}</h1>
             <p className="mt-3 text-sm leading-6 text-neutral-400">
-              Бұл бет тек ERKEK AI әкімшісіне арналған.
+              {tr("Бұл бет тек ERKEK AI әкімшісіне арналған.", "Эта страница только для администратора ERKEK AI.")}
             </p>
             <Link
               href="/chat"
               className="mt-6 inline-flex rounded-xl bg-white px-5 py-3 text-sm font-semibold text-black"
             >
-              Чатқа оралу
+              {tr("Чатқа оралу", "Назад в чат")}
             </Link>
           </div>
         )}
 
         {state === "error" && (
           <div className="mx-auto max-w-md py-24 text-center text-sm text-red-400">
-            Статистиканы жүктеу мүмкін болмады.{" "}
+            {tr("Статистиканы жүктеу мүмкін болмады.", "Не удалось загрузить статистику.")}{" "}
             <button
               type="button"
               onClick={() => void load()}
               className="text-gold-400 underline-offset-4 hover:underline"
             >
-              Қайталау
+              {tr("Қайталау", "Повторить")}
             </button>
           </div>
         )}
@@ -261,6 +268,7 @@ export default function AdminPage() {
 // =====================================================
 
 function Dashboard({ stats }: { stats: Stats }) {
+  const { tr, lang } = useLang();
   const budget = stats.tokens.daily_budget;
   const budgetUsed = budget > 0
     ? Math.min(100, Math.round((stats.tokens.today.total / budget) * 100))
@@ -272,9 +280,9 @@ function Dashboard({ stats }: { stats: Stats }) {
     <div className="space-y-8">
 
       <div>
-        <h1 className="text-3xl font-semibold sm:text-4xl">Бүгін</h1>
+        <h1 className="text-3xl font-semibold sm:text-4xl">{tr("Бүгін", "Сегодня")}</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Жаңартылды: {formatDateTime(stats.generated_at)} · күн Астана уақытымен
+          {tr("Жаңартылды", "Обновлено")}: {formatDateTime(stats.generated_at)} · {tr("күн Астана уақытымен", "день по времени Астаны")}
         </p>
       </div>
 
@@ -284,30 +292,45 @@ function Dashboard({ stats }: { stats: Stats }) {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
 
         <StatTile
-          label="Пайдаланушылар"
+          label={tr("Пайдаланушылар", "Пользователи")}
           value={fmt(stats.users.total)}
-          detail={`+${stats.users.new_today} бүгін · +${stats.users.new_7d} 7 күнде`}
+          detail={tr(
+            `+${stats.users.new_today} бүгін · +${stats.users.new_7d} 7 күнде`,
+            `+${stats.users.new_today} сегодня · +${stats.users.new_7d} за 7 дней`
+          )}
         />
 
         <StatTile
-          label="Белсенді (жазғандар)"
+          label={tr("Белсенді (жазғандар)", "Активные (писали)")}
           value={fmt(stats.users.active_today)}
-          detail={`7 күн: ${stats.users.active_7d} · 30 күн: ${stats.users.active_30d}`}
+          detail={tr(
+            `7 күн: ${stats.users.active_7d} · 30 күн: ${stats.users.active_30d}`,
+            `7 дней: ${stats.users.active_7d} · 30 дней: ${stats.users.active_30d}`
+          )}
         />
 
         <StatTile
-          label="Хабарламалар"
+          label={tr("Хабарламалар", "Сообщения")}
           value={fmt(stats.messages.today)}
-          detail={`7 күн: ${fmt(stats.messages.last_7d)} · 30 күн: ${fmt(stats.messages.last_30d)}`}
+          detail={tr(
+            `7 күн: ${fmt(stats.messages.last_7d)} · 30 күн: ${fmt(stats.messages.last_30d)}`,
+            `7 дней: ${fmt(stats.messages.last_7d)} · 30 дней: ${fmt(stats.messages.last_30d)}`
+          )}
         />
 
         <StatTile
-          label="OpenAI токендері"
-          value={compact(stats.tokens.today.total)}
+          label={tr("OpenAI токендері", "Токены OpenAI")}
+          value={compact(stats.tokens.today.total, lang)}
           detail={
             budgetUsed !== null
-              ? `Күндік лимиттің ${budgetUsed}% · 30 күн: ${compact(stats.tokens.last_30d.total)}`
-              : `30 күн: ${compact(stats.tokens.last_30d.total)}`
+              ? tr(
+                  `Күндік лимиттің ${budgetUsed}% · 30 күн: ${compact(stats.tokens.last_30d.total, lang)}`,
+                  `${budgetUsed}% дневного лимита · 30 дней: ${compact(stats.tokens.last_30d.total, lang)}`
+                )
+              : tr(
+                  `30 күн: ${compact(stats.tokens.last_30d.total, lang)}`,
+                  `30 дней: ${compact(stats.tokens.last_30d.total, lang)}`
+                )
           }
           meter={budgetUsed}
         />
@@ -316,7 +339,7 @@ function Dashboard({ stats }: { stats: Stats }) {
 
       {cost !== null && (
         <p className="text-sm text-neutral-400">
-          OpenAI шығыны (30 күн, шамамен):{" "}
+          {tr("OpenAI шығыны (30 күн, шамамен):", "Расходы на OpenAI (30 дней, примерно):")}{" "}
           <span className="font-semibold text-neutral-100">${cost.toFixed(2)}</span>
         </p>
       )}
@@ -346,37 +369,37 @@ function Dashboard({ stats }: { stats: Stats }) {
       <div className="grid gap-4 lg:grid-cols-2">
 
         <BarChart
-          title="Күндік хабарламалар"
-          subtitle="Соңғы 14 күн"
-          unit="хабарлама"
+          title={tr("Күндік хабарламалар", "Сообщения по дням")}
+          subtitle={tr("Соңғы 14 күн", "Последние 14 дней")}
+          unit={tr("хабарлама", "сообщ.")}
           points={stats.daily.map((d) => ({ day: d.day, value: d.messages }))}
         />
 
         <BarChart
-          title="OpenAI токендері"
-          subtitle="Соңғы 14 күн, барлық сұраныстар"
-          unit="токен"
+          title={tr("OpenAI токендері", "Токены OpenAI")}
+          subtitle={tr("Соңғы 14 күн, барлық сұраныстар", "Последние 14 дней, все запросы")}
+          unit={tr("токен", "токенов")}
           points={stats.daily.map((d) => ({ day: d.day, value: d.tokens }))}
-          formatValue={compact}
+          formatValue={(value) => compact(value, lang)}
         />
 
       </div>
 
       <details className="rounded-2xl border border-neutral-900 bg-neutral-950 p-4 text-sm">
         <summary className="cursor-pointer text-neutral-400 transition hover:text-gold-300">
-          Күндер бойынша кесте
+          {tr("Күндер бойынша кесте", "Таблица по дням")}
         </summary>
 
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[560px] text-left">
             <thead className="text-xs uppercase tracking-wider text-neutral-500">
               <tr>
-                <th className="py-2 pr-4 font-medium">Күн</th>
-                <th className="py-2 pr-4 text-right font-medium">Хабарлама</th>
-                <th className="py-2 pr-4 text-right font-medium">Белсенді</th>
-                <th className="py-2 pr-4 text-right font-medium">Жаңа</th>
+                <th className="py-2 pr-4 font-medium">{tr("Күн", "День")}</th>
+                <th className="py-2 pr-4 text-right font-medium">{tr("Хабарлама", "Сообщения")}</th>
+                <th className="py-2 pr-4 text-right font-medium">{tr("Белсенді", "Активные")}</th>
+                <th className="py-2 pr-4 text-right font-medium">{tr("Жаңа", "Новые")}</th>
                 <th className="py-2 pr-4 text-right font-medium">Telegram</th>
-                <th className="py-2 text-right font-medium">Токен</th>
+                <th className="py-2 text-right font-medium">{tr("Токен", "Токены")}</th>
               </tr>
             </thead>
             <tbody className="text-neutral-300">
@@ -400,19 +423,22 @@ function Dashboard({ stats }: { stats: Stats }) {
 
       <section className="rounded-2xl border border-neutral-900 bg-neutral-950 p-4 sm:p-6">
 
-        <h2 className="text-xl font-semibold">Соңғы тіркелгендер</h2>
+        <h2 className="text-xl font-semibold">{tr("Соңғы тіркелгендер", "Последние регистрации")}</h2>
         <p className="mt-1 text-sm text-neutral-500">
-          Ең соңғы {stats.recent_users.length} пайдаланушы
+          {tr(
+            `Ең соңғы ${stats.recent_users.length} пайдаланушы`,
+            `Последние ${stats.recent_users.length} пользователей`
+          )}
         </p>
 
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead className="text-xs uppercase tracking-wider text-neutral-500">
               <tr>
-                <th className="py-2 pr-4 font-medium">Пайдаланушы</th>
-                <th className="py-2 pr-4 font-medium">Тіркелді</th>
-                <th className="py-2 pr-4 text-right font-medium">Хабарлама (30 күн)</th>
-                <th className="py-2 font-medium">Соңғы белсенділік</th>
+                <th className="py-2 pr-4 font-medium">{tr("Пайдаланушы", "Пользователь")}</th>
+                <th className="py-2 pr-4 font-medium">{tr("Тіркелді", "Зарегистрирован")}</th>
+                <th className="py-2 pr-4 text-right font-medium">{tr("Хабарлама (30 күн)", "Сообщения (30 дней)")}</th>
+                <th className="py-2 font-medium">{tr("Соңғы белсенділік", "Последняя активность")}</th>
               </tr>
             </thead>
             <tbody>
@@ -425,7 +451,7 @@ function Dashboard({ stats }: { stats: Stats }) {
                   <td className="py-3 pr-4 text-neutral-400">{formatDateTime(u.created_at)}</td>
                   <td className="py-3 pr-4 text-right tabular-nums text-neutral-200">{fmt(u.messages_30d)}</td>
                   <td className="py-3 text-neutral-400">
-                    {u.last_active ? shortDay(u.last_active) : "әлі жазбаған"}
+                    {u.last_active ? shortDay(u.last_active) : tr("әлі жазбаған", "ещё не писал")}
                   </td>
                 </tr>
               ))}
@@ -458,6 +484,7 @@ function TelegramPanel({
   const share = (part: number, total: number) =>
     total > 0 ? Math.round((part / total) * 100) : null;
 
+  const { tr } = useLang();
   const share30 = share(telegram.messages_30d, messages30d);
   const telegramOnly = telegram.users - telegram.linked_to_site;
 
@@ -465,22 +492,28 @@ function TelegramPanel({
     <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
 
       <StatTile
-        label="Telegram хабарламалары"
+        label={tr("Telegram хабарламалары", "Сообщения в Telegram")}
         value={fmt(telegram.messages_today)}
-        detail={`Бүгін сайтта: ${fmt(Math.max(messagesToday - telegram.messages_today, 0))} · 7 күн Telegram: ${fmt(telegram.messages_7d)} / сайт: ${fmt(Math.max(messages7d - telegram.messages_7d, 0))}`}
+        detail={tr(
+          `Бүгін сайтта: ${fmt(Math.max(messagesToday - telegram.messages_today, 0))} · 7 күн Telegram: ${fmt(telegram.messages_7d)} / сайт: ${fmt(Math.max(messages7d - telegram.messages_7d, 0))}`,
+          `Сегодня на сайте: ${fmt(Math.max(messagesToday - telegram.messages_today, 0))} · 7 дней Telegram: ${fmt(telegram.messages_7d)} / сайт: ${fmt(Math.max(messages7d - telegram.messages_7d, 0))}`
+        )}
       />
 
       <StatTile
-        label="Telegram үлесі (30 күн)"
+        label={tr("Telegram үлесі (30 күн)", "Доля Telegram (30 дней)")}
         value={share30 === null ? "—" : `${share30}%`}
-        detail={`Telegram: ${fmt(telegram.messages_30d)} · сайт: ${fmt(Math.max(messages30d - telegram.messages_30d, 0))}`}
+        detail={`Telegram: ${fmt(telegram.messages_30d)} · ${tr("сайт", "сайт")}: ${fmt(Math.max(messages30d - telegram.messages_30d, 0))}`}
         meter={share30}
       />
 
       <StatTile
-        label="Telegram пайдаланушылары"
+        label={tr("Telegram пайдаланушылары", "Пользователи Telegram")}
         value={fmt(telegram.users)}
-        detail={`Тек Telegram: ${fmt(telegramOnly)} · сайтқа байланған: ${fmt(telegram.linked_to_site)}`}
+        detail={tr(
+          `Тек Telegram: ${fmt(telegramOnly)} · сайтқа байланған: ${fmt(telegram.linked_to_site)}`,
+          `Только Telegram: ${fmt(telegramOnly)} · привязаны к сайту: ${fmt(telegram.linked_to_site)}`
+        )}
       />
 
     </section>
@@ -488,10 +521,17 @@ function TelegramPanel({
 }
 
 
-const PERSONA_NAMES: Record<string, string> = {
-  brother: "Аға / Брат",
-  hardcore: "Қатал",
-  strategist: "Стратег",
+const PERSONA_NAMES: Record<string, Record<Lang, string>> = {
+  brother: { kk: "Аға / Брат", ru: "Брат" },
+  hardcore: { kk: "Қатал", ru: "Жёсткий" },
+  strategist: { kk: "Стратег", ru: "Стратег" },
+};
+
+const REASON_NAMES: Record<string, Record<Lang, string>> = {
+  not_understood: { kk: "Түсінбеді", ru: "Не понял" },
+  too_long: { kk: "Тым ұзақ", ru: "Слишком длинно" },
+  not_useful: { kk: "Пайдасыз", ru: "Бесполезно" },
+  tone: { kk: "Сөйлеу мәнері", ru: "Не тот тон" },
 };
 
 
@@ -500,7 +540,9 @@ function FeedbackPanel({
 }: {
   feedback: NonNullable<Stats["feedback"]>["last_30d"];
 }) {
+  const { tr, lang } = useLang();
   const total = feedback.likes + feedback.dislikes;
+  const reasons = Object.entries(feedback.by_reason ?? {}).sort((a, b) => b[1] - a[1]);
   const personas = Object.entries(feedback.by_persona).sort(
     (a, b) => (b[1].likes + b[1].dislikes) - (a[1].likes + a[1].dislikes)
   );
@@ -509,12 +551,12 @@ function FeedbackPanel({
     <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
 
       <StatTile
-        label="Жауап сапасы (30 күн)"
+        label={tr("Жауап сапасы (30 күн)", "Качество ответов (30 дней)")}
         value={feedback.satisfaction === null ? "—" : `${feedback.satisfaction}%`}
         detail={
           total === 0
-            ? "Әзірге баға жоқ"
-            : `👍 ${fmt(feedback.likes)} · 👎 ${fmt(feedback.dislikes)} · барлығы ${fmt(total)}`
+            ? tr("Әзірге баға жоқ", "Пока нет оценок")
+            : `👍 ${fmt(feedback.likes)} · 👎 ${fmt(feedback.dislikes)} · ${tr("барлығы", "всего")} ${fmt(total)}`
         }
         meter={feedback.satisfaction}
       />
@@ -522,16 +564,16 @@ function FeedbackPanel({
       {personas.length > 0 && (
         <div className="rounded-2xl border border-neutral-900 bg-neutral-950 p-5 sm:col-span-1 lg:col-span-3">
           <div className="text-xs font-medium uppercase tracking-wider text-neutral-500">
-            Мінез бойынша
+            {tr("Мінез бойынша", "По характеру")}
           </div>
 
           <table className="mt-3 w-full text-left text-sm">
             <thead className="text-xs text-neutral-500">
               <tr>
-                <th className="py-1.5 pr-4 font-medium">Мінез</th>
+                <th className="py-1.5 pr-4 font-medium">{tr("Мінез", "Характер")}</th>
                 <th className="py-1.5 pr-4 text-right font-medium">👍</th>
                 <th className="py-1.5 pr-4 text-right font-medium">👎</th>
-                <th className="py-1.5 text-right font-medium">Ұнағаны</th>
+                <th className="py-1.5 text-right font-medium">{tr("Ұнағаны", "Понравилось")}</th>
               </tr>
             </thead>
             <tbody className="text-neutral-300">
@@ -539,7 +581,7 @@ function FeedbackPanel({
                 const sum = counts.likes + counts.dislikes;
                 return (
                   <tr key={id} className="border-t border-neutral-900">
-                    <td className="py-1.5 pr-4">{PERSONA_NAMES[id] ?? id}</td>
+                    <td className="py-1.5 pr-4">{PERSONA_NAMES[id]?.[lang] ?? id}</td>
                     <td className="py-1.5 pr-4 text-right tabular-nums">{fmt(counts.likes)}</td>
                     <td className="py-1.5 pr-4 text-right tabular-nums">{fmt(counts.dislikes)}</td>
                     <td className="py-1.5 text-right tabular-nums">
@@ -550,6 +592,24 @@ function FeedbackPanel({
               })}
             </tbody>
           </table>
+
+          {reasons.length > 0 && (
+            <div className="mt-4 border-t border-neutral-900 pt-3">
+              <div className="text-xs font-medium uppercase tracking-wider text-neutral-500">
+                {tr("👎 себептері", "Причины 👎")}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {reasons.map(([id, count]) => (
+                  <span
+                    key={id}
+                    className="rounded-full border border-neutral-800 px-3 py-1 text-xs text-neutral-300"
+                  >
+                    {REASON_NAMES[id]?.[lang] ?? id}: <span className="tabular-nums text-neutral-100">{fmt(count)}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
