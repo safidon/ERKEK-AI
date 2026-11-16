@@ -10,6 +10,10 @@ from datetime import datetime, timezone
 from app.database import adapt_query, get_connection
 
 
+# 👎 басқанда таңдалатын себептер.
+DISLIKE_REASONS = ("not_understood", "too_long", "not_useful", "tone")
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -57,8 +61,12 @@ def set_feedback(
     message_id: int,
     rating: int,
     persona: str | None,
+    reason: str | None = None,
 ) -> None:
-    """rating: 1, -1 немесе 0 (бағаны алып тастау)."""
+    """rating: 1, -1 немесе 0 (бағаны алып тастау). reason — тек 👎 үшін."""
+
+    if rating != -1 or reason not in DISLIKE_REASONS:
+        reason = None
 
     connection = get_connection()
 
@@ -78,11 +86,11 @@ def set_feedback(
                 adapt_query(
                     """
                     INSERT INTO message_feedback
-                        (user_id, message_id, rating, persona, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                        (user_id, message_id, rating, persona, reason, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                     """
                 ),
-                (user_id, message_id, rating, persona, now, now),
+                (user_id, message_id, rating, persona, reason, now, now),
             )
 
         connection.commit()
@@ -98,6 +106,15 @@ def set_feedback(
 def get_feedback_map(user_id: str, message_ids: list[int]) -> dict[int, int]:
     """{message_id: rating} — тек баға қойылған хабарламалар."""
 
+    return {
+        message_id: entry["rating"]
+        for message_id, entry in get_feedback_details(user_id, message_ids).items()
+    }
+
+
+def get_feedback_details(user_id: str, message_ids: list[int]) -> dict[int, dict]:
+    """{message_id: {"rating": int, "reason": str | None}}."""
+
     if not message_ids:
         return {}
 
@@ -110,7 +127,7 @@ def get_feedback_map(user_id: str, message_ids: list[int]) -> dict[int, int]:
         cursor.execute(
             adapt_query(
                 f"""
-                SELECT message_id, rating FROM message_feedback
+                SELECT message_id, rating, reason FROM message_feedback
                 WHERE user_id = ? AND message_id IN ({placeholders})
                 """
             ),
@@ -118,7 +135,10 @@ def get_feedback_map(user_id: str, message_ids: list[int]) -> dict[int, int]:
         )
 
         return {
-            int(row["message_id"]): int(row["rating"])
+            int(row["message_id"]): {
+                "rating": int(row["rating"]),
+                "reason": row["reason"],
+            }
             for row in cursor.fetchall()
         }
 
@@ -136,7 +156,7 @@ def feedback_stats(since_iso: str) -> dict:
         cursor.execute(
             adapt_query(
                 """
-                SELECT rating, persona FROM message_feedback
+                SELECT rating, persona, reason FROM message_feedback
                 WHERE updated_at >= ?
                 """
             ),
@@ -159,6 +179,11 @@ def feedback_stats(since_iso: str) -> dict:
         else:
             entry["dislikes"] += 1
 
+    by_reason: dict[str, int] = {}
+    for row in rows:
+        if int(row["rating"]) < 0 and row["reason"]:
+            by_reason[row["reason"]] = by_reason.get(row["reason"], 0) + 1
+
     total = likes + dislikes
 
     return {
@@ -166,4 +191,5 @@ def feedback_stats(since_iso: str) -> dict:
         "dislikes": dislikes,
         "satisfaction": round(likes / total * 100) if total else None,
         "by_persona": by_persona,
+        "by_reason": by_reason,
     }

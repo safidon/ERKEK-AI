@@ -141,3 +141,55 @@ def test_admin_sees_feedback_counts(monkeypatch):
 
     assert after["likes"] == before["likes"] + 1
     assert after["satisfaction"] is not None
+
+
+def test_dislike_reason_saved_and_returned():
+    user = make_user_with_answer()
+
+    response = client.post(
+        "/feedback",
+        json={"message_id": user["answer_id"], "rating": -1, "reason": "too_long"},
+        headers=user["headers"],
+    )
+    assert response.status_code == 200
+    assert response.json()["reason"] == "too_long"
+
+    messages = client.get(f"/sessions/{user['session_id']}", headers=user["headers"]).json()["messages"]
+    answer = next(m for m in messages if m["id"] == user["answer_id"])
+    assert answer["feedback"] == -1
+    assert answer["feedback_reason"] == "too_long"
+
+
+def test_reason_ignored_for_likes_and_unknown_values():
+    user = make_user_with_answer()
+
+    like = client.post(
+        "/feedback",
+        json={"message_id": user["answer_id"], "rating": 1, "reason": "too_long"},
+        headers=user["headers"],
+    )
+    assert like.json()["reason"] is None
+
+    unknown = client.post(
+        "/feedback",
+        json={"message_id": user["answer_id"], "rating": -1, "reason": "hack"},
+        headers=user["headers"],
+    )
+    assert unknown.json()["reason"] is None
+
+
+def test_admin_sees_dislike_reasons(monkeypatch):
+    admin_email = f"fb_reason_{uuid.uuid4().hex[:8]}@example.com"
+    admin = make_user_with_answer(admin_email)
+    monkeypatch.setenv("ADMIN_EMAILS", admin_email)
+
+    before = client.get("/admin/stats", headers=admin["headers"]).json()["feedback"]["last_30d"]["by_reason"]
+
+    client.post(
+        "/feedback",
+        json={"message_id": admin["answer_id"], "rating": -1, "reason": "not_useful"},
+        headers=admin["headers"],
+    )
+
+    after = client.get("/admin/stats", headers=admin["headers"]).json()["feedback"]["last_30d"]["by_reason"]
+    assert after.get("not_useful", 0) == before.get("not_useful", 0) + 1

@@ -1154,6 +1154,21 @@ def init_password_reset_schema():
             """
         )
 
+        # 👎 себебі (not_understood / too_long / not_useful / tone)
+        if is_postgresql():
+            cursor.execute(
+                """
+                ALTER TABLE message_feedback
+                ADD COLUMN IF NOT EXISTS reason TEXT
+                """
+            )
+        else:
+            cursor.execute("PRAGMA table_info(message_feedback)")
+            if "reason" not in [row["name"] for row in cursor.fetchall()]:
+                cursor.execute(
+                    "ALTER TABLE message_feedback ADD COLUMN reason TEXT"
+                )
+
         # Telegram бот: Telegram пайдаланушысы -> ERKEK AI аккаунты.
         # telegram_user_id / chat_id мәтін ретінде (үлкен сандар).
         cursor.execute(

@@ -452,3 +452,26 @@ def test_name_is_html_escaped(fake_telegram):
     bot.handle_update(text_update(tg_id, "Али & Co"))
 
     assert "Али &amp; Co" in fake_telegram[-1]["text"]
+
+
+def test_dislike_asks_for_reason_in_bot(fake_telegram):
+    tg_id = new_tg_id()
+    user_id = start_and_accept(tg_id, fake_telegram)
+    bot.handle_update(text_update(tg_id, "Кеңес бер"))
+
+    dislike = fake_telegram[-1]["markup"]["inline_keyboard"][0][1]["callback_data"]
+    bot.handle_update(callback_update(tg_id, dislike))
+
+    keyboard = fake_telegram[-1]["edit_markup"]["inline_keyboard"]
+    reasons = [b["callback_data"] for row in keyboard[1:] for b in row]
+    assert any(r.endswith(":too_long") for r in reasons)
+
+    reason = next(r for r in reasons if r.endswith(":too_long"))
+    bot.handle_update(callback_update(tg_id, reason))
+
+    from app.services.feedback import get_feedback_details
+
+    message_id = int(reason.split(":")[1])
+    assert get_feedback_details(user_id, [message_id])[message_id] == {"rating": -1, "reason": "too_long"}
+    # Себеп таңдалғаннан кейін тек 👍 / 👎✓ қалады.
+    assert len(fake_telegram[-1]["edit_markup"]["inline_keyboard"]) == 1

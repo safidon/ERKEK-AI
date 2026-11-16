@@ -198,6 +198,13 @@ TEXTS = {
     "thanks": {"kk": "Рақмет!", "ru": "Спасибо!"},
 }
 
+REASON_NAMES = {
+    "not_understood": {"kk": "Түсінбеді", "ru": "Не понял меня"},
+    "too_long": {"kk": "Тым ұзақ", "ru": "Слишком длинно"},
+    "not_useful": {"kk": "Пайдасыз", "ru": "Бесполезно"},
+    "tone": {"kk": "Сөйлеу мәнері", "ru": "Не тот тон"},
+}
+
 PERSONA_NAMES = {
     "brother": {"kk": "Аға / Брат", "ru": "Брат"},
     "hardcore": {"kk": "Қатал", "ru": "Жёсткий"},
@@ -242,6 +249,20 @@ def feedback_keyboard(message_id: int, rating: int) -> dict:
             {"text": "👎" + (" ✓" if rating == -1 else ""), "callback_data": f"fb:{message_id}:-1"},
         ]]
     }
+
+
+def reason_keyboard(message_id: int, lang: str) -> dict:
+    """👎 басқаннан кейін: себебін таңдау (міндетті емес)."""
+
+    names = list(REASON_NAMES.items())
+    rows = [
+        [
+            {"text": names[i][1][lang], "callback_data": f"fbr:{message_id}:{names[i][0]}"},
+            {"text": names[i + 1][1][lang], "callback_data": f"fbr:{message_id}:{names[i + 1][0]}"},
+        ]
+        for i in range(0, len(names), 2)
+    ]
+    return {"inline_keyboard": feedback_keyboard(message_id, -1)["inline_keyboard"] + rows}
 
 
 def mode_keyboard(current: str, lang: str) -> dict:
@@ -685,6 +706,10 @@ def _handle_callback(callback: dict) -> None:
         _feedback_callback(callback_id, data, user_id, chat_id, message, lang)
         return
 
+    if data.startswith("fbr:"):
+        _reason_callback(callback_id, data, user_id, chat_id, message, lang)
+        return
+
     if data in ("del:yes", "del:no"):
         api.answer_callback(callback_id)
         api.edit_reply_markup(chat_id, message.get("message_id"), None)
@@ -731,5 +756,35 @@ def _feedback_callback(callback_id, data: str, user_id: str, chat_id, message: d
     api.edit_reply_markup(
         chat_id,
         message.get("message_id"),
-        feedback_keyboard(message_id, new_rating),
+        reason_keyboard(message_id, lang)
+        if new_rating == -1
+        else feedback_keyboard(message_id, new_rating),
     )
+
+
+def _reason_callback(callback_id, data: str, user_id: str, chat_id, message: dict, lang: str) -> None:
+    from app.prompts.personas import get_user_persona
+    from app.services.feedback import is_own_assistant_message
+
+    try:
+        _, raw_id, reason = data.split(":")
+        message_id = int(raw_id)
+    except ValueError:
+        api.answer_callback(callback_id)
+        return
+
+    if reason not in REASON_NAMES or not is_own_assistant_message(user_id, message_id):
+        api.answer_callback(callback_id)
+        return
+
+    user = get_user_by_id(user_id)
+    set_feedback(
+        user_id=user_id,
+        message_id=message_id,
+        rating=-1,
+        persona=get_user_persona(user) if user else None,
+        reason=reason,
+    )
+
+    api.answer_callback(callback_id, t("thanks", lang))
+    api.edit_reply_markup(chat_id, message.get("message_id"), feedback_keyboard(message_id, -1))

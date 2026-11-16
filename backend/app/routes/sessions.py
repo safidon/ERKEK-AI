@@ -20,7 +20,7 @@ from app.brain.conversation_sessions import (
 )
 
 from app.core.logger import logger
-from app.services.feedback import get_feedback_map
+from app.services.feedback import get_feedback_details
 
 
 router = APIRouter(
@@ -128,7 +128,7 @@ def get_conversation_session(
                 message.get("content") or ""
             )
 
-    ratings = get_feedback_map(
+    ratings = get_feedback_details(
         user_id,
         [
             int(message["id"])
@@ -139,7 +139,9 @@ def get_conversation_session(
 
     for message in messages:
         if message.get("role") == "assistant":
-            message["feedback"] = ratings.get(int(message["id"]), 0)
+            entry = ratings.get(int(message["id"]))
+            message["feedback"] = entry["rating"] if entry else 0
+            message["feedback_reason"] = entry["reason"] if entry else None
 
     return {
         "id": session["id"],

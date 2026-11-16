@@ -538,34 +538,35 @@ export function UsageHint({ busy }: { busy: boolean }) {
 // FEEDBACK (👍 / 👎)
 // =====================================================
 
+const DISLIKE_REASONS: { id: string; kk: string; ru: string }[] = [
+  { id: "not_understood", kk: "Түсінбеді", ru: "Не понял меня" },
+  { id: "too_long", kk: "Тым ұзақ", ru: "Слишком длинно" },
+  { id: "not_useful", kk: "Пайдасыз", ru: "Бесполезно" },
+  { id: "tone", kk: "Сөйлеу мәнері", ru: "Не тот тон" },
+];
+
+
 export function FeedbackButtons({
   messageId,
   initialRating,
+  initialReason = null,
 }: {
   messageId: number;
   initialRating: number;
+  initialReason?: string | null;
 }) {
-  const { tr } = useLang();
+  const { tr, lang } = useLang();
   const [rating, setRating] = useState(initialRating);
+  const [reason, setReason] = useState<string | null>(initialReason);
+  const [askReason, setAskReason] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  async function rate(value: 1 | -1) {
-    if (saving) {
-      return;
-    }
-
+  async function send(nextRating: number, nextReason: string | null) {
     const token = getValidToken();
 
     if (!token) {
-      return;
+      return false;
     }
-
-    const previous = rating;
-    // Сол батырманы қайта басса — бағаны алып тастаймыз.
-    const next = rating === value ? 0 : value;
-
-    setRating(next);
-    setSaving(true);
 
     try {
       const response = await fetch(`${API_URL}/feedback`, {
@@ -574,60 +575,144 @@ export function FeedbackButtons({
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ message_id: messageId, rating: next }),
+        body: JSON.stringify({
+          message_id: messageId,
+          rating: nextRating,
+          reason: nextReason,
+        }),
       });
 
-      if (!response.ok) {
-        setRating(previous);
-      }
+      return response.ok;
     } catch {
-      setRating(previous);
-    } finally {
-      setSaving(false);
+      return false;
     }
+  }
+
+  async function rate(value: 1 | -1) {
+    if (saving) {
+      return;
+    }
+
+    const previous = { rating, reason };
+    // Сол батырманы қайта басса — бағаны алып тастаймыз.
+    const next = rating === value ? 0 : value;
+
+    setRating(next);
+    setReason(null);
+    setAskReason(next === -1);
+    setSaving(true);
+
+    const ok = await send(next, null);
+
+    if (!ok) {
+      setRating(previous.rating);
+      setReason(previous.reason);
+      setAskReason(false);
+    }
+
+    setSaving(false);
+  }
+
+  async function chooseReason(id: string) {
+    if (saving) {
+      return;
+    }
+
+    setReason(id);
+    setSaving(true);
+
+    const ok = await send(-1, id);
+
+    if (ok) {
+      setAskReason(false);
+    } else {
+      setReason(null);
+    }
+
+    setSaving(false);
   }
 
   const base =
     "inline-flex h-7 w-7 items-center justify-center rounded-lg text-sm transition disabled:cursor-not-allowed";
 
+  const reasonLabel = DISLIKE_REASONS.find((item) => item.id === reason);
+
   return (
-    <div className="flex items-center gap-0.5" aria-label={tr("Жауапты бағалау", "Оценить ответ")}>
-      <button
-        type="button"
-        onClick={() => void rate(1)}
-        disabled={saving}
-        aria-pressed={rating === 1}
-        title={tr("Жақсы жауап", "Хороший ответ")}
-        aria-label={tr("Жақсы жауап", "Хороший ответ")}
-        className={`${base} ${
-          rating === 1
-            ? "bg-gold-500/15 text-gold-300"
-            : "text-neutral-600 opacity-70 hover:bg-white/[0.04] hover:text-neutral-300 hover:opacity-100"
-        }`}
-      >
-        <ThumbIcon up filled={rating === 1} />
-      </button>
+    // display: contents — батырмалар жолдың ішінде тұрады,
+    // ал себептер жаңа жолға (order-last, basis-full) түседі.
+    <div className="contents">
+      <div className="flex items-center gap-0.5" aria-label={tr("Жауапты бағалау", "Оценить ответ")}>
+        <button
+          type="button"
+          onClick={() => void rate(1)}
+          disabled={saving}
+          aria-pressed={rating === 1}
+          title={tr("Жақсы жауап", "Хороший ответ")}
+          aria-label={tr("Жақсы жауап", "Хороший ответ")}
+          className={`${base} ${
+            rating === 1
+              ? "bg-gold-500/15 text-gold-300"
+              : "text-neutral-600 opacity-70 hover:bg-white/[0.04] hover:text-neutral-300 hover:opacity-100"
+          }`}
+        >
+          <ThumbIcon up filled={rating === 1} />
+        </button>
 
-      <button
-        type="button"
-        onClick={() => void rate(-1)}
-        disabled={saving}
-        aria-pressed={rating === -1}
-        title={tr("Жауап ұнамады", "Ответ не понравился")}
-        aria-label={tr("Жауап ұнамады", "Ответ не понравился")}
-        className={`${base} ${
-          rating === -1
-            ? "bg-white/[0.08] text-neutral-200"
-            : "text-neutral-600 opacity-70 hover:bg-white/[0.04] hover:text-neutral-300 hover:opacity-100"
-        }`}
-      >
-        <ThumbIcon filled={rating === -1} />
-      </button>
+        <button
+          type="button"
+          onClick={() => void rate(-1)}
+          disabled={saving}
+          aria-pressed={rating === -1}
+          title={tr("Жауап ұнамады", "Ответ не понравился")}
+          aria-label={tr("Жауап ұнамады", "Ответ не понравился")}
+          className={`${base} ${
+            rating === -1
+              ? "bg-white/[0.08] text-neutral-200"
+              : "text-neutral-600 opacity-70 hover:bg-white/[0.04] hover:text-neutral-300 hover:opacity-100"
+          }`}
+        >
+          <ThumbIcon filled={rating === -1} />
+        </button>
 
-      {rating !== 0 && (
-        <span className="ml-1 text-[11px] text-neutral-600" role="status">
-          {tr("Рақмет!", "Спасибо!")}
-        </span>
+        {rating !== 0 && !askReason && (
+          <span className="ml-1 text-[11px] text-neutral-600" role="status">
+            {reasonLabel ? `${reasonLabel[lang]} · ` : ""}
+            {tr("Рақмет!", "Спасибо!")}
+          </span>
+        )}
+      </div>
+
+      {rating === -1 && askReason && (
+        <div className="order-last flex basis-full flex-wrap items-center gap-1.5 pt-1" role="group" aria-label={tr("Неге ұнамады?", "Что не так?")}>
+          <span className="text-[11px] text-neutral-500">
+            {tr("Неге ұнамады?", "Что не так?")}
+          </span>
+
+          {DISLIKE_REASONS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => void chooseReason(item.id)}
+              disabled={saving}
+              aria-pressed={reason === item.id}
+              className={`rounded-full border px-2.5 py-1 text-[11px] transition disabled:opacity-50 ${
+                reason === item.id
+                  ? "border-gold-500/50 bg-gold-500/10 text-gold-300"
+                  : "border-neutral-800 text-neutral-400 hover:border-neutral-600 hover:text-neutral-200"
+              }`}
+            >
+              {item[lang]}
+            </button>
+          ))}
+
+          <button
+            type="button"
+            onClick={() => setAskReason(false)}
+            className="px-1 text-[11px] text-neutral-600 hover:text-neutral-400"
+          >
+            {tr("Өткізу", "Пропустить")}
+          </button>
+        </div>
       )}
     </div>
   );

@@ -43,6 +43,7 @@ type ChatMessage = {
   created_at?: string;
   // AI жауабына қойылған баға: 1, -1 немесе 0
   feedback?: number;
+  feedback_reason?: string | null;
 };
 
 
@@ -2798,7 +2799,7 @@ export default function ChatPage() {
 
                             {/* MESSAGE COPY */}
 
-                            <div className="mt-2 flex items-center gap-1">
+                            <div className="mt-2 flex flex-wrap items-center gap-1">
                               <CopyButton
                                 text={
                                   message.content
@@ -2815,6 +2816,7 @@ export default function ChatPage() {
                                   key={`${message.id}:${message.feedback ?? 0}`}
                                   messageId={message.id}
                                   initialRating={message.feedback ?? 0}
+                                  initialReason={message.feedback_reason ?? null}
                                 />
                               )}
 
