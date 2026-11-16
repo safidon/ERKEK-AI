@@ -2,8 +2,8 @@
 # =====================================================
 # ERKEK AI — жаңа Ubuntu 24.04 серверін дайындау
 # =====================================================
-# Бір рет, root ретінде іске қосылады:
-#   bash deploy/server-setup.sh
+# Бір рет іске қосылады (root немесе sudo арқылы):
+#   sudo bash deploy/server-setup.sh
 #
 # Не істейді:
 #   1. Жүйені жаңартады, уақыт белдеуін Астана қылады
@@ -19,7 +19,7 @@
 set -euo pipefail
 
 if [[ "$(id -u)" -ne 0 ]]; then
-	echo "root ретінде іске қосыңыз." >&2
+	echo "sudo арқылы іске қосыңыз: sudo bash deploy/server-setup.sh" >&2
 	exit 1
 fi
 
@@ -57,17 +57,27 @@ echo "==> 5/6 Автоматты қауіпсіздік жаңартулары"
 dpkg-reconfigure -f noninteractive unattended-upgrades
 
 echo "==> 6/6 SSH: тек кілтпен кіру"
+# Кілт root-та немесе sudo арқылы іске қосқан пайдаланушыда (мысалы ubuntu) болуы керек.
+mkdir -p /run/sshd
+# 01- атауы: sshd бірінші оқыған мәнді алады (50-cloud-init.conf-тан бұрын).
+KEY_FILE=""
 if [[ -s /root/.ssh/authorized_keys ]]; then
-	cat > /etc/ssh/sshd_config.d/99-erkekai.conf <<'EOF'
+	KEY_FILE=/root/.ssh/authorized_keys
+elif [[ -n "${SUDO_USER:-}" && -s "/home/${SUDO_USER}/.ssh/authorized_keys" ]]; then
+	KEY_FILE="/home/${SUDO_USER}/.ssh/authorized_keys"
+fi
+
+if [[ -n "$KEY_FILE" ]]; then
+	cat > /etc/ssh/sshd_config.d/01-erkekai.conf <<'EOF'
 PasswordAuthentication no
 KbdInteractiveAuthentication no
 PermitRootLogin prohibit-password
 EOF
 	sshd -t
 	systemctl reload ssh || systemctl reload sshd
-	echo "    Құпиясөзбен кіру өшірілді (кілт бар)."
+	echo "    Құпиясөзбен кіру өшірілді (кілт: $KEY_FILE)."
 else
-	echo "    ЕСКЕРТУ: root-та SSH кілт жоқ — құпиясөзбен кіру қалдырылды." >&2
+	echo "    ЕСКЕРТУ: SSH кілт табылмады — құпиясөзбен кіру қалдырылды." >&2
 fi
 
 echo
