@@ -1,3 +1,4 @@
+import asyncio
 import os
 from contextlib import asynccontextmanager
 
@@ -20,6 +21,7 @@ from app.core.rate_limit import RateLimiter, RateLimitMiddleware
 from app.core.security_headers import SecurityHeadersMiddleware
 from app.core.i18n import TranslateDetailMiddleware
 from app.services.alerts import install_alert_handler, send_alert
+from app.telegram.reminders import reminder_loop
 
 from app.database import (
     get_connection,
@@ -46,7 +48,13 @@ async def lifespan(app: FastAPI):
     # Application іске қосылғанда database кестелері
     # жоқ болса автоматты түрде жасалады.
     init_database()
+
+    # Telegram еске салулары (бот қосулы болса ғана жібереді).
+    reminder_task = asyncio.create_task(reminder_loop())
+
     yield
+
+    reminder_task.cancel()
 
 
 app = FastAPI(

@@ -152,7 +152,8 @@ def test_onboarding_language_consent_name_then_first_question(fake_telegram):
     assert accounts.get_by_telegram_id(tg_id)["awaiting"] is None
 
     # 4. Алғашқы сұраққа бірден жауап келеді (батырмалары бар).
-    answer = fake_telegram[-1]
+    # Соңғысы — еске салу ұсынысы; жауап одан бұрын.
+    answer = fake_telegram[-2]
     assert "<b>Жарайсың</b>" in answer["text"]
     buttons = answer["markup"]["inline_keyboard"][0]
     assert buttons[0]["callback_data"].startswith("fb:")
@@ -414,7 +415,7 @@ def test_name_goes_into_ai_memory(fake_telegram):
 
     user_id = accounts.get_by_telegram_id(tg_id)["user_id"]
     assert "Аты: Мейрамбек" in get_user_profile(user_id).get_context()
-    assert "Мейрамбек" in fake_telegram[-1]["text"]
+    assert "Мейрамбек" in fake_telegram[-2]["text"]
 
 
 def test_question_instead_of_name_is_answered(fake_telegram):
@@ -451,7 +452,7 @@ def test_name_is_html_escaped(fake_telegram):
     bot.handle_update(callback_update(tg_id, "accept"))
     bot.handle_update(text_update(tg_id, "Али & Co"))
 
-    assert "Али &amp; Co" in fake_telegram[-1]["text"]
+    assert "Али &amp; Co" in fake_telegram[-2]["text"]
 
 
 def test_dislike_asks_for_reason_in_bot(fake_telegram):
@@ -475,3 +476,118 @@ def test_dislike_asks_for_reason_in_bot(fake_telegram):
     assert get_feedback_details(user_id, [message_id])[message_id] == {"rating": -1, "reason": "too_long"}
     # Себеп таңдалғаннан кейін тек 👍 / 👎✓ қалады.
     assert len(fake_telegram[-1]["edit_markup"]["inline_keyboard"]) == 1
+
+
+# =====================================================
+# REMINDERS
+# =====================================================
+
+def _sent_reminders(monkeypatch):
+    from app.telegram import reminders
+
+    delivered = []
+    monkeypatch.setattr(
+        api, "send_message_checked",
+        lambda chat_id, text, reply_markup=None: delivered.append((str(chat_id), text)) or "ok",
+    )
+    return reminders, delivered
+
+
+def test_onboarding_offers_reminder_and_remind_command(fake_telegram):
+    tg_id = new_tg_id()
+    bot.handle_update(text_update(tg_id, "/start"))
+    bot.handle_update(callback_update(tg_id, "lang:kk"))
+    bot.handle_update(callback_update(tg_id, "accept"))
+    bot.handle_update(text_update(tg_id, "Ерлан"))
+
+    offer = fake_telegram[-1]["markup"]["inline_keyboard"][0]
+    assert [b["callback_data"] for b in offer] == ["rem:21", "rem:no"]
+
+    bot.handle_update(callback_update(tg_id, "rem:21"))
+    assert accounts.get_by_telegram_id(tg_id)["reminder_hour"] == 21
+
+    bot.handle_update(text_update(tg_id, "/remind"))
+    options = [b["callback_data"] for row in fake_telegram[-1]["markup"]["inline_keyboard"] for b in row]
+    assert "rem:off" in options
+
+    bot.handle_update(callback_update(tg_id, "rem:off"))
+    assert accounts.get_by_telegram_id(tg_id)["reminder_hour"] is None
+
+
+def test_reminder_sent_once_and_skipped_if_user_wrote(fake_telegram, monkeypatch):
+    from datetime import datetime, timedelta
+
+    from app.services.usage import USAGE_TZ
+
+    reminders, delivered = _sent_reminders(monkeypatch)
+
+    quiet = new_tg_id()
+    start_and_accept(quiet, fake_telegram)
+    reminders.set_reminder(quiet, 21)
+
+    talker = new_tg_id()
+    start_and_accept(talker, fake_telegram)
+    reminders.set_reminder(talker, 21)
+
+    # Ертеңгі 21:15 — екеуіне де уақыт келді.
+    tomorrow = datetime.now(USAGE_TZ) + timedelta(days=1)
+    at_nine = tomorrow.replace(hour=21, minute=15)
+
+    # talker сол күні өзі жазды деп белгілейміз.
+    from app.services.usage import _add
+    import app.services.usage as usage
+
+    monkeypatch.setattr(usage, "_today", lambda: at_nine.date().isoformat())
+    _add(accounts.get_by_telegram_id(talker)["user_id"], messages=1)
+
+    reminders.send_due_reminders(at_nine)
+    reminders.send_due_reminders(at_nine)  # қайталанбауы керек
+
+    chats = [chat for chat, _ in delivered]
+    assert chats.count(str(quiet)) == 1
+    assert str(talker) not in chats
+    assert "/remind" in delivered[0][1]
+
+
+def test_reminder_not_sent_at_other_hours(fake_telegram, monkeypatch):
+    from datetime import datetime, timedelta
+
+    from app.services.usage import USAGE_TZ
+
+    reminders, delivered = _sent_reminders(monkeypatch)
+    tg_id = new_tg_id()
+    start_and_accept(tg_id, fake_telegram)
+    reminders.set_reminder(tg_id, 21)
+
+    morning = (datetime.now(USAGE_TZ) + timedelta(days=2)).replace(hour=9)
+    reminders.send_due_reminders(morning)
+    assert str(tg_id) not in [chat for chat, _ in delivered]
+
+
+def test_blocked_bot_turns_reminder_off(fake_telegram, monkeypatch):
+    from datetime import datetime, timedelta
+
+    from app.services.usage import USAGE_TZ
+    from app.telegram import reminders
+
+    monkeypatch.setattr(api, "send_message_checked", lambda *a, **k: "blocked")
+
+    tg_id = new_tg_id()
+    start_and_accept(tg_id, fake_telegram)
+    reminders.set_reminder(tg_id, 21)
+
+    evening = (datetime.now(USAGE_TZ) + timedelta(days=3)).replace(hour=21)
+    reminders.send_due_reminders(evening)
+
+    assert accounts.get_by_telegram_id(tg_id)["reminder_hour"] is None
+
+
+def test_admin_shows_retention_and_reminders(fake_telegram, monkeypatch):
+    admin = site_user()
+    monkeypatch.setenv("ADMIN_EMAILS", get_user_by_id(admin["user_id"])["email"])
+
+    stats = client.get("/admin/stats", headers=admin["headers"]).json()
+
+    assert set(stats["retention"]) >= {"d1", "d7", "returned", "cohort_days"}
+    assert "percent" in stats["retention"]["d1"]
+    assert stats["reminders"]["enabled"] >= 0

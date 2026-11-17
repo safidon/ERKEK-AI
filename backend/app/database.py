@@ -1211,6 +1211,23 @@ def init_password_reset_schema():
                     "ALTER TABLE telegram_accounts ADD COLUMN awaiting TEXT"
                 )
 
+        # Күнделікті еске салу: reminder_hour — сағат (Астана уақыты),
+        # NULL — өшірулі; last_reminded_on — соңғы жіберілген күн.
+        for column, column_type in (
+            ("reminder_hour", "INTEGER"),
+            ("last_reminded_on", "TEXT"),
+        ):
+            if is_postgresql():
+                cursor.execute(
+                    f"ALTER TABLE telegram_accounts ADD COLUMN IF NOT EXISTS {column} {column_type}"
+                )
+            else:
+                cursor.execute("PRAGMA table_info(telegram_accounts)")
+                if column not in [row["name"] for row in cursor.fetchall()]:
+                    cursor.execute(
+                        f"ALTER TABLE telegram_accounts ADD COLUMN {column} {column_type}"
+                    )
+
         # Email-ді растау сілтемелері (тек hash сақталады)
         cursor.execute(
             """

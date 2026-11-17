@@ -27,6 +27,8 @@ os.environ["DAILY_MESSAGES_PER_USER"] = "100000"
 os.environ["ALERTS_ENABLED"] = "false"
 # Көп тест тіркеліп бірден кіреді; email растау өз тестінде тексеріледі.
 os.environ["REQUIRE_EMAIL_VERIFICATION"] = "false"
+# Фондық еске салу циклы тесттерде жұмыс істемейді.
+os.environ["REMINDERS_ENABLED"] = "false"
 os.environ.setdefault("OPENAI_API_KEY", "test-openai-key")
 os.environ.setdefault(
     "JWT_SECRET_KEY",

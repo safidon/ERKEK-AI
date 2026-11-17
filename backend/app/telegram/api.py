@@ -65,6 +65,44 @@ def call(method: str, payload: dict | None = None, timeout: float = 15) -> dict 
     return data.get("result")
 
 
+def send_message_checked(
+    chat_id: str | int,
+    text: str,
+    reply_markup: dict | None = None,
+) -> str:
+    """
+    Жіберу нәтижесін қайтарады: "ok", "blocked" (пайдаланушы ботты
+    бұғаттаған немесе чат жоқ) немесе "error".
+    """
+
+    token = bot_token()
+
+    if not token:
+        return "error"
+
+    payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
+
+    try:
+        response = httpx.post(f"{API_BASE}/bot{token}/sendMessage", json=payload, timeout=15)
+        data = response.json()
+    except Exception as error:
+        logger.warning("Telegram sendMessage failed | %s", type(error).__name__)
+        return "error"
+
+    if data.get("ok"):
+        return "ok"
+
+    if data.get("error_code") in (400, 403) and "chat not found" in str(
+        data.get("description", "")
+    ).lower() or data.get("error_code") == 403:
+        return "blocked"
+
+    logger.warning("Telegram sendMessage error | %s", data.get("description", "unknown"))
+    return "error"
+
+
 def send_message(
     chat_id: str | int,
     text: str,

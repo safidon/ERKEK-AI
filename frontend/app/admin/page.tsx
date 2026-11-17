@@ -26,6 +26,12 @@ type TokenSum = {
   cost_usd: number | null;
 };
 
+type RetentionRate = {
+  eligible: number;
+  returned: number;
+  percent: number | null;
+};
+
 type Stats = {
   generated_at: string;
   today: string;
@@ -56,6 +62,17 @@ type Stats = {
     telegram_messages?: number;
     tokens: number;
   }[];
+  retention?: {
+    cohort_days: number;
+    d1: RetentionRate;
+    d7: RetentionRate;
+    returned: RetentionRate;
+  };
+  reminders?: {
+    enabled: number;
+    sent_today: number;
+    sent_7d: number;
+  };
   telegram?: {
     users: number;
     linked_to_site: number;
@@ -345,6 +362,13 @@ function Dashboard({ stats }: { stats: Stats }) {
       )}
 
 
+      {/* RETENTION */}
+
+      {stats.retention && (
+        <RetentionPanel retention={stats.retention} reminders={stats.reminders} />
+      )}
+
+
       {/* TELEGRAM */}
 
       {stats.telegram && (
@@ -469,6 +493,73 @@ function Dashboard({ stats }: { stats: Stats }) {
 // =====================================================
 // STAT TILE
 // =====================================================
+
+function RetentionPanel({
+  retention,
+  reminders,
+}: {
+  retention: NonNullable<Stats["retention"]>;
+  reminders?: Stats["reminders"];
+}) {
+  const { tr } = useLang();
+
+  const tile = (rate: RetentionRate) =>
+    rate.percent === null ? "—" : `${rate.percent}%`;
+
+  const detail = (rate: RetentionRate) =>
+    rate.eligible === 0
+      ? tr("Әзірге дерек аз", "Пока мало данных")
+      : tr(
+          `${fmt(rate.eligible)} адамның ${fmt(rate.returned)}-і`,
+          `${fmt(rate.returned)} из ${fmt(rate.eligible)}`
+        );
+
+  return (
+    <section className="space-y-2">
+      <p className="text-xs text-neutral-500">
+        {tr(
+          `Қайта оралу — соңғы ${retention.cohort_days} күнде тіркелгендер бойынша (сайт + Telegram).`,
+          `Возвращаемость — по зарегистрированным за последние ${retention.cohort_days} дней (сайт + Telegram).`
+        )}
+      </p>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile
+          label={tr("Ертеңіне оралды (D1)", "Вернулись на след. день (D1)")}
+          value={tile(retention.d1)}
+          detail={detail(retention.d1)}
+          meter={retention.d1.percent}
+        />
+
+        <StatTile
+          label={tr("7 күннен кейін де жазады (D7)", "Пишут и через 7 дней (D7)")}
+          value={tile(retention.d7)}
+          detail={detail(retention.d7)}
+          meter={retention.d7.percent}
+        />
+
+        <StatTile
+          label={tr("Кем дегенде бір рет оралды", "Вернулись хотя бы раз")}
+          value={tile(retention.returned)}
+          detail={detail(retention.returned)}
+          meter={retention.returned.percent}
+        />
+
+        {reminders && (
+          <StatTile
+            label={tr("Еске салу қосқандар", "Включили напоминания")}
+            value={fmt(reminders.enabled)}
+            detail={tr(
+              `Бүгін жіберілді: ${fmt(reminders.sent_today)} · 7 күн: ${fmt(reminders.sent_7d)}`,
+              `Отправлено сегодня: ${fmt(reminders.sent_today)} · 7 дней: ${fmt(reminders.sent_7d)}`
+            )}
+          />
+        )}
+      </div>
+    </section>
+  );
+}
+
 
 function TelegramPanel({
   telegram,

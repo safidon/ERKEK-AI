@@ -80,6 +80,25 @@ TEXTS = {
         "kk": "Жарайды. Не ойландырып жүр? Жай ғана жаз.",
         "ru": "Хорошо. Что тебя беспокоит? Просто напиши.",
     },
+    "remind_offer": {
+        "kk": "Күн сайын кешке қысқа еске салу жіберейін бе? Мақсатыңнан адаспауға көмектеседі. Кейін /remind арқылы өзгертуге болады.",
+        "ru": "Присылать каждый вечер короткое напоминание? Помогает не терять цель. Изменить можно через /remind.",
+    },
+    "remind_title": {
+        "kk": "Еске салу уақытын таңда (Астана уақыты):",
+        "ru": "Выбери время напоминания (время Астаны):",
+    },
+    "remind_on": {
+        "kk": "✅ Еске салу қосылды: күн сайын {hour}:00. Сол күні өзің жазсаң — мазаламаймын.",
+        "ru": "✅ Напоминание включено: каждый день в {hour}:00. Если в этот день ты уже писал — не побеспокою.",
+    },
+    "remind_off": {
+        "kk": "Еске салу өшірілді. Қайта қосу үшін — /remind",
+        "ru": "Напоминания выключены. Включить снова — /remind",
+    },
+    "remind_yes": {"kk": "✅ Иә, 21:00", "ru": "✅ Да, в 21:00"},
+    "remind_no": {"kk": "Керек емес", "ru": "Не нужно"},
+    "remind_disable": {"kk": "🔕 Өшіру", "ru": "🔕 Выключить"},
     "accept_button": {
         "kk": "✅ Келісемін, 18 жастан асқанмын",
         "ru": "✅ Согласен, мне больше 18 лет",
@@ -126,6 +145,7 @@ TEXTS = {
             "/new — жаңа әңгіме\n"
             "/mode — мінезді таңдау\n"
             "/lang — тілді ауыстыру\n"
+            "/remind — күнделікті еске салу\n"
             "/name — атыңды өзгерту\n"
             "/delete — аккаунтты жою\n"
             "/help — көмек\n\n"
@@ -136,6 +156,7 @@ TEXTS = {
             "/new — новый разговор\n"
             "/mode — выбрать характер\n"
             "/lang — сменить язык\n"
+            "/remind — ежедневные напоминания\n"
             "/name — изменить имя\n"
             "/delete — удалить аккаунт\n"
             "/help — помощь\n\n"
@@ -236,6 +257,31 @@ def lang_keyboard() -> dict:
 
 def skip_name_keyboard(lang: str) -> dict:
     return {"inline_keyboard": [[{"text": t("skip_name", lang), "callback_data": "name:skip"}]]}
+
+
+def remind_offer_keyboard(lang: str) -> dict:
+    return {
+        "inline_keyboard": [[
+            {"text": t("remind_yes", lang), "callback_data": "rem:21"},
+            {"text": t("remind_no", lang), "callback_data": "rem:no"},
+        ]]
+    }
+
+
+def remind_keyboard(current: int | None, lang: str) -> dict:
+    from app.telegram.reminders import REMINDER_HOURS
+
+    times = [
+        {
+            "text": ("✓ " if hour == current else "") + f"{hour:02d}:00",
+            "callback_data": f"rem:{hour}",
+        }
+        for hour in REMINDER_HOURS
+    ]
+    rows = [times]
+    if current is not None:
+        rows.append([{"text": t("remind_disable", lang), "callback_data": "rem:off"}])
+    return {"inline_keyboard": rows}
 
 
 def accept_keyboard(lang: str) -> dict:
@@ -416,6 +462,15 @@ def _handle_command(text: str, tg_id, chat_id, account, lang: str) -> None:
         _start_onboarding(tg_id, chat_id)
         return
 
+    if command == "/remind":
+        current = account["reminder_hour"]
+        api.send_message(
+            chat_id,
+            t("remind_title", lang),
+            remind_keyboard(int(current) if current is not None else None, lang),
+        )
+        return
+
     if command == "/name":
         accounts.set_awaiting(tg_id, "name")
         api.send_message(chat_id, t("ask_name", lang), skip_name_keyboard(lang))
@@ -502,6 +557,10 @@ def _after_onboarding(tg_id, chat_id, lang: str, greeting: str) -> None:
         _chat(account, chat_id, pending, lang)
     else:
         api.send_message(chat_id, greeting)
+
+    # Еске салуды тек өз келісімімен қосамыз.
+    if account and account["reminder_hour"] is None:
+        api.send_message(chat_id, t("remind_offer", lang), remind_offer_keyboard(lang))
 
 
 def _send_welcome(chat_id, lang: str) -> None:
@@ -700,6 +759,24 @@ def _handle_callback(callback: dict) -> None:
             )
         else:
             api.answer_callback(callback_id)
+        return
+
+    if data.startswith("rem:"):
+        from app.telegram.reminders import REMINDER_HOURS, set_reminder
+
+        choice = data.split(":", 1)[1]
+        api.answer_callback(callback_id)
+
+        if choice in ("off", "no"):
+            set_reminder(tg_id, None)
+            api.edit_text(chat_id, message.get("message_id"), t("remind_off", lang))
+        elif choice.isdigit() and int(choice) in REMINDER_HOURS:
+            set_reminder(tg_id, int(choice))
+            api.edit_text(
+                chat_id,
+                message.get("message_id"),
+                t("remind_on", lang, hour=f"{int(choice):02d}"),
+            )
         return
 
     if data.startswith("fb:"):

@@ -23,6 +23,7 @@ from app.services.usage import (
     TELEGRAM_SCOPE,
     USAGE_TZ,
 )
+from app.telegram.reminders import REMINDER_SCOPE
 
 
 router = APIRouter(
@@ -134,6 +135,85 @@ def _token_cost_usd(input_tokens: int, output_tokens: int) -> float | None:
 
 
 # =====================================================
+# RETENTION (қайта оралу)
+# =====================================================
+
+COHORT_DAYS = 30
+
+
+def _retention(user_rows: list, today) -> dict:
+    """
+    Соңғы 30 күнде тіркелгендер бойынша:
+    - d1: ертеңіне қайта жазғандар (тіркелгеніне кемі 1 күн болғандар ішінен);
+    - d7: 7 күннен кейін де жазғандар (кемі 7 күн болғандар ішінен);
+    - returned: тіркелген күннен кейін кез келген күні оралғандар.
+    Белсенділік = usage_daily ішінде хабарлама жазған күн (сайт + Telegram).
+    """
+
+    since = (today - timedelta(days=COHORT_DAYS + 14)).isoformat()
+    rows = _fetch_all(
+        "SELECT day, scope, messages FROM usage_daily WHERE day >= ? AND messages > 0",
+        (since,),
+    )
+
+    active_days: dict[str, set] = {}
+    for row in rows:
+        if str(row["scope"]).startswith("__"):
+            continue
+        active_days.setdefault(row["scope"], set()).add(row["day"])
+
+    cohort_start = today - timedelta(days=COHORT_DAYS)
+
+    def rate(returned: int, eligible: int):
+        return {
+            "eligible": eligible,
+            "returned": returned,
+            "percent": round(returned / eligible * 100) if eligible else None,
+        }
+
+    d1 = [0, 0]
+    d7 = [0, 0]
+    any_return = [0, 0]
+
+    for row, created, created_day in user_rows:
+        if not created_day:
+            continue
+
+        signup = datetime.fromisoformat(created_day).date()
+        if signup < cohort_start:
+            continue
+
+        days = active_days.get(row["user_id"], set())
+        age = (today - signup).days
+
+        if age >= 1:
+            next_day = (signup + timedelta(days=1)).isoformat()
+            d1[1] += 1
+            d1[0] += next_day in days
+            any_return[1] += 1
+            any_return[0] += any(day > created_day for day in days)
+
+        if age >= 7:
+            week = (signup + timedelta(days=7)).isoformat()
+            d7[1] += 1
+            d7[0] += any(day >= week for day in days)
+
+    return {
+        "cohort_days": COHORT_DAYS,
+        "d1": rate(*d1),
+        "d7": rate(*d7),
+        "returned": rate(*any_return),
+    }
+
+
+def _count_reminders_enabled() -> int:
+    rows = _fetch_all(
+        "SELECT COUNT(*) AS n FROM telegram_accounts WHERE reminder_hour IS NOT NULL"
+    )
+    return int(rows[0]["n"]) if rows else 0
+
+
+# =====================================================
 # STATS
 # =====================================================
 
@@ -180,6 +260,7 @@ def admin_stats(_admin=Depends(require_admin)):
 
     messages_by_day: dict[str, int] = {}
     telegram_by_day: dict[str, int] = {}
+    reminders_by_day: dict[str, int] = {}
     active_by_day: dict[str, int] = {}
     tokens_by_day: dict[str, dict] = {}
     messages_by_user_30: dict[str, int] = {}
@@ -192,6 +273,10 @@ def admin_stats(_admin=Depends(require_admin)):
 
         if row["scope"] == TELEGRAM_SCOPE:
             telegram_by_day[day] = int(row["messages"] or 0)
+            continue
+
+        if row["scope"] == REMINDER_SCOPE:
+            reminders_by_day[day] = int(row["messages"] or 0)
             continue
 
         if row["scope"] == SITE_SCOPE:
@@ -294,6 +379,12 @@ def admin_stats(_admin=Depends(require_admin)):
             }
             for day in days
         ],
+        "retention": _retention(user_rows, today),
+        "reminders": {
+            "enabled": _count_reminders_enabled(),
+            "sent_today": reminders_by_day.get(today.isoformat(), 0),
+            "sent_7d": sum(n for d, n in reminders_by_day.items() if d >= since_7),
+        },
         "telegram": {
             "users": telegram_users,
             "linked_to_site": telegram_linked,
